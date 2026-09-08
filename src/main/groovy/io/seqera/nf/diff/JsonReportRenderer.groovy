@@ -39,6 +39,7 @@ class JsonReportRenderer {
                         tasksUnchanged : diff.tasksUnchanged,
                         tasksRecomputed: diff.tasksRecomputed,
                         regressions    : diff.regressions.count { it.regression },
+                        softwareChanged : diff.software.count { it.changed },
                         outputsChanged : diff.outputs.count { it.hasChanges() },
                         logsChanged    : diff.logs.count { it.hasChanges() },
                 ],
@@ -47,6 +48,7 @@ class JsonReportRenderer {
                 config     : diff.config.collect { fieldModel(it, diff.showObvious) },
                 configNote : diff.configNote,
                 processes  : diff.processes.collect { processModel(it) },
+                software   : diff.software.collect { softwareModel(it) },
                 tasks      : diff.tasks.collect { taskModel(it, diff.showObvious) },
                 perfThreshold: diff.perfThreshold,
                 regressions: diff.regressions.collect { regressionModel(it) },
@@ -169,6 +171,19 @@ class JsonReportRenderer {
                 countA : pd.countA,
                 countB : pd.countB,
                 status : processStatus(pd),
+        ] as Map<String,Object>
+    }
+
+    private Map<String,Object> softwareModel(DiffResult.SoftwareDiff sd) {
+        return [
+                process         : sd.process,
+                status          : sd.kind?.name()?.toLowerCase(),
+                containerChanged: sd.containerChanged,
+                condaChanged    : sd.condaChanged,
+                containersA     : sd.containersA,
+                containersB     : sd.containersB,
+                condaA          : sd.condaA,
+                condaB          : sd.condaB,
         ] as Map<String,Object>
     }
 

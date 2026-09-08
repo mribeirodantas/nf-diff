@@ -44,6 +44,7 @@ class HtmlReportRenderer {
         renderParams(sb, diff)
         renderConfig(sb, diff)
         renderProcesses(sb, diff)
+        renderSoftware(sb, diff)
         renderRegressions(sb, diff)
         renderTasks(sb, diff)
         renderOutputs(sb, diff)
@@ -103,6 +104,7 @@ class HtmlReportRenderer {
         sb << '  <a href="#params">Parameters</a>\n'
         sb << '  <a href="#config">Configuration</a>\n'
         sb << '  <a href="#processes">Processes</a>\n'
+        sb << '  <a href="#software">Software</a>\n'
         sb << '  <a href="#regressions">Regressions</a>\n'
         sb << '  <a href="#tasks">Tasks</a>\n'
         if( diff.diffOutputs )
@@ -123,6 +125,7 @@ class HtmlReportRenderer {
         sb << statCard('Only in B', diff.tasksAdded, 'added')
         sb << statCard('Unchanged', diff.tasksUnchanged, 'unchanged')
         sb << statCard('Recomputed', diff.tasksRecomputed, 'changed')
+        sb << statCard('Software changed', diff.software.count { it.changed } as int, 'changed')
         sb << statCard('Regressions', diff.regressions.count { it.regression } as int, 'removed')
         if( diff.diffOutputs )
             sb << statCard('Outputs changed', diff.outputs.count { it.hasChanges() } as int, 'changed')
@@ -252,6 +255,39 @@ class HtmlReportRenderer {
         }
         sb << '  </tbody>\n  </table>\n'
         sb << '</section>\n'
+    }
+
+    // -------------------------------------------------------------- software
+
+    private void renderSoftware(StringBuilder sb, DiffResult diff) {
+        sb << '<section id="software" class="section">\n'
+        sb << '  <h2>Software &amp; versions</h2>\n'
+        sb << '  <p class="mode-note">The container image and Conda package spec each process ran with, read from the run cache. A change here means the tools (and their versions) differed between the two runs.</p>\n'
+        if( diff.software.isEmpty() ) {
+            sb << '  <p class="mode-note">No software environment was recorded for either run.</p>\n'
+            sb << '</section>\n'
+            return
+        }
+        sb << '  <table class="proc">\n'
+        sb << '    <thead><tr><th>Process</th><th>Container</th><th>Conda</th><th></th></tr></thead>\n  <tbody>\n'
+        diff.software.each { DiffResult.SoftwareDiff sd ->
+            final kind = sd.kind.name().toLowerCase()
+            sb << "    <tr class=\"row-${kind}\"><th class=\"mono\">${esc(sd.process)}</th>"
+            sb << "<td>${softwareCell(sd.containersA, sd.containersB, sd.containerChanged)}</td>"
+            sb << "<td>${softwareCell(sd.condaA, sd.condaB, sd.condaChanged)}</td>"
+            sb << "<td><span class=\"pill ${kind}\">${kind}</span></td></tr>\n"
+        }
+        sb << '  </tbody>\n  </table>\n'
+        sb << '</section>\n'
+    }
+
+    /** Software cell: a single mono value when unchanged, or {@code A &rarr; B} when it changed. */
+    private static String softwareCell(List<String> a, List<String> b, boolean changed) {
+        final left = a.isEmpty() ? '—' : a.join(', ')
+        if( !changed )
+            return "<span class=\"mono\">${esc(left)}</span>".toString()
+        final right = b.isEmpty() ? '—' : b.join(', ')
+        return "<span class=\"mono\">${esc(left)}</span> &rarr; <span class=\"mono\">${esc(right)}</span>".toString()
     }
 
     // ------------------------------------------------------------ regressions

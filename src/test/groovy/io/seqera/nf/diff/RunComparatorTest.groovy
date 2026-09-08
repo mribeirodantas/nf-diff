@@ -61,6 +61,64 @@ class RunComparatorTest extends Specification {
         changed.fieldDiffs.find { it.field == 'script' }.changed
     }
 
+    def 'flags a container version change in the software layer'() {
+        given: 'the same process running a different container tag between runs'
+        def a = snap('runA', [task(process: 'FASTQC', name: 'FASTQC (1)',
+                display: [status: 'COMPLETED'], container: 'biocontainers/fastqc:0.11.9--0')])
+        def b = snap('runB', [task(process: 'FASTQC', name: 'FASTQC (1)',
+                display: [status: 'COMPLETED'], container: 'biocontainers/fastqc:0.12.1--0')])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then: 'the software layer reports the process as changed'
+        def sw = diff.software.find { it.process == 'FASTQC' }
+        sw.kind == DiffResult.Kind.CHANGED
+        sw.containerChanged
+        !sw.condaChanged
+        sw.containersA == ['biocontainers/fastqc:0.11.9--0']
+        sw.containersB == ['biocontainers/fastqc:0.12.1--0']
+
+        and: 'the change breaks the identical verdict'
+        diff.hasSoftwareChanges()
+        !diff.identical
+    }
+
+    def 'flags a conda spec change even when containers match'() {
+        given:
+        def a = snap('runA', [task(process: 'SALMON', name: 'SALMON (1)',
+                display: [status: 'COMPLETED', conda: 'bioconda::salmon=1.9.0'])])
+        def b = snap('runB', [task(process: 'SALMON', name: 'SALMON (1)',
+                display: [status: 'COMPLETED', conda: 'bioconda::salmon=1.10.1'])])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then:
+        def sw = diff.software.find { it.process == 'SALMON' }
+        sw.kind == DiffResult.Kind.CHANGED
+        sw.condaChanged
+        !sw.containerChanged
+        !diff.identical
+    }
+
+    def 'treats an identical software environment as unchanged'() {
+        given:
+        def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)',
+                display: [status: 'COMPLETED'], container: 'ubuntu:22.04')])
+        def b = snap('runB', [task(process: 'FOO', name: 'FOO (1)',
+                display: [status: 'COMPLETED'], container: 'ubuntu:22.04')])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then:
+        def sw = diff.software.find { it.process == 'FOO' }
+        sw.kind == DiffResult.Kind.UNCHANGED
+        !diff.hasSoftwareChanges()
+        diff.identical
+    }
+
     def 'identical runs report no differences'() {
         given:
         def tasks = [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'echo hi'])]

@@ -83,13 +83,18 @@ class HtmlReportRendererTest extends Specification {
                 [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'echo bye'])] )
 
         expect: 'no external scripts, stylesheets, or fonts'
-        !html.contains('<script src')
-        !html.contains('<link ')
-        !html.contains('http://')
-        !html.contains('https://')
-        !html.contains('@import')
-        !html.contains('fonts.googleapis')
-        !html.contains('fonts.gstatic')
+        // The footer carries a clickable <a href> to the project repo — that is
+        // a link the user chooses to follow, not an asset the browser auto-loads.
+        // Strip anchor hrefs before asserting so this guard stays focused on its
+        // stated intent: nothing is fetched over the network to render the report.
+        def assets = html.replaceAll(/<a\b[^>]*>/, '<a>')
+        !assets.contains('<script src')
+        !assets.contains('<link ')
+        !assets.contains('http://')
+        !assets.contains('https://')
+        !assets.contains('@import')
+        !assets.contains('fonts.googleapis')
+        !assets.contains('fonts.gstatic')
 
         and: 'CSS and JS are inlined'
         html.contains('<style>')

@@ -58,6 +58,32 @@ class DiffResult {
     }
 
     /**
+     * Per-process comparison of the software environment — the container
+     * image(s) and conda package spec(s) that process's tasks ran with in each
+     * run. This is the "did a tool version change?" layer: both values are read
+     * straight from the run cache's trace records, so it needs no work
+     * directories. A process present in only one run is {@link Kind#ADDED} /
+     * {@link Kind#REMOVED}; a process present in both whose container or conda
+     * set differs is {@link Kind#CHANGED}.
+     */
+    @CompileStatic
+    static class SoftwareDiff {
+        String process
+        /** Distinct container images used by this process in Run A / Run B, sorted. */
+        List<String> containersA = []
+        List<String> containersB = []
+        /** Distinct conda package specs used by this process in Run A / Run B, sorted. */
+        List<String> condaA = []
+        List<String> condaB = []
+        Kind kind
+
+        boolean isContainerChanged() { containersA != containersB }
+        boolean isCondaChanged()     { condaA != condaB }
+        /** True when the software environment meaningfully differs (process in both runs). */
+        boolean isChanged()          { kind == Kind.CHANGED }
+    }
+
+    /**
      * A single task metric whose value changed enough between the two runs to
      * be worth surfacing (e.g. realtime, peak_rss). Larger values are "worse",
      * so a positive {@link #pctDelta} means Run B regressed relative to Run A.
@@ -261,6 +287,21 @@ class DiffResult {
     List<TaskDiff> tasks = []
 
     /**
+     * Per-process software environment (container image + conda spec) diff.
+     * Read from the run cache, so this is always populated (no work directories
+     * required). A {@link Kind#CHANGED} entry — a process whose
+     * container or conda set differs between the runs — counts toward
+     * {@link #isIdentical()} and {@code --fail-on-change}: a changed tool
+     * version means the runs are not reproducibly identical.
+     */
+    List<SoftwareDiff> software = []
+
+    /** True when any process's container or conda environment changed between runs. */
+    boolean hasSoftwareChanges() {
+        return software.any { it.kind == Kind.CHANGED }
+    }
+
+    /**
      * Task metrics (realtime, memory) that changed beyond the configured
      * threshold, sorted worst-regression first. Derived from always-changing
      * numeric fields, so this layer never affects {@link #isIdentical()}.
@@ -350,6 +391,7 @@ class DiffResult {
                 params.every { !it.isHighlighted(showObvious) } &&
                 config.every { !it.isHighlighted(showObvious) } &&
                 processes.every { it.unchanged } &&
+                !hasSoftwareChanges() &&
                 !hasOutputChanges()
     }
 }

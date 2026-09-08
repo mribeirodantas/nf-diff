@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Software & versions diffing** — a new always-on layer that compares, per
+  process, the distinct container image(s) and Conda package spec(s) that
+  process's tasks ran with in each run. Both values are read straight from the
+  run cache's trace records, so the layer needs no work directories and is
+  always computed. It answers "did a tool version change?" directly — e.g.
+  `biocontainers/fastqc:0.11.9` → `biocontainers/fastqc:0.12.1` — instead of
+  leaving it buried in the per-task container field. A process present in only
+  one run is added/removed; a process in both whose container or Conda set
+  differs is flagged changed. A changed software environment counts toward the
+  "identical" verdict and `--fail-on-change`, which also makes a Conda-only
+  change (previously invisible to the task layer) break identity. Surfaced in
+  all three report formats (HTML section + summary card, Markdown section +
+  summary column, and a `software` array with a `softwareChanged` summary count
+  in JSON).
 - **Output-file diffing** — a new opt-in `--diff-outputs` layer that compares
   the files each task matched in both runs wrote to its work directory,
   classifying them as added / removed / changed / unchanged. Files are compared

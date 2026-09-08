@@ -129,6 +129,7 @@ class RunComparator {
         result.params = compareParams(a, b)
         computeConfig(result, a, b)
         result.processes = compareProcesses(a, b).findAll { ProcessDiff pd -> filter.accepts(pd.process) }
+        result.software = compareSoftware(a, b).findAll { DiffResult.SoftwareDiff sd -> filter.accepts(sd.process) }
         result.tasks = compareTasks(a, b).findAll { TaskDiff td -> filter.accepts(td.process()) }
 
         result.tasks.each { TaskDiff td ->
@@ -348,6 +349,77 @@ class RunComparator {
         return names.collect { String p ->
             new ProcessDiff(process: p, countA: (countsA[p] ?: 0), countB: (countsB[p] ?: 0))
         }
+    }
+
+    /**
+     * Diff the software environment per process: the distinct container
+     * image(s) and conda package spec(s) each process's tasks ran with. A
+     * process present in only one run is ADDED/REMOVED; a process present in
+     * both whose container or conda set differs is CHANGED. Values come from
+     * the cached trace records, so this needs no work directories.
+     */
+    private List<DiffResult.SoftwareDiff> compareSoftware(RunSnapshot a, RunSnapshot b) {
+        final sa = softwareByProcess(a)
+        final sb = softwareByProcess(b)
+        final names = new TreeSet<String>()
+        names.addAll(sa.keySet())
+        names.addAll(sb.keySet())
+
+        return names.collect { String p ->
+            final ea = sa.get(p)
+            final eb = sb.get(p)
+            final containersA = ea != null ? new ArrayList<String>(ea.get('containers')) : new ArrayList<String>()
+            final containersB = eb != null ? new ArrayList<String>(eb.get('containers')) : new ArrayList<String>()
+            final condaA = ea != null ? new ArrayList<String>(ea.get('conda')) : new ArrayList<String>()
+            final condaB = eb != null ? new ArrayList<String>(eb.get('conda')) : new ArrayList<String>()
+
+            DiffResult.Kind kind
+            if( ea != null && eb == null )
+                kind = Kind.REMOVED
+            else if( ea == null && eb != null )
+                kind = Kind.ADDED
+            else
+                kind = (containersA != containersB || condaA != condaB) ? Kind.CHANGED : Kind.UNCHANGED
+
+            return new DiffResult.SoftwareDiff(
+                    process     : p,
+                    containersA : containersA, containersB : containersB,
+                    condaA      : condaA, condaB : condaB,
+                    kind        : kind )
+        }
+    }
+
+    /**
+     * Collect the distinct container image(s) and conda spec(s) each process
+     * used across its tasks, keyed by process name. Values are read from the
+     * task's {@code container} field and its formatted {@code conda} value;
+     * empty or {@code -} placeholders are treated as absent.
+     */
+    private static Map<String,Map<String,Set<String>>> softwareByProcess(RunSnapshot snap) {
+        final map = new TreeMap<String,Map<String,Set<String>>>()
+        snap.tasks.each { TaskInfo t ->
+            final p = t.process ?: '(unknown)'
+            Map<String,Set<String>> entry = map.get(p)
+            if( entry == null ) {
+                entry = ['containers': new TreeSet<String>(), 'conda': new TreeSet<String>()] as Map<String,Set<String>>
+                map.put(p, entry)
+            }
+            final container = cleanSoftware(t.container)
+            if( container != null )
+                entry.get('containers').add(container)
+            final conda = cleanSoftware(t.display?.get('conda'))
+            if( conda != null )
+                entry.get('conda').add(conda)
+        }
+        return map
+    }
+
+    /** Normalise a software value: trim, treating empty or {@code -} placeholders as absent. */
+    private static String cleanSoftware(String value) {
+        if( value == null )
+            return null
+        final v = value.trim()
+        return (v.isEmpty() || v == '-') ? null : v
     }
 
     private List<TaskDiff> compareTasks(RunSnapshot a, RunSnapshot b) {

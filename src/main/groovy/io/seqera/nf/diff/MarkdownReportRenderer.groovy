@@ -28,6 +28,7 @@ class MarkdownReportRenderer {
         renderParams(sb, diff)
         renderConfig(sb, diff)
         renderProcesses(sb, diff)
+        renderSoftware(sb, diff)
         renderRegressions(sb, diff)
         renderTasks(sb, diff)
         renderOutputs(sb, diff)
@@ -46,9 +47,9 @@ class MarkdownReportRenderer {
         }
         else {
             sb << '## Summary\n\n'
-            sb << '| Changed | Only in B | Only in A | Unchanged | Recomputed | Regressions |\n'
-            sb << '|--------:|----------:|----------:|----------:|-----------:|------------:|\n'
-            sb << "| ${diff.tasksChanged} | ${diff.tasksAdded} | ${diff.tasksRemoved} | ${diff.tasksUnchanged} | ${diff.tasksRecomputed} | ${diff.regressions.count { it.regression }} |\n\n"
+            sb << '| Changed | Only in B | Only in A | Unchanged | Recomputed | Software | Regressions |\n'
+            sb << '|--------:|----------:|----------:|----------:|-----------:|---------:|------------:|\n'
+            sb << "| ${diff.tasksChanged} | ${diff.tasksAdded} | ${diff.tasksRemoved} | ${diff.tasksUnchanged} | ${diff.tasksRecomputed} | ${diff.software.count { it.changed }} | ${diff.regressions.count { it.regression }} |\n\n"
         }
     }
 
@@ -139,6 +140,35 @@ class MarkdownReportRenderer {
             sb << "| ${cell(pd.process)} | ${pd.countA} | ${pd.countB} | ${processStatus(pd)} |\n"
         }
         sb << '\n'
+    }
+
+    private void renderSoftware(StringBuilder sb, DiffResult diff) {
+        sb << '## Software & versions\n\n'
+        if( diff.software.isEmpty() ) {
+            sb << '_No software environment recorded._\n\n'
+            return
+        }
+        final changed = diff.software.findAll { DiffResult.SoftwareDiff sd -> sd.kind != DiffResult.Kind.UNCHANGED }
+        if( changed.isEmpty() ) {
+            sb << '_No container or conda changes — every process ran with the same software environment._\n\n'
+            return
+        }
+        sb << '| Process | Container | Conda | Status |\n'
+        sb << '|---|---|---|---|\n'
+        changed.each { DiffResult.SoftwareDiff sd ->
+            sb << "| ${cell(sd.process)} | ${softwareCell(sd.containersA, sd.containersB, sd.containerChanged)}"
+            sb << " | ${softwareCell(sd.condaA, sd.condaB, sd.condaChanged)} | ${sd.kind.name().toLowerCase()} |\n"
+        }
+        sb << '\n'
+    }
+
+    /** Software table cell: single value when unchanged, `A → B` when it changed. */
+    private static String softwareCell(List<String> a, List<String> b, boolean changed) {
+        final left = a.isEmpty() ? '—' : a.join(', ')
+        if( !changed )
+            return cell(left)
+        final right = b.isEmpty() ? '—' : b.join(', ')
+        return cell("${left} → ${right}".toString())
     }
 
     private void renderRegressions(StringBuilder sb, DiffResult diff) {
