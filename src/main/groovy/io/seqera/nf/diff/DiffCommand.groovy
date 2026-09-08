@@ -201,125 +201,75 @@ nf-diff: comparison complete
             throw new UsageException('show help')
 
         final positional = new ArrayList<String>()
-        int i = 0
-        while( i < args.size() ) {
-            final arg = args[i]
-            // Support the inline `--opt=value` form as well as `--opt value`.
-            // Nextflow's `plugin` launcher forwards `--output=<file>` reliably,
-            // whereas a space-separated short flag like `-o <file>` is swallowed
-            // by the launcher before it reaches the plugin.
-            final eq = arg.indexOf('=')
-            final key = (arg.startsWith('-') && eq > 0) ? arg.substring(0, eq) : arg
-            final inlineVal = (arg.startsWith('-') && eq > 0) ? arg.substring(eq + 1) : null
-            switch( key ) {
+        // The cursor owns position tracking, inline `--key=value` splitting, and
+        // value/bool/numeric extraction, so each option case is a single
+        // assignment instead of the old parse + range-check + `if( inlineVal ==
+        // null ) i++` boilerplate. Nextflow's `plugin` launcher forwards
+        // `--key=value` reliably but rewrites bare flags to `--flag true` and
+        // `--key=value` to `--key value`, so the cursor honours both forms.
+        final cur = new ArgCursor(args)
+        while( cur.hasNext() ) {
+            final arg = cur.next()
+            switch( cur.key ) {
                 case '-o':
                 case '--output':
-                    if( inlineVal != null ) {
-                        outputFile = Paths.get(inlineVal)
-                    }
-                    else {
-                        if( i + 1 >= args.size() )
-                            throw new UsageException("missing value for ${key}")
-                        outputFile = Paths.get(args[++i])
-                    }
+                    outputFile = Paths.get(cur.requireValue())
                     outputExplicit = true
                     break
                 case '-f':
                 case '--format':
-                    final fmt = inlineVal
-                    if( fmt != null ) {
-                        format = fmt
-                    }
-                    else {
-                        if( i + 1 >= args.size() )
-                            throw new UsageException("missing value for ${key}")
-                        format = args[++i]
-                    }
+                    format = cur.requireValue()
                     break
                 case '--fail-on-change':
-                    failOnChange = boolFlag(inlineVal, args, i)
-                    if( inlineVal == null && nextIsBool(args, i) ) i++
+                    failOnChange = cur.boolValue()
                     break
                 case '-l':
                 case '--last':
                     last = true
-                    // Nextflow's `plugin` launcher rewrites forwarded args:
-                    // bare `--last` arrives as `--last true`, and `--last=N`
-                    // arrives space-separated as `--last N`. So resolve the
-                    // value from the inline form OR the following token.
-                    String lastVal = inlineVal
-                    if( lastVal == null && i + 1 < args.size() ) {
-                        final nxt = args[i + 1]
+                    // Bare `--last` arrives as `--last true`; `--last=N` arrives
+                    // space-separated as `--last N`. So resolve the value from
+                    // the inline form OR the following token.
+                    String lastVal = cur.inlineVal
+                    if( lastVal == null ) {
+                        final nxt = cur.peek()
                         if( nxt == 'true' || nxt == 'false' ) {
                             // Injected boolean for the bare flag; not a value.
                             last = Boolean.parseBoolean(nxt)
-                            i++
+                            cur.consumePeeked()
                         }
                         // A single offset (`--last N`) or the explicit two-offset
                         // pair (`--last A:B`); anything else is not a --last value.
-                        else if( nxt ==~ /\d+(:\d+)?/ ) {
+                        else if( nxt != null && nxt ==~ /\d+(:\d+)?/ ) {
                             lastVal = nxt
-                            i++
+                            cur.consumePeeked()
                         }
                     }
                     if( lastVal != null )
                         parseLastValue(lastVal)
                     break
                 case '--only':
-                    onlyGlobs.addAll(splitGlobs(requireValue(key, inlineVal, args, i)))
-                    if( inlineVal == null ) i++
+                    onlyGlobs.addAll(splitGlobs(cur.requireValue()))
                     break
                 case '--exclude':
-                    excludeGlobs.addAll(splitGlobs(requireValue(key, inlineVal, args, i)))
-                    if( inlineVal == null ) i++
+                    excludeGlobs.addAll(splitGlobs(cur.requireValue()))
                     break
                 case '--perf-threshold':
-                    final pt = requireValue(key, inlineVal, args, i)
-                    if( inlineVal == null ) i++
-                    try {
-                        perfThreshold = Double.parseDouble(pt)
-                    }
-                    catch( NumberFormatException ignored ) {
-                        throw new UsageException("--perf-threshold must be a number (percent), got '${pt}'")
-                    }
-                    if( perfThreshold < 0 )
-                        throw new UsageException("--perf-threshold must be >= 0, got ${perfThreshold}")
+                    perfThreshold = cur.doubleValue(0.0d, 'a number (percent)')
                     break
                 case '--diff-outputs':
-                    diffOutputs = boolFlag(inlineVal, args, i)
-                    if( inlineVal == null && nextIsBool(args, i) ) i++
+                    diffOutputs = cur.boolValue()
                     break
                 case '--outputs-max-bytes':
-                    final mb = requireValue(key, inlineVal, args, i)
-                    if( inlineVal == null ) i++
-                    try {
-                        outputsMaxBytes = Long.parseLong(mb)
-                    }
-                    catch( NumberFormatException ignored ) {
-                        throw new UsageException("--outputs-max-bytes must be an integer number of bytes, got '${mb}'")
-                    }
-                    if( outputsMaxBytes < 0 )
-                        throw new UsageException("--outputs-max-bytes must be >= 0, got ${outputsMaxBytes}")
+                    outputsMaxBytes = cur.longValue(0L, 'an integer number of bytes')
                     break
                 case '--outputs-max-lines':
-                    final oml = requireValue(key, inlineVal, args, i)
-                    if( inlineVal == null ) i++
-                    try {
-                        outputsMaxLines = Integer.parseInt(oml)
-                    }
-                    catch( NumberFormatException ignored ) {
-                        throw new UsageException("--outputs-max-lines must be an integer, got '${oml}'")
-                    }
-                    if( outputsMaxLines < 1 )
-                        throw new UsageException("--outputs-max-lines must be >= 1, got ${outputsMaxLines}")
+                    outputsMaxLines = cur.intValue(1, 'an integer')
                     break
                 case '--diff-logs':
-                    diffLogs = boolFlag(inlineVal, args, i)
-                    if( inlineVal == null && nextIsBool(args, i) ) i++
+                    diffLogs = cur.boolValue()
                     break
                 case '--diff-dag':
-                    diffDag = boolFlag(inlineVal, args, i)
-                    if( inlineVal == null && nextIsBool(args, i) ) i++
+                    diffDag = cur.boolValue()
                     break
                 case '--diff-all':
                     // Convenience: the three opt-in work-dir layers share the
@@ -327,56 +277,36 @@ nf-diff: comparison complete
                     // commonly wanted together. Only enables — never force
                     // false — so a later explicit --diff-<layer>=false can still
                     // switch an individual layer back off.
-                    if( boolFlag(inlineVal, args, i) ) {
+                    if( cur.boolValue() ) {
                         diffOutputs = true
                         diffLogs = true
                         diffDag = true
                     }
-                    if( inlineVal == null && nextIsBool(args, i) ) i++
                     break
                 case '--logs-max-lines':
-                    final ml = requireValue(key, inlineVal, args, i)
-                    if( inlineVal == null ) i++
-                    try {
-                        logsMaxLines = Integer.parseInt(ml)
-                    }
-                    catch( NumberFormatException ignored ) {
-                        throw new UsageException("--logs-max-lines must be an integer, got '${ml}'")
-                    }
-                    if( logsMaxLines < 1 )
-                        throw new UsageException("--logs-max-lines must be >= 1, got ${logsMaxLines}")
+                    logsMaxLines = cur.intValue(1, 'an integer')
                     break
                 case '-d':
                 case '--dir':
-                    if( inlineVal != null ) {
-                        baseDir = Paths.get(inlineVal)
-                    }
-                    else {
-                        if( i + 1 >= args.size() )
-                            throw new UsageException("missing value for ${key}")
-                        baseDir = Paths.get(args[++i])
-                    }
+                    baseDir = Paths.get(cur.requireValue())
                     break
                 case '--dir-a':
-                    baseDirA = Paths.get(requireValue(key, inlineVal, args, i))
-                    if( inlineVal == null ) i++
+                    baseDirA = Paths.get(cur.requireValue())
                     break
                 case '--dir-b':
-                    baseDirB = Paths.get(requireValue(key, inlineVal, args, i))
-                    if( inlineVal == null ) i++
+                    baseDirB = Paths.get(cur.requireValue())
                     break
                 case '-v':
                 case '--verbose':
                 case '--all':
-                    verbose = boolFlag(inlineVal, args, i)
-                    if( inlineVal == null && nextIsBool(args, i) ) i++
+                    verbose = cur.boolValue()
                     break
                 default:
                     if( arg.startsWith('-') )
-                        throw new UsageException("unknown option '${key}'")
+                        throw new UsageException("unknown option '${cur.key}'")
                     positional.add(arg)
             }
-            i++
+            cur.advance()
         }
 
         if( last ) {
@@ -409,31 +339,129 @@ nf-diff: comparison complete
     ]
 
     /**
-     * Resolve a boolean flag's value. A bare flag is {@code true}; Nextflow's
-     * `plugin` launcher forwards bare flags as `--flag true`, so an injected
-     * {@code true}/{@code false} in the following token (or the inline
-     * `--flag=true` form) is honoured.
+     * A cursor over the raw argument list that drives {@link #parse}. Beyond
+     * tracking the position it centralises the value extraction each option
+     * case used to hand-roll: splitting an inline {@code --key=value}, and —
+     * for the space-separated {@code --key value} form — transparently
+     * consuming the following token. This removes the repeated
+     * {@code if( inlineVal == null ) i++} bookkeeping (and its off-by-one
+     * hazard) plus the duplicated parse/range-check blocks from every numeric
+     * option, so each option case shrinks to a single assignment.
+     *
+     * <p>Package-visible (rather than {@code private}) only so {@code
+     * ArgCursorTest} can pin its contract directly, independent of the
+     * {@link #parse} wiring.
      */
-    private static boolean boolFlag(String inlineVal, List<String> args, int i) {
-        if( inlineVal != null )
-            return Boolean.parseBoolean(inlineVal)
-        if( nextIsBool(args, i) )
-            return Boolean.parseBoolean(args[i + 1])
-        return true
-    }
+    @CompileStatic
+    static class ArgCursor {
+        private final List<String> args
+        /** Current index into {@link #args}. */
+        int i = 0
+        /** Option key at the current position, e.g. {@code --format} or {@code -o}. */
+        String key
+        /** Inline value from a {@code --key=value} token, or {@code null}. */
+        String inlineVal
 
-    /** True when the token after index {@code i} is a literal {@code true}/{@code false}. */
-    private static boolean nextIsBool(List<String> args, int i) {
-        return i + 1 < args.size() && (args[i + 1] == 'true' || args[i + 1] == 'false')
-    }
+        ArgCursor(List<String> args) { this.args = args }
 
-    /** Resolve an option value from its inline (`--opt=val`) or next-arg form. */
-    private static String requireValue(String key, String inlineVal, List<String> args, int i) {
-        if( inlineVal != null )
-            return inlineVal
-        if( i + 1 >= args.size() )
-            throw new UsageException("missing value for ${key}")
-        return args[i + 1]
+        /** True while there is an unconsumed token. */
+        boolean hasNext() { return i < args.size() }
+
+        /**
+         * Load the token at the cursor, splitting a leading {@code --key=value}
+         * into {@link #key}/{@link #inlineVal}. A bare value (no leading dash)
+         * or a lone {@code -} keeps {@code inlineVal == null}. Returns the raw
+         * token so the caller can treat it as a positional argument.
+         */
+        String next() {
+            final arg = args[i]
+            final eq = arg.indexOf('=')
+            final hasInline = arg.startsWith('-') && eq > 0
+            key = hasInline ? arg.substring(0, eq) : arg
+            inlineVal = hasInline ? arg.substring(eq + 1) : null
+            return arg
+        }
+
+        /** Advance past the current token (and any value token it consumed). */
+        void advance() { i++ }
+
+        /** The token following the cursor, or {@code null} if there is none. */
+        String peek() { return i + 1 < args.size() ? args[i + 1] : null }
+
+        /** Consume the token previously inspected via {@link #peek}. */
+        void consumePeeked() { i++ }
+
+        /**
+         * The value for an option that requires one: the inline
+         * {@code --key=value}, else the following token (which is consumed).
+         * Throws {@link UsageException} when neither is present.
+         */
+        String requireValue() {
+            if( inlineVal != null )
+                return inlineVal
+            if( i + 1 >= args.size() )
+                throw new UsageException("missing value for ${key}")
+            return args[++i]
+        }
+
+        /**
+         * Resolve a boolean flag. A bare flag is {@code true}; the Nextflow
+         * `plugin` launcher forwards bare flags as {@code --flag true}, so an
+         * injected {@code true}/{@code false} in the following token (or the
+         * inline {@code --flag=true} form) is honoured and consumed.
+         */
+        boolean boolValue() {
+            if( inlineVal != null )
+                return Boolean.parseBoolean(inlineVal)
+            if( i + 1 < args.size() && (args[i + 1] == 'true' || args[i + 1] == 'false') )
+                return Boolean.parseBoolean(args[++i])
+            return true
+        }
+
+        /** Parse a required int-valued option, enforcing a {@code >= min} floor. */
+        int intValue(int min, String typeDesc) {
+            final raw = requireValue()
+            int v
+            try {
+                v = Integer.parseInt(raw)
+            }
+            catch( NumberFormatException ignored ) {
+                throw new UsageException("${key} must be ${typeDesc}, got '${raw}'")
+            }
+            if( v < min )
+                throw new UsageException("${key} must be >= ${min}, got ${v}")
+            return v
+        }
+
+        /** Parse a required long-valued option, enforcing a {@code >= min} floor. */
+        long longValue(long min, String typeDesc) {
+            final raw = requireValue()
+            long v
+            try {
+                v = Long.parseLong(raw)
+            }
+            catch( NumberFormatException ignored ) {
+                throw new UsageException("${key} must be ${typeDesc}, got '${raw}'")
+            }
+            if( v < min )
+                throw new UsageException("${key} must be >= ${min}, got ${v}")
+            return v
+        }
+
+        /** Parse a required double-valued option, enforcing a {@code >= min} floor. */
+        double doubleValue(double min, String typeDesc) {
+            final raw = requireValue()
+            double v
+            try {
+                v = Double.parseDouble(raw)
+            }
+            catch( NumberFormatException ignored ) {
+                throw new UsageException("${key} must be ${typeDesc}, got '${raw}'")
+            }
+            if( v < min )
+                throw new UsageException("${key} must be >= ${min}, got ${v}")
+            return v
+        }
     }
 
     /**

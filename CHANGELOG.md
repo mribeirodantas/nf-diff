@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Direct unit tests for the `ArgCursor` parsing primitive.** A new
+  `ArgCursorTest` pins the cursor's contract in isolation from `parse()`: inline
+  `--key=value` splitting, the token-consumption semantics that the old manual
+  `if( inlineVal == null ) i++` bookkeeping encoded (`requireValue`/`boolValue`
+  consume the space-separated value; a bare or non-boolean-followed flag does
+  not), the shared numeric parse/floor helpers (`intValue`/`longValue`/
+  `doubleValue`), and `peek`/`consumePeeked` iteration. `ArgCursor` was widened
+  from `private` to package-visible for this.
 - **`--diff-all` convenience flag** enables the three opt-in work-dir layers
   (`--diff-outputs`, `--diff-logs`, `--diff-dag`) at once. They share the same
   precondition — the tasks' work directories must still exist — and are commonly
@@ -29,6 +37,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Argument parsing is centralised behind an `ArgCursor`.** `DiffCommand.parse`
+  previously hand-rolled, for every option, the inline `--key=value` split, the
+  space-separated `--key value` fallback with its manual `if( inlineVal == null )
+  i++` index bookkeeping, and — for each numeric flag — a duplicated
+  parse/`NumberFormatException`/range-check block. A private `ArgCursor` now owns
+  position tracking and exposes `requireValue`/`boolValue`/`intValue`/`longValue`/
+  `doubleValue` helpers, so each option case collapses to a single assignment and
+  the off-by-one hazard in the repeated `i++` dance is gone. Behaviour is
+  unchanged (all forms — inline, space-separated, and launcher-injected
+  `--flag true`/`--last N`/`--last A:B` — parse exactly as before); only the
+  numeric-validation messages are now generated from a shared template.
 - **`--last` gained an explicit `A:B` pair form and clearer docs.** A single
   `--last=N` still compares the run N positions before the latest against the
   latest — but that silently *skips* the runs in between, which was easy to
