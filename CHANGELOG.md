@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Cross-project comparison (`--dir-a` / `--dir-b`)** — the two runs no longer
+  have to live in the same project. Previously a single `--dir` resolved both
+  runs' `.nextflow/` history, cache, config and params, so you could not compare
+  "the same pipeline in two checkouts" (or on two machines). `--dir-a=<dir>` and
+  `--dir-b=<dir>` now set each run's project directory independently; each falls
+  back to `--dir` when omitted, so existing invocations are unchanged. Run A is
+  loaded from and resolved against `dir-a`, run B against `dir-b`: the parameters
+  layer reads each run's own `-params-file`, and the configuration layer rebuilds
+  each run's effective `nextflow.config` from its own working tree, so a
+  `-profile docker` in project A is diffed against project B's config. The
+  git-provenance caveat became per-tree: `ConfigProvenance` now carries a
+  `crossProject` flag plus each side's directory, current HEAD and dirty state,
+  and its warning describes the two working trees separately (`currentRevisionB`,
+  `dirtyB`, `dirA`, `dirB` are surfaced in the JSON report). `--last` still needs
+  a single history, so it is rejected when combined with differing
+  `--dir-a`/`--dir-b`.
+
+### Fixed
+
+- **`GitProvenance` subprocess timeout was ineffective** — the git subprocess's
+  stdout/stderr were read inline with `getText()` *before* the timed `waitFor`,
+  which blocks until the process exits, so a hung `git` could never be timed out.
+  Both streams are now drained on background threads started before `waitFor`, so
+  the 5s timeout actually fires and a chatty command cannot deadlock on a full
+  pipe buffer.
+
 ## [0.2.0] - 2026-09-08
 
 ### Added

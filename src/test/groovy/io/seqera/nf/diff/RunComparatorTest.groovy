@@ -453,6 +453,37 @@ class RunComparatorTest extends Specification {
         diff.configNote?.contains('skipped')
     }
 
+    def 'cross-project mode resolves config and params from each run\'s own directory'() {
+        given: 'two separate project dirs with different nextflow.config values'
+        def dirA = Files.createDirectories(projectDir.resolve('projA'))
+        def dirB = Files.createDirectories(projectDir.resolve('projB'))
+        Files.write(dirA.resolve('nextflow.config'), 'process.cpus = 2\n'.getBytes('UTF-8'))
+        Files.write(dirB.resolve('nextflow.config'), 'process.cpus = 16\n'.getBytes('UTF-8'))
+        def tasks = [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED'])]
+        def a = snap('runA', tasks.collect { it }, 'nextflow run main.nf')
+        def b = snap('runB', tasks.collect { it }, 'nextflow run main.nf')
+
+        when: 'run A is resolved from dirA and run B from dirB'
+        def diff = new RunComparator(false, null, null, RunComparator.DEFAULT_PERF_THRESHOLD,
+                false, 0L, false, LogComparator.DEFAULT_MAX_LINES,
+                OutputComparator.DEFAULT_MAX_LINES, dirA, dirB).compare(a, b)
+
+        then: 'the per-directory config values are diffed against each other'
+        def cpus = diff.config.find { it.field == 'process.cpus' }
+        cpus.valueA == '2'
+        cpus.valueB == '16'
+        cpus.changed
+
+        and: 'the note names both project directories'
+        diff.configNote.contains('run A')
+        diff.configNote.contains('run B')
+
+        and: 'provenance is flagged cross-project with both directories recorded'
+        diff.configProvenance.crossProject
+        diff.configProvenance.dirA == dirA.toString()
+        diff.configProvenance.dirB == dirB.toString()
+    }
+
     def 'parameter field diffs carry the CLI-vs-file source of each value'() {
         given:
         Files.write(projectDir.resolve('p.json'),

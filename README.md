@@ -90,7 +90,8 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 | `--diff-logs`          | Compare the standard log files (`.command.out`/`.command.err`/`.command.log`) each matched task wrote to its work directory, line by line. Ideal for inspecting why a task's exit code changed. Requires the tasks' work directories to still exist locally. Informational only: never affects `--fail-on-change`. |
 | `--logs-max-lines=<n>` | With `--diff-logs`, keep only the last `<n>` lines of each log file before diffing. Default `200`. |
 | `--fail-on-change`     | Exit with code `3` if the runs are not identical (useful in CI)                                  |
-| `--dir=<dir>`          | Project directory containing `.nextflow/` (default: `.`)                                         |
+| `--dir=<dir>`          | Project directory containing `.nextflow/` (default: `.`). Used for both runs unless overridden per-run below. |
+| `--dir-a=<dir>` / `--dir-b=<dir>` | Per-run project directory for run A / run B (its `.nextflow/` history, cache, config and params). Use these to compare a run from one project or checkout against a run from another ("same pipeline, two directories"). Each falls back to `--dir` when omitted. Cannot be combined with `--last`, which needs a single history. |
 | `-v`, `--verbose`, `--all` | Also diff fields that always change between runs (run name, session id, launch time, work dir, wall/real time, resource usage) |
 | `-h`, `--help`         | Show help                                                                                        |
 
@@ -128,6 +129,9 @@ nextflow plugin nf-diff:diff --last --diff-logs
 
 # Inspect a project in another directory, with every field flagged
 nextflow plugin nf-diff:diff runA runB --dir=/path/to/project --verbose
+
+# Compare the same pipeline across two checkouts/projects (run per directory)
+nextflow plugin nf-diff:diff runA runB --dir-a=/path/to/checkout-v1 --dir-b=/path/to/checkout-v2
 
 # CI-friendly: emit JSON and fail the step if anything changed
 nextflow plugin nf-diff:diff --last --format=json --fail-on-change

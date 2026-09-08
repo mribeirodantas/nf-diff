@@ -85,8 +85,22 @@ class RunComparator {
      * Project directory used to resolve each run's {@code -params-file} and
      * {@code nextflow.config}. When null, the parameters layer sees only literal
      * command-line flags and the configuration layer is skipped.
+     *
+     * <p>{@link #baseDirA} / {@link #baseDirB} are the effective per-run
+     * directories: they default to this shared {@code baseDir}, but may point at
+     * two different checkouts when comparing runs across projects
+     * ({@code --dir-a} / {@code --dir-b}).
      */
     private final Path baseDir
+
+    /** Effective project directory for run A (falls back to {@link #baseDir}). */
+    private final Path baseDirA
+
+    /** Effective project directory for run B (falls back to {@link #baseDir}). */
+    private final Path baseDirB
+
+    /** True when run A and run B resolve config/params from different directories. */
+    private final boolean crossProject
 
     /** Percentage change beyond which a task metric is flagged as a regression. */
     private final double perfThreshold
@@ -119,16 +133,25 @@ class RunComparator {
                   double perfThreshold = DEFAULT_PERF_THRESHOLD,
                   boolean diffOutputs = false, long outputsMaxBytes = 0L,
                   boolean diffLogs = false, int logsMaxLines = LogComparator.DEFAULT_MAX_LINES,
-                  int outputsMaxLines = OutputComparator.DEFAULT_MAX_LINES) {
+                  int outputsMaxLines = OutputComparator.DEFAULT_MAX_LINES,
+                  Path baseDirA = null, Path baseDirB = null) {
         this.showObvious = showObvious
         this.filter = filter ?: ProcessFilter.of([], [])
         this.baseDir = baseDir
+        this.baseDirA = baseDirA ?: baseDir
+        this.baseDirB = baseDirB ?: baseDir
+        this.crossProject = norm(this.baseDirA) != norm(this.baseDirB)
         this.perfThreshold = perfThreshold
         this.diffOutputs = diffOutputs
         this.outputsMaxBytes = outputsMaxBytes
         this.diffLogs = diffLogs
         this.logsMaxLines = logsMaxLines
         this.outputsMaxLines = outputsMaxLines
+    }
+
+    /** Absolute, normalised form of a directory for equality comparison; null-safe. */
+    private static Path norm(Path p) {
+        return p?.toAbsolutePath()?.normalize()
     }
 
     DiffResult compare(RunSnapshot a, RunSnapshot b) {
@@ -291,8 +314,8 @@ class RunComparator {
      * missing value on the other side.
      */
     private List<FieldDiff> compareParams(RunSnapshot a, RunSnapshot b) {
-        final ra = CommandParams.resolve(a.command, baseDir)
-        final rb = CommandParams.resolve(b.command, baseDir)
+        final ra = CommandParams.resolve(a.command, baseDirA)
+        final rb = CommandParams.resolve(b.command, baseDirB)
         final pa = ra.values
         final pb = rb.values
         final keys = new TreeSet<String>()
@@ -319,7 +342,7 @@ class RunComparator {
      * as a note rather than allowed to break the whole comparison.
      */
     private void computeConfig(DiffResult result, RunSnapshot a, RunSnapshot b) {
-        if( baseDir == null ) {
+        if( baseDirA == null && baseDirB == null ) {
             result.configNote = 'Configuration diff skipped: no project directory available.'
             return
         }
@@ -327,12 +350,14 @@ class RunComparator {
         Map<String,String> cb
         try {
             final loader = new ConfigLoader()
-            ca = loader.resolve(a.command, baseDir)
-            cb = loader.resolve(b.command, baseDir)
+            ca = loader.resolve(a.command, baseDirA)
+            cb = loader.resolve(b.command, baseDirB)
         }
         catch( Exception e ) {
             log.warn "nf-diff: could not resolve configuration: ${e.message}"
-            result.configNote = "Configuration could not be resolved from ${baseDir}: ${e.message}"
+            result.configNote = crossProject
+                    ? "Configuration could not be resolved from ${baseDirA} (run A) / ${baseDirB} (run B): ${e.message}".toString()
+                    : "Configuration could not be resolved from ${baseDirA}: ${e.message}".toString()
             return
         }
 
@@ -341,11 +366,18 @@ class RunComparator {
         keys.addAll(cb.keySet())
         result.config = keys.collect { String k -> field(k, ca.get(k), cb.get(k)) }
 
-        result.configNote = keys.isEmpty()
-                ? "No Nextflow configuration was resolved from ${baseDir} for either run."
-                : ('Resolved from the current on-disk config files under ' +
-                   "${baseDir}, applying each run's -profile/-c options — not a " +
-                   'snapshot of the config at launch time.')
+        if( keys.isEmpty() )
+            result.configNote = crossProject
+                    ? "No Nextflow configuration was resolved from ${baseDirA} (run A) or ${baseDirB} (run B).".toString()
+                    : "No Nextflow configuration was resolved from ${baseDirA} for either run.".toString()
+        else
+            result.configNote = crossProject
+                    ? ('Resolved from the current on-disk config files under ' +
+                       "${baseDirA} (run A) and ${baseDirB} (run B), applying each run's " +
+                       '-profile/-c options — not a snapshot of the config at launch time.').toString()
+                    : ('Resolved from the current on-disk config files under ' +
+                       "${baseDirA}, applying each run's -profile/-c options — not a " +
+                       'snapshot of the config at launch time.').toString()
 
         result.configProvenance = computeConfigProvenance(a, b)
     }
@@ -361,16 +393,38 @@ class RunComparator {
      */
     private DiffResult.ConfigProvenance computeConfigProvenance(RunSnapshot a, RunSnapshot b) {
         final prov = new DiffResult.ConfigProvenance(
+                crossProject: crossProject,
                 revisionA: a.revisionId,
                 revisionB: b.revisionId )
-        final state = new GitProvenance().inspect(baseDir)
-        prov.gitAvailable = state.isRepo()
-        if( !state.isRepo() )
-            return prov
-        prov.currentRevision = state.headCommit
-        prov.workingTreeDirty = state.dirty
-        prov.driftedA = revisionDrifted(a.revisionId, state.headCommit)
-        prov.driftedB = revisionDrifted(b.revisionId, state.headCommit)
+
+        final gp = new GitProvenance()
+        final stateA = gp.inspect(baseDirA)
+        // In same-project mode both runs share one tree, so reuse stateA rather
+        // than inspecting the same directory twice.
+        final stateB = crossProject ? gp.inspect(baseDirB) : stateA
+
+        prov.gitAvailable = crossProject ? (stateA.isRepo() || stateB.isRepo()) : stateA.isRepo()
+
+        // Run A side (also the shared tree in same-project mode).
+        if( stateA.isRepo() ) {
+            prov.currentRevision = stateA.headCommit
+            prov.workingTreeDirty = stateA.dirty
+            prov.driftedA = revisionDrifted(a.revisionId, stateA.headCommit)
+        }
+
+        // Run B side.
+        if( crossProject ) {
+            prov.dirA = baseDirA?.toString()
+            prov.dirB = baseDirB?.toString()
+            if( stateB.isRepo() ) {
+                prov.currentRevisionB = stateB.headCommit
+                prov.dirtyB = stateB.dirty
+                prov.driftedB = revisionDrifted(b.revisionId, stateB.headCommit)
+            }
+        }
+        else if( stateA.isRepo() ) {
+            prov.driftedB = revisionDrifted(b.revisionId, stateA.headCommit)
+        }
         return prov
     }
 

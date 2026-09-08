@@ -183,8 +183,13 @@ class JsonReportRenderer {
             return null
         return [
                 gitAvailable    : prov.gitAvailable,
+                crossProject    : prov.crossProject,
+                dirA            : prov.dirA,
+                dirB            : prov.dirB,
                 currentRevision : prov.currentRevision,
+                currentRevisionB: prov.currentRevisionB,
                 workingTreeDirty: prov.workingTreeDirty,
+                dirtyB          : prov.dirtyB,
                 revisionA       : prov.revisionA,
                 revisionB       : prov.revisionB,
                 driftedA        : prov.driftedA,

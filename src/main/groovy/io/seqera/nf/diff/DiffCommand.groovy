@@ -26,6 +26,15 @@ class DiffCommand {
     /** Whether {@link #outputFile} was set explicitly (vs. the format default). */
     private boolean outputExplicit = false
     Path baseDir = Paths.get('.')
+    /**
+     * Optional per-run project directory for run A. When null, run A is loaded
+     * from (and its config/params resolved against) {@link #baseDir}. Set via
+     * {@code --dir-a} to compare a run from one checkout/project against a run
+     * from another.
+     */
+    Path baseDirA = null
+    /** Optional per-run project directory for run B; falls back to {@link #baseDir}. */
+    Path baseDirB = null
     /** Include fields that always differ between runs (run name, work dir, timing, resources). */
     boolean verbose = false
     /** Report format: {@code html} (default), {@code json} or {@code md}. */
@@ -79,25 +88,35 @@ class DiffCommand {
     int run(List<String> args) {
         parse(args)
 
-        final loader = new RunLoader(baseDir)
+        // Effective per-run project directories: each defaults to the shared
+        // --dir, but --dir-a/--dir-b can point the two runs at different
+        // checkouts (compare "same pipeline, two projects").
+        final dirA = baseDirA ?: baseDir
+        final dirB = baseDirB ?: baseDir
+        final crossProject = dirA.toAbsolutePath().normalize() != dirB.toAbsolutePath().normalize()
 
         if( last ) {
-            final names = loader.lastPair(lastBack)
+            if( crossProject )
+                throw new UsageException('--last compares two runs from a single history, so it cannot be ' +
+                        'combined with differing --dir-a/--dir-b; pass explicit run identifiers instead')
+            final names = new RunLoader(dirA).lastPair(lastBack)
             runA = names[0]
             runB = names[1]
             log.info "nf-diff: --last=${lastBack} selected '${runA}' (A) and '${runB}' (B)"
         }
 
         log.info "nf-diff: comparing runs '${runA}' and '${runB}'"
-        log.debug "nf-diff: base directory = ${baseDir.toAbsolutePath()}"
+        log.debug "nf-diff: run A directory = ${dirA.toAbsolutePath()}"
+        log.debug "nf-diff: run B directory = ${dirB.toAbsolutePath()}"
         log.debug "nf-diff: report output  = ${outputFile.toAbsolutePath()}"
 
-        final snapA = loader.load(runA)
-        final snapB = loader.load(runB)
+        final snapA = new RunLoader(dirA).load(runA)
+        final snapB = new RunLoader(dirB).load(runB)
 
         final filter = ProcessFilter.of(onlyGlobs, excludeGlobs)
         final diff = new RunComparator(verbose, filter, baseDir, perfThreshold,
-                        diffOutputs, outputsMaxBytes, diffLogs, logsMaxLines, outputsMaxLines)
+                        diffOutputs, outputsMaxBytes, diffLogs, logsMaxLines, outputsMaxLines,
+                        dirA, dirB)
                 .compare(snapA, snapB)
 
         final content = renderContent(diff)
@@ -306,6 +325,14 @@ nf-diff: comparison complete
                         baseDir = Paths.get(args[++i])
                     }
                     break
+                case '--dir-a':
+                    baseDirA = Paths.get(requireValue(key, inlineVal, args, i))
+                    if( inlineVal == null ) i++
+                    break
+                case '--dir-b':
+                    baseDirB = Paths.get(requireValue(key, inlineVal, args, i))
+                    if( inlineVal == null ) i++
+                    break
                 case '-v':
                 case '--verbose':
                 case '--all':
@@ -437,7 +464,14 @@ Options:
                        --fail-on-change (the exit-code change already does).
   --logs-max-lines=<n> When --diff-logs is set, keep only the last <n> lines of
                        each log file before diffing (default: 200).
-  --dir=<dir>          Project directory containing .nextflow/ (default: .)
+  --dir=<dir>          Project directory containing .nextflow/ (default: .).
+                       Used for both runs unless overridden per-run below.
+  --dir-a=<dir>        Project directory for run A only (its .nextflow/ history,
+  --dir-b=<dir>        cache, config and params). Use --dir-a/--dir-b to compare
+                       a run from one project/checkout against a run from
+                       another ("same pipeline, two directories"). Each falls
+                       back to --dir when omitted. Cannot be combined with
+                       --last, which needs a single history.
   -v, --verbose, --all Also diff fields that always change between runs
                        (run name, session id, launch time, work dir, wall/real
                        time, and resource usage). By default these are shown for

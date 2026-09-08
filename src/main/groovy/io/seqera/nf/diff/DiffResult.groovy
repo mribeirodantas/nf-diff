@@ -122,10 +122,31 @@ class DiffResult {
     static class ConfigProvenance {
         /** Whether git state could be determined at all (a git work tree was found). */
         boolean gitAvailable
-        /** Commit id of the working tree HEAD config was resolved against; null when unknown. */
+        /**
+         * True when the two runs' configs were resolved from <em>different</em>
+         * project directories ({@code --dir-a} / {@code --dir-b}). In that case
+         * each side has its own working tree, so the per-side fields
+         * ({@link #currentRevisionB}, {@link #dirtyB}, {@link #dirA}/{@link #dirB})
+         * are populated and {@link #warning()} describes each tree separately.
+         */
+        boolean crossProject
+        /** Project directory each run's config was resolved from (cross-project only). */
+        String dirA
+        String dirB
+        /**
+         * Commit id of the working tree HEAD run A's config was resolved against;
+         * null when unknown. In same-project mode this is also run B's tree.
+         */
         String currentRevision
-        /** True when the working tree has uncommitted (tracked) changes. */
+        /** Commit id of run B's working tree HEAD (cross-project only); null otherwise. */
+        String currentRevisionB
+        /**
+         * True when run A's working tree has uncommitted (tracked) changes. In
+         * same-project mode this is the single shared tree's state.
+         */
         boolean workingTreeDirty
+        /** True when run B's working tree is dirty (cross-project only). */
+        boolean dirtyB
         /** Each run's recorded git revision at launch; may be null (non-git run). */
         String revisionA
         String revisionB
@@ -135,7 +156,7 @@ class DiffResult {
 
         /** True when drift or a dirty tree undermines the config layer's trustworthiness. */
         boolean hasWarning() {
-            return driftedA || driftedB || workingTreeDirty
+            return driftedA || driftedB || workingTreeDirty || dirtyB
         }
 
         /**
@@ -146,6 +167,11 @@ class DiffResult {
         String warning() {
             if( !hasWarning() )
                 return null
+            return crossProject ? crossProjectWarning() : sameProjectWarning()
+        }
+
+        /** Warning text when both runs share one working tree (the common case). */
+        private String sameProjectWarning() {
             final parts = new ArrayList<String>()
             if( driftedA || driftedB ) {
                 final which = (driftedA && driftedB) ? 'both runs were'
@@ -159,6 +185,32 @@ class DiffResult {
             if( workingTreeDirty )
                 parts << ('The working tree has uncommitted changes, so the resolved configuration reflects ' +
                         'local edits that may not match either run.')
+            return parts.join(' ')
+        }
+
+        /**
+         * Warning text when each run's config came from a different project
+         * directory. Each tree is described on its own, since there is no single
+         * "current checkout" shared by the two runs.
+         */
+        private String crossProjectWarning() {
+            final parts = new ArrayList<String>()
+            parts << ("Run A and Run B configurations were resolved from different project directories " +
+                    "(A: ${dirA}, B: ${dirB}).").toString()
+            if( driftedA )
+                parts << ("Run A's config was rebuilt from its working tree at ${shortSha(currentRevision)}, " +
+                        "but the run was launched at ${shortSha(revisionA)}; config differences driven by code " +
+                        "changes between those revisions are not visible.").toString()
+            if( driftedB )
+                parts << ("Run B's config was rebuilt from its working tree at ${shortSha(currentRevisionB)}, " +
+                        "but the run was launched at ${shortSha(revisionB)}; config differences driven by code " +
+                        "changes between those revisions are not visible.").toString()
+            if( workingTreeDirty )
+                parts << ("Run A's working tree (${dirA}) has uncommitted changes, so its resolved " +
+                        "configuration reflects local edits that may not match the run.").toString()
+            if( dirtyB )
+                parts << ("Run B's working tree (${dirB}) has uncommitted changes, so its resolved " +
+                        "configuration reflects local edits that may not match the run.").toString()
             return parts.join(' ')
         }
 
