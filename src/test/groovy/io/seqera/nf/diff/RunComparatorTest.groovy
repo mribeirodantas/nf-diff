@@ -15,6 +15,7 @@ class RunComparatorTest extends Specification {
         def t = new TaskInfo(
                 process: args.process as String,
                 name: args.name as String,
+                hash: args.hash as String,
                 status: args.status as String,
                 script: args.script as String,
                 container: args.container as String )
@@ -169,6 +170,106 @@ class RunComparatorTest extends Specification {
         and: '-resume is an obvious option, so it does not break identical by default'
         !resume.isHighlighted(false)
         diff.identical
+    }
+
+    def 'flags recomputed tasks when the cache hash differs'() {
+        given: 'the same task name with a different cache hash between runs'
+        def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)', hash: 'aa/1111',
+                display: [hash: 'aa/1111', status: 'COMPLETED', script: 'echo hi'])])
+        def b = snap('runB', [task(process: 'FOO', name: 'FOO (1)', hash: 'bb/2222',
+                display: [hash: 'bb/2222', status: 'COMPLETED', script: 'echo hi'])])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then: 'the hash change marks the task recomputed and changed'
+        diff.tasksRecomputed == 1
+        diff.tasksChanged == 1
+        !diff.identical
+        diff.tasks.find { it.key == 'FOO (1)' }.fieldDiffs.find { it.field == 'hash' }.changed
+    }
+
+    def 'identical hashes are not counted as recomputed'() {
+        given:
+        def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)', hash: 'aa/1111',
+                display: [hash: 'aa/1111', status: 'COMPLETED', script: 'echo hi'])])
+        def b = snap('runB', [task(process: 'FOO', name: 'FOO (1)', hash: 'aa/1111',
+                display: [hash: 'aa/1111', status: 'COMPLETED', script: 'echo hi'])])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then:
+        diff.tasksRecomputed == 0
+        diff.identical
+    }
+
+    def 'detects performance regressions beyond the threshold, worst first'() {
+        given: 'two matched tasks whose runtime and memory move by varying amounts'
+        def a = snap('runA', [
+                task(process: 'SLOW', name: 'SLOW (1)', hash: 'h1',
+                        display: [status: 'COMPLETED', realtime: '10s', peak_rss: '1 GB'],
+                        raw: [realtime: 10_000L, peak_rss: 1_000_000_000L]),
+                task(process: 'STEADY', name: 'STEADY (1)', hash: 'h2',
+                        display: [status: 'COMPLETED', realtime: '10s'],
+                        raw: [realtime: 10_000L]),
+        ])
+        def b = snap('runB', [
+                task(process: 'SLOW', name: 'SLOW (1)', hash: 'h1',
+                        display: [status: 'COMPLETED', realtime: '30s', peak_rss: '1.1 GB'],
+                        raw: [realtime: 30_000L, peak_rss: 1_100_000_000L]),
+                task(process: 'STEADY', name: 'STEADY (1)', hash: 'h2',
+                        display: [status: 'COMPLETED', realtime: '11s'],
+                        raw: [realtime: 11_000L]),
+        ])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then: 'only the +200% realtime and +10% (below 25% threshold) are considered'
+        // SLOW realtime +200% and peak_rss +10% -> only realtime clears 25%;
+        // STEADY realtime +10% is below threshold and dropped.
+        diff.regressions*.metric == ['realtime']
+        diff.regressions[0].taskKey == 'SLOW (1)'
+        diff.regressions[0].pctDelta == 200.0d
+        diff.regressions[0].regression
+        diff.regressions[0].sameHash
+        diff.perfThreshold == RunComparator.DEFAULT_PERF_THRESHOLD
+
+        and: 'a runtime regression alone does not break identical (obvious fields)'
+        diff.identical
+    }
+
+    def 'a custom perf threshold widens or narrows what is flagged'() {
+        given:
+        def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)', hash: 'h',
+                display: [status: 'COMPLETED', realtime: '10s'], raw: [realtime: 10_000L])])
+        def b = snap('runB', [task(process: 'FOO', name: 'FOO (1)', hash: 'h',
+                display: [status: 'COMPLETED', realtime: '11s'], raw: [realtime: 11_000L])])
+
+        expect: 'the default 25% threshold ignores a +10% change'
+        new RunComparator().compare(a, b).regressions.isEmpty()
+
+        and: 'a 5% threshold flags it'
+        def diff = new RunComparator(false, null, null, 5.0d).compare(a, b)
+        diff.regressions*.metric == ['realtime']
+        diff.regressions[0].pctDelta == 10.0d
+    }
+
+    def 'improvements are captured but not counted as regressions'() {
+        given: 'run B is twice as fast'
+        def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)', hash: 'h',
+                display: [status: 'COMPLETED', realtime: '20s'], raw: [realtime: 20_000L])])
+        def b = snap('runB', [task(process: 'FOO', name: 'FOO (1)', hash: 'h',
+                display: [status: 'COMPLETED', realtime: '10s'], raw: [realtime: 10_000L])])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then:
+        diff.regressions.size() == 1
+        diff.regressions[0].pctDelta == -50.0d
+        !diff.regressions[0].regression
     }
 
     def 'process diff counts tasks per process'() {

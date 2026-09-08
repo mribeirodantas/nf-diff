@@ -3,6 +3,7 @@ package io.seqera.nf.diff
 import groovy.transform.CompileStatic
 import io.seqera.nf.diff.DiffResult.FieldDiff
 import io.seqera.nf.diff.DiffResult.ProcessDiff
+import io.seqera.nf.diff.DiffResult.RegressionDiff
 import io.seqera.nf.diff.DiffResult.TaskDiff
 
 /**
@@ -27,6 +28,7 @@ class MarkdownReportRenderer {
         renderParams(sb, diff)
         renderConfig(sb, diff)
         renderProcesses(sb, diff)
+        renderRegressions(sb, diff)
         renderTasks(sb, diff)
         return sb.toString()
     }
@@ -42,9 +44,9 @@ class MarkdownReportRenderer {
         }
         else {
             sb << '## Summary\n\n'
-            sb << '| Changed | Only in B | Only in A | Unchanged |\n'
-            sb << '|--------:|----------:|----------:|----------:|\n'
-            sb << "| ${diff.tasksChanged} | ${diff.tasksAdded} | ${diff.tasksRemoved} | ${diff.tasksUnchanged} |\n\n"
+            sb << '| Changed | Only in B | Only in A | Unchanged | Recomputed | Regressions |\n'
+            sb << '|--------:|----------:|----------:|----------:|-----------:|------------:|\n'
+            sb << "| ${diff.tasksChanged} | ${diff.tasksAdded} | ${diff.tasksRemoved} | ${diff.tasksUnchanged} | ${diff.tasksRecomputed} | ${diff.regressions.count { it.regression }} |\n\n"
         }
     }
 
@@ -135,6 +137,28 @@ class MarkdownReportRenderer {
             sb << "| ${cell(pd.process)} | ${pd.countA} | ${pd.countB} | ${processStatus(pd)} |\n"
         }
         sb << '\n'
+    }
+
+    private void renderRegressions(StringBuilder sb, DiffResult diff) {
+        sb << '## Performance regressions\n\n'
+        if( diff.regressions.isEmpty() ) {
+            sb << "_No task metric changed by ≥ ${trim(diff.perfThreshold)}% between the runs._\n\n"
+            return
+        }
+        sb << "> Metrics that changed by ≥ ${trim(diff.perfThreshold)}% (positive = Run B slower/heavier). "
+        sb << '"Same work" marks tasks whose cache hash is identical, so the cost change is environmental rather than a different computation.\n\n'
+        sb << '| Task | Metric | Run A | Run B | Δ | Same work |\n'
+        sb << '|---|---|---|---|---:|:---:|\n'
+        diff.regressions.each { RegressionDiff r ->
+            final arrow = r.regression ? '🔺' : '🔻'
+            sb << "| ${cell(r.taskKey)} | ${cell(r.label)} | ${cell(r.displayA)} | ${cell(r.displayB)} | ${arrow} ${Format.signedPct(r.pctDelta)} | ${r.sameHash ? '✓' : ''} |\n"
+        }
+        sb << '\n'
+    }
+
+    /** Trim a whole-number threshold to an integer string (25.0 -> "25"). */
+    private static String trim(double value) {
+        return value == Math.floor(value) ? String.valueOf((long) value) : String.valueOf(value)
     }
 
     private void renderTasks(StringBuilder sb, DiffResult diff) {

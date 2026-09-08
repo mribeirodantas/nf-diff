@@ -13,6 +13,7 @@ class MarkdownReportRendererTest extends Specification {
         def t = new TaskInfo(
                 process: args.process as String,
                 name: args.name as String,
+                hash: args.hash as String,
                 status: args.status as String,
                 script: args.script as String,
                 container: args.container as String )
@@ -47,7 +48,38 @@ class MarkdownReportRendererTest extends Specification {
         text.contains('## Run metadata')
         text.contains('## Parameters & options')
         text.contains('## Process topology')
+        text.contains('## Performance regressions')
         text.contains('## Task detail')
+    }
+
+    def 'performance regressions render a table sorted worst first'() {
+        when: 'run B slows one task by +200% (same work) and another by +50%'
+        def text = md(
+                [task(process: 'FAST', name: 'FAST (1)', hash: 'a',
+                        display: [status: 'COMPLETED', realtime: '10s'], raw: [realtime: 10_000L]),
+                 task(process: 'SLOW', name: 'SLOW (1)', hash: 'b',
+                        display: [status: 'COMPLETED', realtime: '10s'], raw: [realtime: 10_000L])],
+                [task(process: 'FAST', name: 'FAST (1)', hash: 'a',
+                        display: [status: 'COMPLETED', realtime: '15s'], raw: [realtime: 15_000L]),
+                 task(process: 'SLOW', name: 'SLOW (1)', hash: 'b',
+                        display: [status: 'COMPLETED', realtime: '30s'], raw: [realtime: 30_000L])] )
+        def table = text.substring(text.indexOf('## Performance regressions'))
+
+        then: 'both clear the 25% default and the +200% row comes first'
+        table.contains('| Task | Metric | Run A | Run B | Δ | Same work |')
+        table.indexOf('SLOW (1)') < table.indexOf('FAST (1)')
+        table.contains('+200.0%')
+        table.contains('+50.0%')
+    }
+
+    def 'no regressions renders an explicit empty note'() {
+        when:
+        def text = md(
+                [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'x'])],
+                [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'y'])] )
+
+        then:
+        text.contains('_No task metric changed by ≥ 25% between the runs._')
     }
 
     def 'a changed task surfaces its highlighted field diff'() {

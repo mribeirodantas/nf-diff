@@ -24,11 +24,25 @@ class RunComparator {
      * formatted display map.
      */
     static final List<String> TASK_FIELDS = [
-            'status', 'exit', 'container', 'script',
+            'hash', 'status', 'exit', 'container', 'script',
             'cpus', 'memory', 'time', 'disk',
             'realtime', '%cpu', 'peak_rss', 'peak_vmem',
             'rchar', 'wchar', 'attempt', 'queue', 'workdir', 'tag'
     ]
+
+    /**
+     * Numeric task metrics compared for performance regressions, as
+     * {@code [rawField, label]}. All are "larger is worse" (longer runtime,
+     * more memory), so a positive delta from A to B is a regression.
+     */
+    static final List<List<String>> PERF_METRICS = [
+            ['realtime',  'Realtime'],
+            ['peak_rss',  'Peak RSS'],
+            ['peak_vmem', 'Peak VMEM'],
+    ]
+
+    /** Default percentage change beyond which a metric is flagged as a regression. */
+    static final double DEFAULT_PERF_THRESHOLD = 25.0d
 
     /**
      * Task fields that vary between essentially any two runs even when the work
@@ -74,14 +88,19 @@ class RunComparator {
      */
     private final Path baseDir
 
-    RunComparator(boolean showObvious = false, ProcessFilter filter = null, Path baseDir = null) {
+    /** Percentage change beyond which a task metric is flagged as a regression. */
+    private final double perfThreshold
+
+    RunComparator(boolean showObvious = false, ProcessFilter filter = null, Path baseDir = null,
+                  double perfThreshold = DEFAULT_PERF_THRESHOLD) {
         this.showObvious = showObvious
         this.filter = filter ?: ProcessFilter.of([], [])
         this.baseDir = baseDir
+        this.perfThreshold = perfThreshold
     }
 
     DiffResult compare(RunSnapshot a, RunSnapshot b) {
-        final result = new DiffResult(runA: a, runB: b, showObvious: showObvious)
+        final result = new DiffResult(runA: a, runB: b, showObvious: showObvious, perfThreshold: perfThreshold)
         result.metadata = compareMetadata(a, b)
         result.params = compareParams(a, b)
         computeConfig(result, a, b)
@@ -96,7 +115,59 @@ class RunComparator {
                 case Kind.UNCHANGED: result.tasksUnchanged++; break
             }
         }
+
+        result.tasksRecomputed = countRecomputed(result.tasks)
+        result.regressions = computeRegressions(result.tasks)
         return result
+    }
+
+    /**
+     * Count matched tasks whose cache hash differs between the two runs. A
+     * differing hash means Nextflow would recompute the task rather than resume
+     * it, so this is the "why did work get redone?" signal.
+     */
+    private static int countRecomputed(List<TaskDiff> tasks) {
+        int n = 0
+        tasks.each { TaskDiff td ->
+            if( td.a != null && td.b != null && td.a.hash != null && td.b.hash != null && td.a.hash != td.b.hash )
+                n++
+        }
+        return n
+    }
+
+    /**
+     * Flag numeric metrics (runtime, memory) that changed by at least
+     * {@link #perfThreshold} percent between matched tasks. The result is sorted
+     * worst-regression first (largest positive delta), with improvements after.
+     */
+    private List<DiffResult.RegressionDiff> computeRegressions(List<TaskDiff> tasks) {
+        final out = new ArrayList<DiffResult.RegressionDiff>()
+        tasks.each { TaskDiff td ->
+            if( td.a == null || td.b == null )
+                return
+            PERF_METRICS.each { List<String> m ->
+                final field = m[0]
+                final label = m[1]
+                final va = td.a.numeric(field)
+                final vb = td.b.numeric(field)
+                final pct = Format.pctDelta(va, vb)
+                if( pct == null || Math.abs(pct) < perfThreshold )
+                    return
+                out << new DiffResult.RegressionDiff(
+                        taskKey  : td.key,
+                        process  : td.process(),
+                        metric   : field,
+                        label    : label,
+                        valueA   : va,
+                        valueB   : vb,
+                        displayA : td.a.display.get(field),
+                        displayB : td.b.display.get(field),
+                        pctDelta : pct,
+                        sameHash : td.a.hash != null && td.a.hash == td.b.hash )
+            }
+        }
+        out.sort { DiffResult.RegressionDiff r -> -r.pctDelta }
+        return out
     }
 
     private List<FieldDiff> compareMetadata(RunSnapshot a, RunSnapshot b) {

@@ -19,6 +19,7 @@ class HtmlReportRendererTest extends Specification {
         def t = new TaskInfo(
                 process: args.process as String,
                 name: args.name as String,
+                hash: args.hash as String,
                 status: args.status as String,
                 script: args.script as String,
                 container: args.container as String )
@@ -41,6 +42,36 @@ class HtmlReportRendererTest extends Specification {
 
     private String render(List<TaskInfo> a, List<TaskInfo> b, boolean verbose = false) {
         return new HtmlReportRenderer().render(diffOf(a, b, verbose))
+    }
+
+    // --------------------------------------------------------- regressions
+
+    def 'renders a regressions section with a nav entry and the flagged metric'() {
+        given: 'a task that ran 3x slower between runs'
+        def html = render(
+                [task(process: 'FOO', name: 'FOO (1)', hash: 'h',
+                        display: [status: 'COMPLETED', realtime: '10s'], raw: [realtime: 10_000L])],
+                [task(process: 'FOO', name: 'FOO (1)', hash: 'h',
+                        display: [status: 'COMPLETED', realtime: '30s'], raw: [realtime: 30_000L])] )
+
+        expect: 'a nav link and section anchor exist'
+        html.contains('href="#regressions"')
+        html.contains('id="regressions"')
+
+        and: 'the regression row surfaces the metric and signed delta'
+        html.contains('Performance regressions')
+        html.contains('+200.0%')
+    }
+
+    def 'regressions section shows an empty note when nothing crosses the threshold'() {
+        given:
+        def html = render(
+                [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'x'])],
+                [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'y'])] )
+
+        expect:
+        html.contains('id="regressions"')
+        html.contains('No task metric')
     }
 
     // --------------------------------------------------------- self-contained

@@ -2,7 +2,7 @@
 
 > Compare two Nextflow runs and render a detailed, self-contained HTML report of what changed.
 
-`nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history — or just say `--last` to grab the two most recent — and it produces a report that walks through their differences across five layers: **run metadata**, **parameters & options** (the resolved flags each run was launched with, merging `-params-file` contents with the command line), **resolved configuration** (the effective `nextflow.config` after profiles), **process topology**, and **per-task detail** (resources, scripts, containers, exit codes).
+`nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history — or just say `--last` to grab the two most recent — and it produces a report that walks through their differences across five layers: **run metadata**, **parameters & options** (the resolved flags each run was launched with, merging `-params-file` contents with the command line), **resolved configuration** (the effective `nextflow.config` after profiles), **process topology**, and **per-task detail** (resources, scripts, containers, exit codes). On top of those, it derives a **performance-regressions** view — the tasks whose runtime or memory moved beyond a threshold between the two runs — and a **recompute count** telling you how many matched tasks were re-executed rather than resumed.
 
 The default report is a single, standalone HTML document — no external assets, no network access — that you can open in a browser or email to a colleague. For scripting and CI, `--format=json` emits the same comparison as machine-readable JSON, `--format=md` produces Markdown you can drop straight into a pull-request comment, and `--fail-on-change` turns a difference into a non-zero exit code.
 
@@ -18,7 +18,8 @@ Nextflow already records everything about a run in `.nextflow/history` and the p
 - **Did the configuration change?** A diff of the *resolved* `nextflow.config` — flattened to dotted keys like `process.cpus`, `executor.name`, `docker.enabled` — with each run's `-profile`/`-c` options applied. This is what catches the classic case where two identical commands still behave differently because `-profile docker` and `-profile test` resolve to different process resources, executors, or container settings.
 - **Did the topology change?** Which processes gained or lost tasks between the two runs.
 - **Did a task change?** Per-task diffs of status, exit code, container, script, requested resources, and measured usage.
-- **Was work reused?** Cached-task counts and total task realtime, so you can see whether a re-run actually recomputed anything.
+- **Did anything get slower or heavier?** A dedicated performance-regressions layer flags matched tasks whose runtime (`realtime`) or peak memory (`peak_rss`) changed by at least `--perf-threshold` percent (default `25`), sorted worst-regression first. Tasks that share the same cache hash are marked "same work", so a `+200%` realtime on identical work stands out from a slowdown that also changed what ran. Improvements (Run B faster/leaner) are shown too, but only true regressions are counted.
+- **Was work reused?** Cached-task counts and total task realtime, plus a **recompute count** — matched tasks (present in both runs) whose cache hash differs, i.e. work that was re-executed rather than resumed — so you can see whether a re-run actually recomputed anything, and why.
 
 By default the report highlights **meaningful** changes and treats fields that *always* differ between two distinct runs (run name, session id, launch time, work directory, wall-clock time, and measured resource usage) as context rather than "changes". The same rule applies to the parameters layer: launch options that routinely differ without changing what was executed (`-name`, `-resume`, `-ansi-log`, `-with-tower`, `-with-weblog`, `-bg`) are shown for context but not flagged as changes. Use `--verbose` when you want everything flagged.
 
@@ -75,6 +76,7 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 | `--output=<file>`      | Output report path (default: `nf-diff-report.<ext>`, where `<ext>` matches the chosen format). Use `-` to write to stdout. |
 | `--only=<globs>`       | Comma-separated process-name globs; only matching processes/tasks are compared (`*` and `?` supported, `*` spans `:` scopes) |
 | `--exclude=<globs>`    | Comma-separated process-name globs to drop from the comparison; applied after `--only`           |
+| `--perf-threshold=<pct>` | Percentage change beyond which a task metric (runtime, peak memory) is flagged in the performance-regressions layer (default: `25`). Must be `>= 0`; `0` flags any measurable change. |
 | `--fail-on-change`     | Exit with code `3` if the runs are not identical (useful in CI)                                  |
 | `--dir=<dir>`          | Project directory containing `.nextflow/` (default: `.`)                                         |
 | `-v`, `--verbose`, `--all` | Also diff fields that always change between runs (run name, session id, launch time, work dir, wall/real time, resource usage) |
@@ -102,6 +104,9 @@ nextflow plugin nf-diff:diff --last --format=md --output=diff.md
 
 # Focus on the alignment processes, ignoring QC noise
 nextflow plugin nf-diff:diff --last --only='ALIGN:*' --exclude='*:INDEX'
+
+# Tighten the regression threshold so any task >10% slower/heavier is flagged
+nextflow plugin nf-diff:diff --last --perf-threshold=10
 
 # Inspect a project in another directory, with every field flagged
 nextflow plugin nf-diff:diff runA runB --dir=/path/to/project --verbose
@@ -134,7 +139,7 @@ nf-diff: comparison complete
   Report: /path/to/nf-diff-report.html (html)
 ```
 
-The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark theme toggle, so you can open it directly in a browser or email it to a colleague. With `--format=json` the same five-layer comparison is written as structured JSON instead — convenient for diffing in scripts or asserting against in a pipeline.
+The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark theme toggle, so you can open it directly in a browser or email it to a colleague. With `--format=json` the same five-layer comparison — plus the derived performance-regressions layer and recompute count — is written as structured JSON instead, convenient for diffing in scripts or asserting against in a pipeline.
 
 ### Exit codes
 
@@ -158,7 +163,8 @@ The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark th
    - **Parameters** — each run's launch command is parsed by `CommandParams` into Nextflow options (single-dash, e.g. `-profile`) and pipeline params (double-dash, e.g. `--genome`), then diffed flag by flag. When the command referenced a `-params-file`, that JSON/YAML is read (relative paths resolved against `--dir`), flattened into dotted keys (`--genome.build`), and merged *underneath* the command-line flags — Nextflow's precedence, so an explicit `--flag` overrides the file. Each value is tagged with its source (`CLI`, `file`, `CLI+file`). A flag present in only one run shows a missing value on the other side; noisy options (`-name`, `-resume`, …) are flagged "obvious" and excluded from change detection unless `--verbose` is set.
    - **Configuration** — `ConfigLoader` rebuilds each run's effective config with Nextflow's own `ConfigBuilder` (the same machinery behind `nextflow config`), applying the run's recorded `-profile`/`-c` options, then flattens it to dotted keys and diffs the two. The `params` scope is excluded here — it belongs to the Parameters layer. Because Nextflow does not persist the fully merged config in its history/cache, this is resolved from the project's config files *as they exist now*; it is authoritative for `-profile`/`-c`-driven differences rather than a byte-for-byte snapshot at launch time, and the report says so.
    - **Processes** — task counts per process, classified as added / removed / changed / unchanged.
-   - **Tasks** — matched across runs by task name (falling back to process + tag), with per-field diffs. "Obvious" always-changing fields are shown for context but excluded from change detection unless `--verbose` is set.
+   - **Tasks** — matched across runs by task name (falling back to process + tag), with per-field diffs. "Obvious" always-changing fields are shown for context but excluded from change detection unless `--verbose` is set. Matched tasks whose cache hash differs are tallied as the **recompute count** — work that was re-executed rather than resumed.
+   - **Performance regressions** — derived from the matched tasks' numeric trace metrics (`realtime`, `peak_rss`). For each metric that moved by at least `--perf-threshold` percent, a signed delta is recorded and the list is sorted worst-regression first; each entry notes whether both tasks shared a cache hash ("same work"). This layer is *always* computed from fields that change between runs, so it is informational only — it never affects the "identical" verdict or `--fail-on-change`.
 4. **Render** — `HtmlReportRenderer` emits the standalone HTML document, `JsonReportRenderer` the structured JSON (`--format=json`), or `MarkdownReportRenderer` the Markdown report (`--format=md`).
 
 `--only` / `--exclude` narrow the comparison via a `ProcessFilter` before rendering, so process- and task-level output is restricted to the processes you care about.

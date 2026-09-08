@@ -45,6 +45,8 @@ class DiffCommand {
     List<String> onlyGlobs = []
     /** Process-name globs to exclude; applied after {@link #onlyGlobs}. */
     List<String> excludeGlobs = []
+    /** Percentage change beyond which a task metric is flagged as a regression. */
+    double perfThreshold = RunComparator.DEFAULT_PERF_THRESHOLD
 
     /** Exit code returned when {@link #failOnChange} is set and runs differ. */
     static final int EXIT_CHANGED = 3
@@ -69,7 +71,7 @@ class DiffCommand {
         final snapB = loader.load(runB)
 
         final filter = ProcessFilter.of(onlyGlobs, excludeGlobs)
-        final diff = new RunComparator(verbose, filter, baseDir).compare(snapA, snapB)
+        final diff = new RunComparator(verbose, filter, baseDir, perfThreshold).compare(snapA, snapB)
 
         final content = renderContent(diff)
 
@@ -192,6 +194,18 @@ nf-diff: comparison complete
                     excludeGlobs.addAll(splitGlobs(requireValue(key, inlineVal, args, i)))
                     if( inlineVal == null ) i++
                     break
+                case '--perf-threshold':
+                    final pt = requireValue(key, inlineVal, args, i)
+                    if( inlineVal == null ) i++
+                    try {
+                        perfThreshold = Double.parseDouble(pt)
+                    }
+                    catch( NumberFormatException ignored ) {
+                        throw new UsageException("--perf-threshold must be a number (percent), got '${pt}'")
+                    }
+                    if( perfThreshold < 0 )
+                        throw new UsageException("--perf-threshold must be >= 0, got ${perfThreshold}")
+                    break
                 case '-d':
                 case '--dir':
                     if( inlineVal != null ) {
@@ -287,6 +301,9 @@ Options:
                        and `?` are supported.
   --exclude=<globs>    Comma-separated process-name globs to drop from the
                        comparison; applied after --only.
+  --perf-threshold=<n> Percentage change (default: 25) in a task metric
+                       (realtime, peak_rss, peak_vmem) beyond which it is
+                       flagged in the performance-regressions layer.
   --dir=<dir>          Project directory containing .nextflow/ (default: .)
   -v, --verbose, --all Also diff fields that always change between runs
                        (run name, session id, launch time, work dir, wall/real

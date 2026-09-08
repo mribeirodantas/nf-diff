@@ -4,6 +4,7 @@ import groovy.transform.CompileStatic
 import io.seqera.nf.diff.DiffResult.FieldDiff
 import io.seqera.nf.diff.DiffResult.Kind
 import io.seqera.nf.diff.DiffResult.ProcessDiff
+import io.seqera.nf.diff.DiffResult.RegressionDiff
 import io.seqera.nf.diff.DiffResult.TaskDiff
 
 /**
@@ -43,6 +44,7 @@ class HtmlReportRenderer {
         renderParams(sb, diff)
         renderConfig(sb, diff)
         renderProcesses(sb, diff)
+        renderRegressions(sb, diff)
         renderTasks(sb, diff)
         sb << '</main>\n'
         renderFooter(sb, diff)
@@ -99,6 +101,7 @@ class HtmlReportRenderer {
         sb << '  <a href="#params">Parameters</a>\n'
         sb << '  <a href="#config">Configuration</a>\n'
         sb << '  <a href="#processes">Processes</a>\n'
+        sb << '  <a href="#regressions">Regressions</a>\n'
         sb << '  <a href="#tasks">Tasks</a>\n'
         sb << '</nav>\n'
     }
@@ -113,6 +116,8 @@ class HtmlReportRenderer {
         sb << statCard('Only in A', diff.tasksRemoved, 'removed')
         sb << statCard('Only in B', diff.tasksAdded, 'added')
         sb << statCard('Unchanged', diff.tasksUnchanged, 'unchanged')
+        sb << statCard('Recomputed', diff.tasksRecomputed, 'changed')
+        sb << statCard('Regressions', diff.regressions.count { it.regression } as int, 'removed')
         sb << '  </div>\n'
 
         // wall-time comparison bar
@@ -237,6 +242,38 @@ class HtmlReportRenderer {
         }
         sb << '  </tbody>\n  </table>\n'
         sb << '</section>\n'
+    }
+
+    // ------------------------------------------------------------ regressions
+
+    private void renderRegressions(StringBuilder sb, DiffResult diff) {
+        sb << '<section id="regressions" class="section">\n'
+        sb << '  <h2>Performance regressions</h2>\n'
+        final thr = trim(diff.perfThreshold)
+        if( diff.regressions.isEmpty() ) {
+            sb << "  <p class=\"mode-note\">No task metric (realtime, peak RSS, peak VMEM) changed by &ge; ${esc(thr)}% between the runs.</p>\n"
+            sb << '</section>\n'
+            return
+        }
+        sb << "  <p class=\"mode-note\">Task metrics that changed by &ge; ${esc(thr)}% (positive = Run B slower/heavier), worst first. <em>Same work</em> marks tasks whose cache hash is identical, so the cost change is environmental rather than a different computation.</p>\n"
+        sb << '  <table class="proc">\n'
+        sb << '    <thead><tr><th>Task</th><th>Metric</th><th>Run A</th><th>Run B</th><th>Δ</th><th>Same work</th></tr></thead>\n  <tbody>\n'
+        diff.regressions.each { RegressionDiff r ->
+            final cls = r.regression ? 'row-removed' : 'row-added'
+            sb << "    <tr class=\"${cls}\"><th class=\"mono\">${esc(r.taskKey)}</th>"
+            sb << "<td>${esc(r.label)}</td>"
+            sb << "<td>${esc(Format.orNa(r.displayA))}</td>"
+            sb << "<td>${esc(Format.orNa(r.displayB))}</td>"
+            sb << "<td class=\"mono\">${esc(Format.signedPct(r.pctDelta))}</td>"
+            sb << "<td>${r.sameHash ? '✓' : ''}</td></tr>\n"
+        }
+        sb << '  </tbody>\n  </table>\n'
+        sb << '</section>\n'
+    }
+
+    /** Trim a whole-number threshold to an integer string (25.0 -> "25"). */
+    private static String trim(double value) {
+        return value == Math.floor(value) ? String.valueOf((long) value) : String.valueOf(value)
     }
 
     // ----------------------------------------------------------------- tasks

@@ -57,6 +57,32 @@ class DiffResult {
         boolean isUnchanged(){ countA == countB }
     }
 
+    /**
+     * A single task metric whose value changed enough between the two runs to
+     * be worth surfacing (e.g. realtime, peak_rss). Larger values are "worse",
+     * so a positive {@link #pctDelta} means Run B regressed relative to Run A.
+     */
+    @CompileStatic
+    static class RegressionDiff {
+        String taskKey
+        String process
+        /** Raw trace field, e.g. {@code realtime}, {@code peak_rss}. */
+        String metric
+        /** Human label for the metric, e.g. {@code Realtime}. */
+        String label
+        Long valueA
+        Long valueB
+        String displayA
+        String displayB
+        /** Signed percentage change of B relative to A; positive means slower/heavier. */
+        Double pctDelta
+        /** True when the same cache hash produced both tasks (i.e. same work, different cost). */
+        boolean sameHash
+
+        /** True when B is worse than A (larger value). */
+        boolean isRegression() { pctDelta != null && pctDelta > 0 }
+    }
+
     /** How a task relates between the two runs. */
     static enum Kind { ADDED, REMOVED, CHANGED, UNCHANGED }
 
@@ -94,10 +120,27 @@ class DiffResult {
     List<ProcessDiff> processes = []
     List<TaskDiff> tasks = []
 
+    /**
+     * Task metrics (realtime, memory) that changed beyond the configured
+     * threshold, sorted worst-regression first. Derived from always-changing
+     * numeric fields, so this layer never affects {@link #isIdentical()}.
+     */
+    List<RegressionDiff> regressions = []
+
+    /** The percentage threshold used to flag {@link #regressions}. */
+    double perfThreshold
+
     int tasksAdded
     int tasksRemoved
     int tasksChanged
     int tasksUnchanged
+
+    /**
+     * Matched tasks (present in both runs) whose cache hash differs — i.e. the
+     * task would have been recomputed rather than resumed. This is the direct
+     * answer to "why did my pipeline redo work?".
+     */
+    int tasksRecomputed
 
     /**
      * When true, fields that always differ between runs (see {@link FieldDiff#obvious})

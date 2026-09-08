@@ -14,6 +14,7 @@ class JsonReportRendererTest extends Specification {
         def t = new TaskInfo(
                 process: args.process as String,
                 name: args.name as String,
+                hash: args.hash as String,
                 status: args.status as String,
                 script: args.script as String,
                 container: args.container as String )
@@ -104,6 +105,31 @@ class JsonReportRendererTest extends Specification {
         profile.valueB == 'test'
         profile.highlighted
         obj.params.find { it.field == '--genome' }.highlighted == false
+    }
+
+    def 'emits recompute count and a regressions layer'() {
+        given: 'a recomputed task (hash change) that also got slower'
+        def a = [task(process: 'FOO', name: 'FOO (1)', hash: 'aa',
+                display: [hash: 'aa', status: 'COMPLETED', realtime: '10s'], raw: [realtime: 10_000L])]
+        def b = [task(process: 'FOO', name: 'FOO (1)', hash: 'bb',
+                display: [hash: 'bb', status: 'COMPLETED', realtime: '30s'], raw: [realtime: 30_000L])]
+
+        when:
+        def obj = json(a, b)
+
+        then: 'the summary reports the recompute + regression counts'
+        obj.summary.tasksRecomputed == 1
+        obj.summary.regressions == 1
+        obj.perfThreshold == 25.0d
+
+        and: 'the regressions layer carries the metric detail'
+        obj.regressions.size() == 1
+        def r = obj.regressions[0]
+        r.task == 'FOO (1)'
+        r.metric == 'realtime'
+        r.pctDelta == 200.0d
+        r.regression
+        !r.sameHash
     }
 
     def 'obvious-only differences are not surfaced by default but are in verbose'() {

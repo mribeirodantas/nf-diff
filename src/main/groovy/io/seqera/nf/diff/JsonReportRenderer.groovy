@@ -4,6 +4,7 @@ import groovy.json.JsonOutput
 import groovy.transform.CompileStatic
 import io.seqera.nf.diff.DiffResult.FieldDiff
 import io.seqera.nf.diff.DiffResult.ProcessDiff
+import io.seqera.nf.diff.DiffResult.RegressionDiff
 import io.seqera.nf.diff.DiffResult.TaskDiff
 
 /**
@@ -32,10 +33,12 @@ class JsonReportRenderer {
                 runA       : runModel(diff.runA),
                 runB       : runModel(diff.runB),
                 summary    : [
-                        tasksChanged  : diff.tasksChanged,
-                        tasksAdded    : diff.tasksAdded,
-                        tasksRemoved  : diff.tasksRemoved,
-                        tasksUnchanged: diff.tasksUnchanged,
+                        tasksChanged   : diff.tasksChanged,
+                        tasksAdded     : diff.tasksAdded,
+                        tasksRemoved   : diff.tasksRemoved,
+                        tasksUnchanged : diff.tasksUnchanged,
+                        tasksRecomputed: diff.tasksRecomputed,
+                        regressions    : diff.regressions.count { it.regression },
                 ],
                 metadata   : diff.metadata.collect { fieldModel(it, diff.showObvious) },
                 params     : diff.params.collect { fieldModel(it, diff.showObvious) },
@@ -43,6 +46,8 @@ class JsonReportRenderer {
                 configNote : diff.configNote,
                 processes  : diff.processes.collect { processModel(it) },
                 tasks      : diff.tasks.collect { taskModel(it, diff.showObvious) },
+                perfThreshold: diff.perfThreshold,
+                regressions: diff.regressions.collect { regressionModel(it) },
         ] as Map<String,Object>
     }
 
@@ -91,6 +96,22 @@ class JsonReportRenderer {
         if( pd.removed ) return 'removed'
         if( pd.changed ) return 'changed'
         return 'unchanged'
+    }
+
+    private Map<String,Object> regressionModel(RegressionDiff r) {
+        return [
+                task      : r.taskKey,
+                process   : r.process,
+                metric    : r.metric,
+                label     : r.label,
+                valueA    : r.valueA,
+                valueB    : r.valueB,
+                displayA  : r.displayA,
+                displayB  : r.displayB,
+                pctDelta  : r.pctDelta,
+                regression: r.regression,
+                sameHash  : r.sameHash,
+        ] as Map<String,Object>
     }
 
     private Map<String,Object> taskModel(TaskDiff td, boolean showObvious) {
