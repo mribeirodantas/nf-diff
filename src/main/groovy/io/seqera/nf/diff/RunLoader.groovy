@@ -108,8 +108,8 @@ class RunLoader {
         return r.runName ?: r.sessionId?.toString()
     }
 
-    /** First 8 characters of a session id, for compact display. */
-    private static String shortId(UUID id) {
+    /** First 8 characters of a session id, for compact display. Package-private for unit testing. */
+    static String shortId(UUID id) {
         return id ? id.toString().substring(0, 8) : '????????'
     }
 
@@ -178,10 +178,33 @@ class RunLoader {
         throw last
     }
 
-    private static boolean isLockError(Throwable e) {
+    /**
+     * Message fragments (compared case-insensitively) that mark a <em>transient</em>
+     * cache-lock failure worth retrying. The LevelDB store Nextflow opens holds
+     * an exclusive OS lock, so a concurrent reader surfaces one of these. Kept as
+     * a small allow-list rather than a single literal so a phrasing change in
+     * LevelDB/Nextflow does not silently disable the retry path — but every entry
+     * still requires lock-specific wording, so we never mistake an unrelated
+     * failure for a transient one and retry it pointlessly. All entries must be
+     * lower case.
+     */
+    private static final List<String> LOCK_SIGNATURES = [
+            'unable to acquire lock',            // LevelDB JNI: another process holds the db
+            'resource temporarily unavailable',  // EAGAIN surfaced by the native flock
+            'another process is using this database',
+            'lock currently held',
+    ]
+
+    /**
+     * True when {@code e} (or any exception in its cause chain) looks like a
+     * transient cache-lock contention failure. Package-private for direct unit
+     * testing.
+     */
+    static boolean isLockError(Throwable e) {
         Throwable t = e
         while( t != null ) {
-            if( t.message?.contains('Unable to acquire lock') )
+            final msg = t.message?.toLowerCase(Locale.ROOT)
+            if( msg && LOCK_SIGNATURES.any { String sig -> msg.contains(sig) } )
                 return true
             t = t.cause
         }
@@ -221,11 +244,16 @@ class RunLoader {
         return info
     }
 
-    private static String asString(Object value) {
+    /** Coerce a raw trace-store value to a String. Package-private for unit testing. */
+    static String asString(Object value) {
         return value != null ? value.toString() : null
     }
 
-    private static Long asLong(Object value) {
+    /**
+     * Coerce a raw trace-store value to a Long, returning null for a null or
+     * non-numeric value. Package-private for unit testing.
+     */
+    static Long asLong(Object value) {
         if( value == null )
             return null
         if( value instanceof Number )

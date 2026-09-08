@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Direct unit tests for `RunLoader`'s pure helpers.** `RunLoader` is the
+  riskiest component (it reuses Nextflow's internal `HistoryFile`/`CacheDB`) yet
+  had no test. A new `RunLoaderTest` pins the pieces that are pure and
+  standalone — transient-lock detection (`isLockError`), the trace-store value
+  coercions (`asLong`/`asString`), and session-id shortening (`shortId`) — which
+  required only making those static helpers package-visible.
+
 ### Changed
 
+- **Cache-lock detection is no longer coupled to a single literal message.**
+  `RunLoader.isLockError` — which decides whether a failed cache open is a
+  transient lock contention worth retrying — previously matched exactly one
+  string (`Unable to acquire lock`). A phrasing change in LevelDB or Nextflow
+  would silently disable the retry loop. It now matches a small, case-insensitive
+  allow-list of known lock signatures (still lock-specific, so unrelated failures
+  are never retried pointlessly) while continuing to walk the cause chain.
 - **The opt-in work-dir layers now compare tasks in parallel.** `--diff-outputs`
   and `--diff-logs` previously walked matched task pairs one at a time, so a
   pipeline with many tasks and large outputs paid for single-threaded
