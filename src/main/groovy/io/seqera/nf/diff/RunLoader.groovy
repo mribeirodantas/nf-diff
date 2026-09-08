@@ -161,7 +161,17 @@ class RunLoader {
                 last = e
                 final waitMs = LOCK_BACKOFF_MS * attempt
                 log.warn "nf-diff: cache for '${runName}' is locked (attempt ${attempt}/${LOCK_MAX_ATTEMPTS}); retrying in ${waitMs}ms"
-                sleep(waitMs)
+                // Use Thread.sleep, not Groovy's sleep(): the latter swallows
+                // InterruptedException and clears the flag, so a Ctrl-C during
+                // a contended cache open would be ignored. Restore the flag and
+                // abort the retry loop instead.
+                try {
+                    Thread.sleep(waitMs)
+                }
+                catch( InterruptedException ie ) {
+                    Thread.currentThread().interrupt()
+                    throw e
+                }
             }
         }
         // unreachable, but keeps the compiler happy about the return type
