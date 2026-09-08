@@ -1,16 +1,22 @@
 package io.seqera.nf.diff
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 import spock.lang.Specification
+import spock.lang.TempDir
 import spock.lang.Unroll
 
 /**
- * Unit coverage of {@link RunLoader}'s pure static helpers. The full loader
- * needs a real {@code .nextflow/history} file and a LevelDB cache directory to
- * exercise end to end, but its riskiest small pieces — the transient-lock
- * detection that drives the retry loop, the trace-store value coercions, and
- * the session-id shortening — are pure and testable in isolation. Pinning them
- * guards the retry path against silent breakage if a LevelDB/Nextflow message
- * is reworded, and locks in the null-handling the snapshot mapping relies on.
+ * Unit coverage of {@link RunLoader}'s pure static helpers plus a
+ * fixture-backed slice of {@link RunLoader#lastPair}. The full {@code load}
+ * path additionally needs a LevelDB cache directory, but {@code lastPair} only
+ * reads {@code .nextflow/history}, so it can be exercised end to end against a
+ * hand-written history fixture. The pure helpers — transient-lock detection
+ * that drives the retry loop, the trace-store value coercions, and session-id
+ * shortening — are tested in isolation. Pinning them guards the retry path
+ * against silent breakage if a LevelDB/Nextflow message is reworded, and locks
+ * in the null-handling the snapshot mapping relies on.
  */
 class RunLoaderTest extends Specification {
 
@@ -99,5 +105,82 @@ class RunLoaderTest extends Specification {
     def 'shortId returns a placeholder for a null id'() {
         expect:
         RunLoader.shortId(null) == '????????'
+    }
+
+    // ---- lastPair (fixture-backed) ----------------------------------------
+
+    @TempDir
+    Path tmp
+
+    /**
+     * Write a {@code .nextflow/history} fixture with one row per run name, in
+     * chronological order (latest last, matching Nextflow's append-only file),
+     * and return a {@link RunLoader} rooted at the fixture's base dir.
+     */
+    private RunLoader loaderWithHistory(List<String> runNames) {
+        final dir = Files.createDirectories(tmp.resolve('.nextflow'))
+        final rev = 'afff16a9b45c8e8a4f5a3743780ac13a541762f8'
+        final lines = runNames.withIndex().collect { String name, int i ->
+            // timestamp, duration, runName, status, revisionId, sessionId, command
+            [ "2026-09-08 12:0${i}:00", '1.5s', name, 'OK', rev,
+              UUID.randomUUID().toString(), 'nextflow run hello' ].join('\t')
+        }
+        Files.write(dir.resolve('history'), (lines.join('\n') + '\n').bytes)
+        return new RunLoader(tmp)
+    }
+
+    def 'lastPair with the default B offset compares run A-back against the latest'() {
+        given:
+        def loader = loaderWithHistory(['r0', 'r1', 'r2', 'r3', 'r4'])
+
+        expect: 'bare --last (backA=1) picks the two most recent runs'
+        loader.lastPair(1) == ['r3', 'r4']
+
+        and: '--last=2 skips the run in between and diffs against the latest'
+        loader.lastPair(2) == ['r2', 'r4']
+    }
+
+    def 'lastPair with an explicit B offset names an adjacent pair'() {
+        given:
+        def loader = loaderWithHistory(['r0', 'r1', 'r2', 'r3', 'r4'])
+
+        expect: '--last=2:1 compares the run two back (A) against the run one back (B)'
+        loader.lastPair(2, 1) == ['r2', 'r3']
+
+        and: 'B=0 is equivalent to the single-offset form'
+        loader.lastPair(2, 0) == loader.lastPair(2)
+    }
+
+    def 'lastPair rejects a negative B offset'() {
+        given:
+        def loader = loaderWithHistory(['r0', 'r1'])
+
+        when:
+        loader.lastPair(1, -1)
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
+    def 'lastPair rejects A <= B'() {
+        given:
+        def loader = loaderWithHistory(['r0', 'r1', 'r2'])
+
+        when:
+        loader.lastPair(1, 2)
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
+    def 'lastPair fails when history has fewer than A+1 runs'() {
+        given:
+        def loader = loaderWithHistory(['r0', 'r1'])
+
+        when: 'run A is 2 back but only 2 runs exist (needs 3)'
+        loader.lastPair(2)
+
+        then:
+        thrown(IllegalArgumentException)
     }
 }

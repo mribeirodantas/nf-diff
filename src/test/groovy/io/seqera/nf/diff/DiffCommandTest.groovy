@@ -240,6 +240,52 @@ class DiffCommandTest extends Specification {
         then:
         cmd.last
         cmd.lastBack == 3
+        cmd.lastBackB == 0
+    }
+
+    def '--last=A:B sets both offsets (inline form)'() {
+        when:
+        def cmd = parse(['--last=2:1'])
+
+        then:
+        cmd.last
+        cmd.lastBack == 2
+        cmd.lastBackB == 1
+    }
+
+    def '--last A:B as forwarded space-separated by the launcher sets both offsets'() {
+        when:
+        def cmd = parse(['--last', '3:1'])
+
+        then:
+        cmd.last
+        cmd.lastBack == 3
+        cmd.lastBackB == 1
+    }
+
+    def '--last=A:B allows B=0 (explicit latest)'() {
+        when:
+        def cmd = parse(['--last=2:0'])
+
+        then:
+        cmd.lastBack == 2
+        cmd.lastBackB == 0
+    }
+
+    def '--last=A:B rejects A <= B'() {
+        when:
+        parse(['--last=1:2'])
+
+        then:
+        thrown(DiffCommand.UsageException)
+    }
+
+    def '--last=A:B rejects a non-integer offset'() {
+        when:
+        parse(['--last=2:x'])
+
+        then:
+        thrown(DiffCommand.UsageException)
     }
 
     def 'bare --last defaults to a back-offset of one'() {

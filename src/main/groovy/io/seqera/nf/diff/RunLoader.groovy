@@ -59,25 +59,30 @@ class RunLoader {
     }
 
     /**
-     * Resolve the run pair for {@code --last[=N]}: compare the run {@code back}
-     * positions before the most recent (A) against the most recent run (B).
-     * {@code back == 1} (the bare {@code --last}) therefore compares the two
-     * most recent runs, matching the original behaviour. The returned list is
-     * {@code [olderId, latestId]}.
+     * Resolve the run pair for {@code --last}: compare the run {@code backA}
+     * positions before the most recent (A) against the run {@code backB}
+     * positions before the most recent (B), where {@code 0} means the latest
+     * run. The bare {@code --last} (and single {@code --last=N}) passes
+     * {@code backB == 0}, so run B is the latest; the explicit {@code --last=A:B}
+     * form can name any pair, e.g. {@code 2:1} for the two runs just before the
+     * latest. The returned list is {@code [olderId, newerId]} (A first).
      *
-     * @throws IllegalArgumentException if {@code back < 1} or history has fewer
-     *         than {@code back + 1} runs.
+     * @throws IllegalArgumentException if the offsets are out of range
+     *         ({@code backA <= backB} or {@code backB < 0}) or history has fewer
+     *         than {@code backA + 1} runs.
      */
-    List<String> lastPair(int back) {
-        if( back < 1 )
-            throw new IllegalArgumentException("--last must be a positive number of runs back, got ${back}")
+    List<String> lastPair(int backA, int backB = 0) {
+        if( backB < 0 )
+            throw new IllegalArgumentException("--last run B offset must be >= 0, got ${backB}")
+        if( backA <= backB )
+            throw new IllegalArgumentException("--last run A must be older than run B (A > B), got A=${backA}, B=${backB}")
         final all = openHistory().findAll()
-        final needed = back + 1
+        final needed = backA + 1
         if( all.size() < needed )
-            throw new IllegalArgumentException("--last=${back} needs at least ${needed} runs in history, but only ${all.size()} found in ${historyPath()}")
-        final latest = all.get(all.size() - 1)
-        final older = all.get(all.size() - 1 - back)
-        return [runId(older), runId(latest)]
+            throw new IllegalArgumentException("--last needs at least ${needed} runs in history (run A is ${backA} back), but only ${all.size()} found in ${historyPath()}")
+        final newer = all.get(all.size() - 1 - backB)
+        final older = all.get(all.size() - 1 - backA)
+        return [runId(older), runId(newer)]
     }
 
     /** Path to the {@code .nextflow/history} file. */

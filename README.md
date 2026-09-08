@@ -85,7 +85,7 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 
 | Option                 | Description                                                                                      |
 |------------------------|--------------------------------------------------------------------------------------------------|
-| `-l`, `--last[=N]`     | Compare recent runs from history. Bare `--last` compares the two most recent runs; `--last=N` compares the run *N* positions before the latest (A) against the latest (B). Cannot be combined with explicit run identifiers. |
+| `-l`, `--last[=N\|A:B]` | Compare recent runs from history. Bare `--last` compares the two most recent runs. `--last=N` compares the run *N* positions before the latest (A) against the latest (B) — note this **skips** the runs in between. Use the explicit `--last=A:B` form to name an exact pair by their offsets back from the latest (`0` = latest, `A > B >= 0`); e.g. `--last=2:1` compares the run two back against the run one back. Cannot be combined with explicit run identifiers. |
 | `--format=<fmt>`       | Report format: `html` (default), `json`, or `md` (`markdown`)                                    |
 | `--output=<file>`      | Output report path (default: `nf-diff-report.<ext>`, where `<ext>` matches the chosen format). Use `-` to write to stdout. |
 | `--only=<globs>`       | Comma-separated process-name globs; only matching processes/tasks are compared (`*` and `?` supported, `*` spans `:` scopes) |
@@ -116,6 +116,10 @@ nextflow plugin nf-diff:diff --last
 
 # Compare the run two-before-latest against the latest
 nextflow plugin nf-diff:diff --last=2
+
+# Compare an adjacent pair without diffing against the latest: the run two
+# back (A) against the run one back (B).
+nextflow plugin nf-diff:diff --last=2:1
 
 # Compare by session-id prefix and choose the output file
 nextflow plugin nf-diff:diff 3a8c1f2e 9f2b7d10 --output=compare.html

@@ -44,12 +44,22 @@ class DiffCommand {
     /** When true, compare runs from history rather than explicit run identifiers. */
     boolean last = false
     /**
-     * How many runs back from the latest to use as run A when {@link #last} is
-     * set: {@code 1} (the bare {@code --last}) compares the two most recent
-     * runs; {@code N} compares the N-th-most-recent-before-latest against the
-     * latest.
+     * How many runs back from the latest to use as run A (the older side) when
+     * {@link #last} is set. {@code 1} (the bare {@code --last}) compares the two
+     * most recent runs; a single {@code --last=N} compares the run N positions
+     * before the latest against the latest ({@link #lastBackB} stays {@code 0}).
      */
     int lastBack = 1
+
+    /**
+     * How many runs back from the latest to use as run B (the newer side) when
+     * {@link #last} is set. Defaults to {@code 0} (the latest run). Set only by
+     * the explicit two-offset form {@code --last=A:B}, which lets callers name
+     * an adjacent (or any) pair — e.g. {@code --last=2:1} compares the run two
+     * back against the run one back — instead of always diffing against the
+     * latest and silently skipping the runs in between.
+     */
+    int lastBackB = 0
     /** Process-name globs to include; empty means include everything. */
     List<String> onlyGlobs = []
     /** Process-name globs to exclude; applied after {@link #onlyGlobs}. */
@@ -107,10 +117,13 @@ class DiffCommand {
             if( crossProject )
                 throw new UsageException('--last compares two runs from a single history, so it cannot be ' +
                         'combined with differing --dir-a/--dir-b; pass explicit run identifiers instead')
-            final names = new RunLoader(dirA).lastPair(lastBack)
+            final names = new RunLoader(dirA).lastPair(lastBack, lastBackB)
             runA = names[0]
             runB = names[1]
-            log.info "nf-diff: --last=${lastBack} selected '${runA}' (A) and '${runB}' (B)"
+            // Spell out the offsets so the selection is unmistakable: run A is
+            // `lastBack` runs back, run B is `lastBackB` back (0 = latest).
+            log.info "nf-diff: --last selected A='${runA}' (${lastBack} run(s) before latest) " +
+                    "and B='${runB}' (${lastBackB == 0 ? 'latest' : "${lastBackB} run(s) before latest"})"
         }
 
         log.info "nf-diff: comparing runs '${runA}' and '${runB}'"
@@ -242,21 +255,15 @@ nf-diff: comparison complete
                             last = Boolean.parseBoolean(nxt)
                             i++
                         }
-                        else if( nxt ==~ /\d+/ ) {
+                        // A single offset (`--last N`) or the explicit two-offset
+                        // pair (`--last A:B`); anything else is not a --last value.
+                        else if( nxt ==~ /\d+(:\d+)?/ ) {
                             lastVal = nxt
                             i++
                         }
                     }
-                    if( lastVal != null ) {
-                        try {
-                            lastBack = Integer.parseInt(lastVal)
-                        }
-                        catch( NumberFormatException ignored ) {
-                            throw new UsageException("--last value must be an integer, got '${lastVal}'")
-                        }
-                        if( lastBack < 1 )
-                            throw new UsageException("--last value must be >= 1, got ${lastBack}")
-                    }
+                    if( lastVal != null )
+                        parseLastValue(lastVal)
                     break
                 case '--only':
                     onlyGlobs.addAll(splitGlobs(requireValue(key, inlineVal, args, i)))
@@ -429,6 +436,52 @@ nf-diff: comparison complete
         return args[i + 1]
     }
 
+    /**
+     * Parse the value of {@code --last}. Two forms are accepted:
+     * <ul>
+     *   <li>a single offset {@code N} (>= 1) — compare the run N positions
+     *       before the latest (A) against the latest (B), the historic
+     *       behaviour; and</li>
+     *   <li>an explicit pair {@code A:B} — compare the run {@code A} positions
+     *       before the latest against the run {@code B} positions before the
+     *       latest ({@code 0} = latest), requiring {@code A > B >= 0}. This lets
+     *       callers name an adjacent pair (e.g. {@code 2:1}) instead of always
+     *       diffing against the latest and silently skipping the runs between.</li>
+     * </ul>
+     */
+    private void parseLastValue(String value) {
+        if( value.contains(':') ) {
+            final parts = value.split(':', -1)
+            if( parts.length != 2 )
+                throw new UsageException("--last pair must be A:B, got '${value}'")
+            def a = 0
+            def b = 0
+            try {
+                a = Integer.parseInt(parts[0])
+                b = Integer.parseInt(parts[1])
+            }
+            catch( NumberFormatException ignored ) {
+                throw new UsageException("--last pair offsets must be integers, got '${value}'")
+            }
+            if( b < 0 )
+                throw new UsageException("--last pair offset B must be >= 0, got ${b}")
+            if( a <= b )
+                throw new UsageException("--last pair must have A > B (A is the older run), got ${a}:${b}")
+            lastBack = a
+            lastBackB = b
+            return
+        }
+        try {
+            lastBack = Integer.parseInt(value)
+        }
+        catch( NumberFormatException ignored ) {
+            throw new UsageException("--last value must be an integer, got '${value}'")
+        }
+        if( lastBack < 1 )
+            throw new UsageException("--last value must be >= 1, got ${lastBack}")
+        lastBackB = 0
+    }
+
     /** Split a comma-separated glob list into trimmed, non-empty entries. */
     private static List<String> splitGlobs(String value) {
         return value.split(',').collect { String g -> g.trim() }.findAll { String g -> g }
@@ -449,10 +502,14 @@ Arguments:
                        Omit both when using --last.
 
 Options:
-  -l, --last[=N]       Compare recent runs from history. Bare --last compares
-                       the two most recent runs; --last=N compares the run N
-                       positions before the latest (A) against the latest (B).
-                       Cannot be combined with explicit run identifiers.
+  -l, --last[=N|A:B]   Compare recent runs from history. Bare --last compares
+                       the two most recent runs. --last=N compares the run N
+                       positions before the latest (A) against the latest (B) —
+                       note this SKIPS the runs in between. Use the explicit
+                       --last=A:B form to name an exact pair by their offsets
+                       back from the latest (0 = latest, A > B >= 0); e.g.
+                       --last=2:1 compares the run two back against the run one
+                       back. Cannot be combined with explicit run identifiers.
   --output=<file>      Output report path (default: nf-diff-report.<ext>,
                        where <ext> matches the chosen --format). Use "-" to
                        write the report to stdout (the summary then goes to
@@ -528,6 +585,7 @@ Examples:
   nextflow plugin nf-diff:diff 3a8c1f2e 9f2b7d10 --output=compare.html
   nextflow plugin nf-diff:diff --last
   nextflow plugin nf-diff:diff --last=2
+  nextflow plugin nf-diff:diff --last=2:1
   nextflow plugin nf-diff:diff --last --format=json --fail-on-change
   nextflow plugin nf-diff:diff --last --format=md --output=diff.md
   nextflow plugin nf-diff:diff --last --only='ALIGN:*' --exclude='*:INDEX'

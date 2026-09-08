@@ -20,9 +20,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   standalone — transient-lock detection (`isLockError`), the trace-store value
   coercions (`asLong`/`asString`), and session-id shortening (`shortId`) — which
   required only making those static helpers package-visible.
+- **Fixture-backed test for `RunLoader.lastPair`.** `lastPair` reads only
+  `.nextflow/history` (no LevelDB cache), so `RunLoaderTest` now writes a
+  hand-built history fixture and exercises the real selection logic end to end:
+  the default-B single-offset form, the explicit `A:B` pair form (and its
+  equivalence to `A:0`), and the out-of-range guards (negative B, `A <= B`, and
+  too few runs in history).
 
 ### Changed
 
+- **`--last` gained an explicit `A:B` pair form and clearer docs.** A single
+  `--last=N` still compares the run N positions before the latest against the
+  latest — but that silently *skips* the runs in between, which was easy to
+  misread as "the N most recent runs". You can now name an exact pair by their
+  offsets back from the latest (`0` = latest, requiring `A > B >= 0`): e.g.
+  `--last=2:1` compares the run two back against the run one back. The bare
+  `--last` and single-integer forms are unchanged (`--last=N` ≡ `--last=N:0`).
+  The `-h` text now spells out the skip behavior, and the info line logged at
+  selection names each side's offset explicitly.
 - **Per-task `raw` trace map is no longer deep-copied.** `RunLoader.toTaskInfo`
   built each `TaskInfo` with `raw = new LinkedHashMap<>(store)`, duplicating the
   entire trace store on top of the already-copied `display` map — roughly
