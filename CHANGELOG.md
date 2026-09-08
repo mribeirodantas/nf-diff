@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Continuous integration & tag-based releases** — a GitHub Actions CI
+  workflow (`.github/workflows/ci.yml`) now runs the full verification suite
+  (`make check`) on every push and pull request to `main`, across JDK 17 and 21,
+  uploading test reports as build artifacts. A companion release workflow
+  (`.github/workflows/release.yml`) publishes to the
+  [Nextflow plugin registry](https://registry.nextflow.io/) when a `v*` version
+  tag is pushed: it verifies the tag matches `build.gradle`'s `version` (so a tag
+  can never publish a mismatched artifact), runs `make check`, then `make
+  release`, authenticating with an `NPR_API_KEY` repository secret. See the
+  README's "Continuous integration" and "Releasing" sections for setup and the
+  tagging flow.
 - **DAG (process wiring) diff (`--diff-dag`)** — a new opt-in layer that
   reconstructs each run's process;process wiring and diffs the two edge
   sets, so nf-diff surfaces topology changes the task-count-per-process view

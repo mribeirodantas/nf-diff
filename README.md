@@ -1,5 +1,7 @@
 # nf-diff
 
+[![CI](https://github.com/mribeirodantas/nf-diff/actions/workflows/ci.yml/badge.svg)](https://github.com/mribeirodantas/nf-diff/actions/workflows/ci.yml)
+
 > Compare two Nextflow runs and render a detailed, self-contained HTML report of what changed.
 
 `nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history — or just say `--last` to grab the two most recent — and it produces a report that walks through their differences across six layers: **run metadata**, **parameters & options** (the resolved flags each run was launched with, merging `-params-file` contents with the command line), **resolved configuration** (the effective `nextflow.config` after profiles, with a caveat when the working tree has drifted from the git revision a run was launched at), **process topology**, **software & versions** (the container image and Conda spec each process ran with), and **per-task detail** (resources, scripts, containers, exit codes). On top of those, it derives a **performance-regressions** view — the tasks whose runtime or memory moved beyond a threshold between the two runs — a **resource-efficiency** view — how much of each process's requested CPU/memory it actually used at peak, flagging over- and under-provisioning — and a **recompute count** telling you how many matched tasks were re-executed rather than resumed.
@@ -246,6 +248,36 @@ src/main/groovy/io/seqera/nf/diff/
 ```
 
 Tests live under `src/test/groovy/...` and use [Spock](https://spockframework.org/).
+
+### Continuous integration
+
+Every push and pull request to `main` runs the full verification suite
+(`make check`) on GitHub Actions across JDK 17 and 21
+(`.github/workflows/ci.yml`). Test reports are uploaded as build artifacts so a
+red build is debuggable without re-running locally.
+
+### Releasing
+
+Releases are published to the [Nextflow plugin registry](https://registry.nextflow.io/)
+by pushing a version tag — `.github/workflows/release.yml` does the rest:
+
+```bash
+# 1. Bump `version` in build.gradle and update the CHANGELOG, then commit.
+# 2. Tag the release (the tag must match build.gradle's version, prefixed 'v').
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+On a `v*` tag the release workflow verifies the tag matches `build.gradle`'s
+`version` (so a tag can never publish a mismatched artifact), runs `make check`,
+then `make release`. Publishing authenticates against the registry with an API
+token read from the `NPR_API_KEY` environment variable — provided in CI by a
+repository secret of the same name.
+
+> **One-time setup:** generate an access token in the Nextflow plugin registry
+> (**Access tokens** page) and add it under the repository's
+> **Settings → Secrets and variables → Actions** as `NPR_API_KEY`. To publish
+> from a local machine instead, `export NPR_API_KEY=<token>` before `make release`.
 
 ---
 
