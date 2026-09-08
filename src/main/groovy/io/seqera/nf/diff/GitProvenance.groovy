@@ -65,6 +65,14 @@ class GitProvenance {
     /**
      * Run a git command in {@code dir}, returning its stdout on a clean (zero)
      * exit or null on any error, non-zero exit, or timeout.
+     *
+     * <p>Both output streams are drained on background threads <em>before</em>
+     * the {@link Process#waitFor(long, TimeUnit) timed waitFor}. Reading them
+     * inline (the obvious {@code getText()} first, {@code waitFor} after) blocks
+     * until each stream closes — which only happens when the process exits — so
+     * a hung git command would block forever and the timeout would never fire.
+     * Concurrent draining also prevents a full stdout/stderr pipe buffer from
+     * deadlocking the child while it waits for us to read.
      */
     private static String run(Path dir, List<String> cmd) {
         Process proc = null
@@ -72,14 +80,28 @@ class GitProvenance {
             final pb = new ProcessBuilder(cmd)
             pb.directory(dir.toFile())
             proc = pb.start()
-            final out = proc.inputStream.getText('UTF-8')
-            proc.errorStream?.getText('UTF-8')
-            if( !proc.waitFor(TIMEOUT_MS, TimeUnit.MILLISECONDS) ) {
-                proc.destroyForcibly()
+            final process = proc
+
+            final stdout = new StringBuilder()
+            final outThread = Thread.start {
+                stdout << process.inputStream.getText('UTF-8')
+            }
+            // Drain stderr too so a chatty command cannot fill the pipe buffer
+            // and block; its contents are not needed (only stdout is returned).
+            final errThread = Thread.start {
+                process.errorStream?.getText('UTF-8')
+            }
+
+            if( !process.waitFor(TIMEOUT_MS, TimeUnit.MILLISECONDS) ) {
+                process.destroyForcibly()
                 log.debug "nf-diff: git command ${cmd} timed out in ${dir}"
                 return null
             }
-            return proc.exitValue() == 0 ? out : null
+            // The process has exited, so the drain threads see EOF and finish
+            // promptly; bound the join so a wedged reader can't hang us either.
+            outThread.join(TIMEOUT_MS)
+            errThread.join(TIMEOUT_MS)
+            return process.exitValue() == 0 ? stdout.toString() : null
         }
         catch( Exception e ) {
             log.debug "nf-diff: git command ${cmd} failed in ${dir}: ${e.message}"
