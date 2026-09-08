@@ -6,6 +6,8 @@
 
 Opt into a sixth layer with `--diff-outputs`: for every task matched in both runs, it compares the **output files** each one wrote to its work directory — by size first, then a content SHA-256 for same-size files — so you can see not just whether the runs were *launched* differently, but whether they actually *produced* different results.
 
+And opt into a seventh with `--diff-logs`: for every matched task, it diffs the **standard log files** (`.command.out`, `.command.err`, `.command.log`) line by line and surfaces the exit-code/status change alongside them — so when a task goes from exit 0 to exit 1, you can read *what it printed* right before it failed. This layer is informational only; it never affects the "identical" verdict or `--fail-on-change`.
+
 The default report is a single, standalone HTML document — no external assets, no network access — that you can open in a browser or email to a colleague. For scripting and CI, `--format=json` emits the same comparison as machine-readable JSON, `--format=md` produces Markdown you can drop straight into a pull-request comment, and `--fail-on-change` turns a difference into a non-zero exit code.
 
 It's the tool you reach for when you ask *"my pipeline behaved differently this time — what actually changed?"*
@@ -23,6 +25,7 @@ Nextflow already records everything about a run in `.nextflow/history` and the p
 - **Did anything get slower or heavier?** A dedicated performance-regressions layer flags matched tasks whose runtime (`realtime`) or peak memory (`peak_rss`) changed by at least `--perf-threshold` percent (default `25`), sorted worst-regression first. Tasks that share the same cache hash are marked "same work", so a `+200%` realtime on identical work stands out from a slowdown that also changed what ran. Improvements (Run B faster/leaner) are shown too, but only true regressions are counted.
 - **Was work reused?** Cached-task counts and total task realtime, plus a **recompute count** — matched tasks (present in both runs) whose cache hash differs, i.e. work that was re-executed rather than resumed — so you can see whether a re-run actually recomputed anything, and why.
 - **Did the results change?** With `--diff-outputs`, the files each matched task wrote to its work directory are compared — by size first, then a streamed SHA-256 for same-size files — and classified as added / removed / changed / unchanged. Tasks that resumed from cache share a work directory, so they short-circuit to "identical"; the interesting cases are recomputed tasks whose outputs actually differ. This layer needs the work directories to still exist locally, and (unlike the always-changing performance metrics) an output change *does* count toward the "identical" verdict and `--fail-on-change`.
+- **Why did a task fail?** With `--diff-logs`, the standard log files (`.command.out`, `.command.err`, `.command.log`) each matched task wrote are compared line by line, with the task's exit code and status surfaced alongside — so a task that flipped from exit 0 to exit 1 shows both the change *and* the stderr that explains it. Reads are bounded (tailed to `--logs-max-lines`, default `200`, and a hard byte cap) so a huge log never blows up memory, and cache-resumed tasks sharing a work directory short-circuit as identical. Because stdout/stderr legitimately varies between runs (timestamps, paths, ordering), this layer is *informational only* — it never affects the "identical" verdict or `--fail-on-change` (the exit-code change already does).
 
 By default the report highlights **meaningful** changes and treats fields that *always* differ between two distinct runs (run name, session id, launch time, work directory, wall-clock time, and measured resource usage) as context rather than "changes". The same rule applies to the parameters layer: launch options that routinely differ without changing what was executed (`-name`, `-resume`, `-ansi-log`, `-with-tower`, `-with-weblog`, `-bg`) are shown for context but not flagged as changes. Use `--verbose` when you want everything flagged.
 
@@ -82,6 +85,8 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 | `--perf-threshold=<pct>` | Percentage change beyond which a task metric (runtime, peak memory) is flagged in the performance-regressions layer (default: `25`). Must be `>= 0`; `0` flags any measurable change. |
 | `--diff-outputs`       | Compare the output files each matched task wrote to its work directory (by size, then SHA-256 for same-size files). Requires the tasks' work directories to still exist locally. When enabled, an output-file change counts toward `--fail-on-change`. |
 | `--outputs-max-bytes=<n>` | With `--diff-outputs`, skip hashing same-size files larger than `<n>` bytes (they are reported as content-unverified). Default `0` = no limit. |
+| `--diff-logs`          | Compare the standard log files (`.command.out`/`.command.err`/`.command.log`) each matched task wrote to its work directory, line by line. Ideal for inspecting why a task's exit code changed. Requires the tasks' work directories to still exist locally. Informational only: never affects `--fail-on-change`. |
+| `--logs-max-lines=<n>` | With `--diff-logs`, keep only the last `<n>` lines of each log file before diffing. Default `200`. |
 | `--fail-on-change`     | Exit with code `3` if the runs are not identical (useful in CI)                                  |
 | `--dir=<dir>`          | Project directory containing `.nextflow/` (default: `.`)                                         |
 | `-v`, `--verbose`, `--all` | Also diff fields that always change between runs (run name, session id, launch time, work dir, wall/real time, resource usage) |
@@ -115,6 +120,9 @@ nextflow plugin nf-diff:diff --last --perf-threshold=10
 
 # Also compare the files each task produced, and fail CI if any result changed
 nextflow plugin nf-diff:diff --last --diff-outputs --fail-on-change
+
+# Inspect why a task's exit code changed by diffing its stdout/stderr
+nextflow plugin nf-diff:diff --last --diff-logs
 
 # Inspect a project in another directory, with every field flagged
 nextflow plugin nf-diff:diff runA runB --dir=/path/to/project --verbose
@@ -174,6 +182,7 @@ The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark th
    - **Tasks** — matched across runs by task name (falling back to process + tag), with per-field diffs. "Obvious" always-changing fields are shown for context but excluded from change detection unless `--verbose` is set. Matched tasks whose cache hash differs are tallied as the **recompute count** — work that was re-executed rather than resumed.
    - **Performance regressions** — derived from the matched tasks' numeric trace metrics (`realtime`, `peak_rss`). For each metric that moved by at least `--perf-threshold` percent, a signed delta is recorded and the list is sorted worst-regression first; each entry notes whether both tasks shared a cache hash ("same work"). This layer is *always* computed from fields that change between runs, so it is informational only — it never affects the "identical" verdict or `--fail-on-change`.
    - **Outputs** (only with `--diff-outputs`) — `OutputComparator` walks each matched task's work directory, skipping staged inputs (symlinks) and Nextflow control files (`.command.*`, `.exitcode`), and compares the remaining real files by path. Files are matched by size first; same-size files are then compared by a streamed SHA-256 (capped by `--outputs-max-bytes`, which leaves oversized same-size files content-unverified). Tasks that resolved to the same physical work directory (a cache resume) short-circuit as identical. Unlike performance regressions, an output-file change *does* count toward "identical" and `--fail-on-change`.
+   - **Logs** (only with `--diff-logs`) — `LogComparator` reads the standard log files (`.command.out`, `.command.err`, `.command.log`) from each matched task's work directory and produces a line-level diff of each via `LineDiff`, alongside the task's exit code and status. Reads are bounded (only the tail up to `--logs-max-lines` and a hard byte cap are loaded) so large logs never exhaust memory, and tasks sharing a physical work directory short-circuit as identical. Like performance regressions, this layer is informational only — task stdout/stderr legitimately varies between runs, so it never affects "identical" or `--fail-on-change`.
 4. **Render** — `HtmlReportRenderer` emits the standalone HTML document, `JsonReportRenderer` the structured JSON (`--format=json`), or `MarkdownReportRenderer` the Markdown report (`--format=md`).
 
 `--only` / `--exclude` narrow the comparison via a `ProcessFilter` before rendering, so process- and task-level output is restricted to the processes you care about.
@@ -207,6 +216,7 @@ src/main/groovy/io/seqera/nf/diff/
   CommandParams.groovy      # resolves launch params (CLI + -params-file), tagged by source
   ConfigLoader.groovy       # resolves the effective nextflow.config (profiles + -c)
   OutputComparator.groovy   # --diff-outputs: compares task work-dir output files
+  LogComparator.groovy      # --diff-logs: diffs task .command.out/.err/.log files
   ProcessFilter.groovy      # --only / --exclude process-name globbing
   DiffResult.groovy         # structured comparison outcome
   LineDiff.groovy           # line-level diff (e.g. task scripts)

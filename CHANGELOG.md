@@ -23,6 +23,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Default `0` means no limit.
 - Output diffs are surfaced in all three report formats (HTML, JSON, Markdown),
   with an `outputsChanged` count in the JSON/HTML summary.
+- **Failure / log diffing** — a new opt-in `--diff-logs` layer that compares the
+  standard log files (`.command.out`, `.command.err`, `.command.log`) each
+  matched task wrote to its work directory, line by line. It surfaces the
+  exit-code and status change alongside the log contents, so a task that went
+  from exit 0 to exit 1 can be inspected side by side — answering not *that* a
+  task failed but *what it printed* before it did. Reads are bounded (tailed to
+  a line cap and a hard byte cap) so an enormous log never blows up memory, and
+  tasks sharing a work directory (cache-resumed) short-circuit as identical.
+  Because task stdout/stderr legitimately varies between runs (timestamps,
+  paths, ordering), this layer is **informational only**: it never affects the
+  "identical" verdict or `--fail-on-change` — the exit-code change already
+  captured by the per-task diff does that.
+- **`--logs-max-lines=<n>`** — keeps only the last `<n>` lines of each log file
+  before diffing under `--diff-logs` (default `200`).
+- Log diffs are surfaced in all three report formats (HTML, JSON, Markdown),
+  with a `logsChanged` count in the JSON/HTML summary.
 
 ## [0.1.0] - 2026-09-08
 

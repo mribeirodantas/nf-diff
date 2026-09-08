@@ -57,6 +57,15 @@ class DiffCommand {
      */
     long outputsMaxBytes = 0L
 
+    /** When true, compare the standard log files each matched task wrote. */
+    boolean diffLogs = false
+
+    /**
+     * Maximum tail lines kept per log file when {@link #diffLogs} is set.
+     * Defaults to {@link LogComparator#DEFAULT_MAX_LINES}.
+     */
+    int logsMaxLines = LogComparator.DEFAULT_MAX_LINES
+
     /** Exit code returned when {@link #failOnChange} is set and runs differ. */
     static final int EXIT_CHANGED = 3
 
@@ -80,7 +89,8 @@ class DiffCommand {
         final snapB = loader.load(runB)
 
         final filter = ProcessFilter.of(onlyGlobs, excludeGlobs)
-        final diff = new RunComparator(verbose, filter, baseDir, perfThreshold, diffOutputs, outputsMaxBytes)
+        final diff = new RunComparator(verbose, filter, baseDir, perfThreshold,
+                        diffOutputs, outputsMaxBytes, diffLogs, logsMaxLines)
                 .compare(snapA, snapB)
 
         final content = renderContent(diff)
@@ -231,6 +241,21 @@ nf-diff: comparison complete
                     if( outputsMaxBytes < 0 )
                         throw new UsageException("--outputs-max-bytes must be >= 0, got ${outputsMaxBytes}")
                     break
+                case '--diff-logs':
+                    diffLogs = true
+                    break
+                case '--logs-max-lines':
+                    final ml = requireValue(key, inlineVal, args, i)
+                    if( inlineVal == null ) i++
+                    try {
+                        logsMaxLines = Integer.parseInt(ml)
+                    }
+                    catch( NumberFormatException ignored ) {
+                        throw new UsageException("--logs-max-lines must be an integer, got '${ml}'")
+                    }
+                    if( logsMaxLines < 1 )
+                        throw new UsageException("--logs-max-lines must be >= 1, got ${logsMaxLines}")
+                    break
                 case '-d':
                 case '--dir':
                     if( inlineVal != null ) {
@@ -338,6 +363,14 @@ Options:
                        When --diff-outputs is set, skip hashing same-size files
                        larger than <n> bytes (they are reported as content-
                        unverified). Default 0 = no limit (hash any size).
+  --diff-logs          Compare the standard log files (.command.out/.err/.log)
+                       each matched task wrote to its work directory, line by
+                       line. Ideal for inspecting why a task's exit code changed.
+                       Needs the tasks' work directories to still exist locally.
+                       This layer is informational only: it never affects
+                       --fail-on-change (the exit-code change already does).
+  --logs-max-lines=<n> When --diff-logs is set, keep only the last <n> lines of
+                       each log file before diffing (default: 200).
   --dir=<dir>          Project directory containing .nextflow/ (default: .)
   -v, --verbose, --all Also diff fields that always change between runs
                        (run name, session id, launch time, work dir, wall/real
@@ -360,6 +393,7 @@ Examples:
   nextflow plugin nf-diff:diff --last --format=md --output=diff.md
   nextflow plugin nf-diff:diff --last --only='ALIGN:*' --exclude='*:INDEX'
   nextflow plugin nf-diff:diff --last --diff-outputs --fail-on-change
+  nextflow plugin nf-diff:diff --last --diff-logs
   nextflow plugin nf-diff:diff runA runB --format=json --output=diff.json
   nextflow plugin nf-diff:diff --last --format=json --output=- | jq .summary
 

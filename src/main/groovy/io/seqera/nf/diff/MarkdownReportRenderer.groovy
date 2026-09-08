@@ -31,6 +31,7 @@ class MarkdownReportRenderer {
         renderRegressions(sb, diff)
         renderTasks(sb, diff)
         renderOutputs(sb, diff)
+        renderLogs(sb, diff)
         return sb.toString()
     }
 
@@ -183,6 +184,46 @@ class MarkdownReportRenderer {
     /** Byte size for a table cell, or an em dash when the file is absent on that side. */
     private static String sizeCell(Long size) {
         return size == null ? '—' : "${size} B".toString()
+    }
+
+    private void renderLogs(StringBuilder sb, DiffResult diff) {
+        if( !diff.diffLogs )
+            return
+        sb << '## Task logs\n\n'
+        if( diff.logsNote )
+            sb << "> ${cell(diff.logsNote)}\n\n"
+
+        final changed = diff.logs.findAll { DiffResult.LogDiff ld -> ld.hasChanges() }
+        if( changed.isEmpty() ) {
+            sb << '_No task log differences detected._\n\n'
+            return
+        }
+        changed.each { DiffResult.LogDiff ld ->
+            final flag = ld.failure ? ' ⚠️' : ''
+            sb << "### ${cell(ld.taskKey)}${flag}\n\n"
+            if( ld.exitChanged || ld.statusChanged ) {
+                sb << "- **exit**: `${inline(ld.exitA ?: '—')}` → `${inline(ld.exitB ?: '—')}`"
+                sb << " · **status**: `${inline(ld.statusA ?: '—')}` → `${inline(ld.statusB ?: '—')}`\n\n"
+            }
+            ld.changedLogs().each { DiffResult.LogFileDiff f ->
+                sb << "**${cell(f.name)}** (${f.kind.name().toLowerCase()}"
+                if( f.truncated )
+                    sb << ', tailed'
+                sb << ")\n\n"
+                fencedDiff(sb, f.ops)
+            }
+        }
+    }
+
+    /** Emit a fenced unified-diff block (' ' context, '+' add, '-' del). */
+    private static void fencedDiff(StringBuilder sb, List<LineDiff.Op> ops) {
+        sb << '```diff\n'
+        ops.each { LineDiff.Op op ->
+            final prefix = op.type == LineDiff.Type.INSERT ? '+'
+                    : (op.type == LineDiff.Type.DELETE ? '-' : ' ')
+            sb << "${prefix}${op.text}\n"
+        }
+        sb << '```\n\n'
     }
 
     /** Trim a whole-number threshold to an integer string (25.0 -> "25"). */

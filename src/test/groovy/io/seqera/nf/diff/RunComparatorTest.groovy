@@ -459,6 +459,46 @@ class RunComparatorTest extends Specification {
         !diff.identical
     }
 
+    // -- logs layer ---------------------------------------------------------
+
+    def 'logs layer is not computed unless --diff-logs is enabled'() {
+        given:
+        def dirA = Files.createDirectories(projectDir.resolve('la'))
+        def dirB = Files.createDirectories(projectDir.resolve('lb'))
+        Files.write(dirA.resolve('.command.err'), 'ok'.bytes)
+        Files.write(dirB.resolve('.command.err'), 'boom'.bytes)
+        def a = snap('runA', [taskWithWork(dirA.toString())])
+        def b = snap('runB', [taskWithWork(dirB.toString())])
+
+        when: 'default comparison (no log diffing)'
+        def diff = new RunComparator().compare(a, b)
+
+        then:
+        !diff.diffLogs
+        diff.logs.isEmpty()
+    }
+
+    def 'enabling --diff-logs surfaces a log change without breaking identical'() {
+        given: 'matched, otherwise-identical tasks whose stderr differs'
+        def dirA = Files.createDirectories(projectDir.resolve('la'))
+        def dirB = Files.createDirectories(projectDir.resolve('lb'))
+        Files.write(dirA.resolve('.command.err'), 'all good\n'.bytes)
+        Files.write(dirB.resolve('.command.err'), 'warning: retry\n'.bytes)
+        def a = snap('runA', [taskWithWork(dirA.toString())])
+        def b = snap('runB', [taskWithWork(dirB.toString())])
+
+        when:
+        def diff = new RunComparator(false, null, null, RunComparator.DEFAULT_PERF_THRESHOLD,
+                false, 0L, true, LogComparator.DEFAULT_MAX_LINES).compare(a, b)
+
+        then:
+        diff.diffLogs
+        diff.logs.size() == 1
+        diff.logs[0].hasChanges()
+        diff.hasLogChanges()
+        diff.identical // logs are informational only
+    }
+
     def 'renderer escapes HTML in task values'() {
         given:
         def a = snap('runA', [task(process: '<b>', name: 'X (1)', display: [status: 'COMPLETED', script: 'a'])])

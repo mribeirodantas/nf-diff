@@ -47,6 +47,7 @@ class HtmlReportRenderer {
         renderRegressions(sb, diff)
         renderTasks(sb, diff)
         renderOutputs(sb, diff)
+        renderLogs(sb, diff)
         sb << '</main>\n'
         renderFooter(sb, diff)
 
@@ -106,6 +107,8 @@ class HtmlReportRenderer {
         sb << '  <a href="#tasks">Tasks</a>\n'
         if( diff.diffOutputs )
             sb << '  <a href="#outputs">Outputs</a>\n'
+        if( diff.diffLogs )
+            sb << '  <a href="#logs">Logs</a>\n'
         sb << '</nav>\n'
     }
 
@@ -123,6 +126,8 @@ class HtmlReportRenderer {
         sb << statCard('Regressions', diff.regressions.count { it.regression } as int, 'removed')
         if( diff.diffOutputs )
             sb << statCard('Outputs changed', diff.outputs.count { it.hasChanges() } as int, 'changed')
+        if( diff.diffLogs )
+            sb << statCard('Logs changed', diff.logs.count { it.hasChanges() } as int, 'changed')
         sb << '  </div>\n'
 
         // wall-time comparison bar
@@ -324,6 +329,62 @@ class HtmlReportRenderer {
         if( size == null )
             return Format.NA
         return hash ? "${size} B · ${hash}".toString() : "${size} B".toString()
+    }
+
+    // --------------------------------------------------------------- logs
+
+    private void renderLogs(StringBuilder sb, DiffResult diff) {
+        if( !diff.diffLogs )
+            return
+        sb << '<section id="logs" class="section">\n'
+        sb << '  <h2>Task logs</h2>\n'
+        if( diff.logsNote )
+            sb << "  <p class=\"mode-note\">${esc(diff.logsNote)}</p>\n"
+
+        final changed = diff.logs.findAll { DiffResult.LogDiff ld -> ld.hasChanges() }
+        if( changed.isEmpty() ) {
+            sb << '  <p class="mode-note">No task log differences were detected across the compared tasks.</p>\n'
+            sb << '</section>\n'
+            return
+        }
+        changed.each { DiffResult.LogDiff ld ->
+            final cls = ld.failure ? 'removed' : 'changed'
+            sb << "  <div class=\"task ${cls}\">\n"
+            sb << '    <div class="task-hdr" onclick="toggleTask(this)">\n'
+            sb << "      <span class=\"pill ${cls}\">${ld.failure ? 'failure' : 'logs'}</span>\n"
+            sb << "      <span class=\"task-key mono\">${esc(ld.taskKey)}</span>\n"
+            sb << "      <span class=\"task-proc\">${esc(ld.process ?: '')}</span>\n"
+            sb << '      <span class="chev">▸</span>\n'
+            sb << '    </div>\n'
+            sb << '    <div class="task-body">\n'
+            if( ld.exitChanged || ld.statusChanged ) {
+                sb << '      <p class="solo-note">'
+                sb << "exit ${esc(ld.exitA ?: Format.NA)} &rarr; ${esc(ld.exitB ?: Format.NA)}"
+                sb << " · status ${esc(ld.statusA ?: Format.NA)} &rarr; ${esc(ld.statusB ?: Format.NA)}</p>\n"
+            }
+            ld.changedLogs().each { DiffResult.LogFileDiff f ->
+                final label = f.kind.name().toLowerCase()
+                sb << "      <div class=\"log-file\"><span class=\"mono\">${esc(f.name)}</span> "
+                sb << "<span class=\"pill ${label}\">${label}</span>"
+                if( f.truncated )
+                    sb << ' <span class="tag-auto" title="Tailed to the line cap">tailed</span>'
+                sb << "</div>\n"
+                sb << logDiffPre(f.ops)
+            }
+            sb << '    </div>\n  </div>\n'
+        }
+        sb << '</section>\n'
+    }
+
+    /** Render log-diff ops as a single unified-diff pane reusing the code-line styles. */
+    private String logDiffPre(List<LineDiff.Op> ops) {
+        final body = new StringBuilder()
+        ops.each { LineDiff.Op op ->
+            final cls = op.type == LineDiff.Type.INSERT ? 'ins'
+                    : (op.type == LineDiff.Type.DELETE ? 'del' : 'eq')
+            body << codeLine(op.text, cls)
+        }
+        return "      <div class=\"code-diff\"><div class=\"code-col wide\"><pre>${body}</pre></div></div>\n"
     }
 
     // ----------------------------------------------------------------- tasks

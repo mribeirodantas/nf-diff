@@ -100,15 +100,27 @@ class RunComparator {
      */
     private final long outputsMaxBytes
 
+    /** When true, compare the standard log files each matched task wrote. */
+    private final boolean diffLogs
+
+    /**
+     * Maximum tail lines kept per log file when {@link #diffLogs} is set.
+     * Zero falls back to {@link LogComparator#DEFAULT_MAX_LINES}.
+     */
+    private final int logsMaxLines
+
     RunComparator(boolean showObvious = false, ProcessFilter filter = null, Path baseDir = null,
                   double perfThreshold = DEFAULT_PERF_THRESHOLD,
-                  boolean diffOutputs = false, long outputsMaxBytes = 0L) {
+                  boolean diffOutputs = false, long outputsMaxBytes = 0L,
+                  boolean diffLogs = false, int logsMaxLines = LogComparator.DEFAULT_MAX_LINES) {
         this.showObvious = showObvious
         this.filter = filter ?: ProcessFilter.of([], [])
         this.baseDir = baseDir
         this.perfThreshold = perfThreshold
         this.diffOutputs = diffOutputs
         this.outputsMaxBytes = outputsMaxBytes
+        this.diffLogs = diffLogs
+        this.logsMaxLines = logsMaxLines
     }
 
     DiffResult compare(RunSnapshot a, RunSnapshot b) {
@@ -131,6 +143,7 @@ class RunComparator {
         result.tasksRecomputed = countRecomputed(result.tasks)
         result.regressions = computeRegressions(result.tasks)
         computeOutputs(result)
+        computeLogs(result)
         return result
     }
 
@@ -161,6 +174,37 @@ class RunComparator {
         else
             result.outputsNote = ("Output files compared by size, then SHA-256 for same-size files, from each task's " +
                     "work directory as it exists now.${capped}" +
+                    (unavailable > 0 ? " ${unavailable} task(s) had a missing work directory and were skipped." : '')).toString()
+    }
+
+    /**
+     * Populate the logs layer: for each task matched in both runs, compare the
+     * standard log files ({@code .command.out/.err/.log}) it wrote to its work
+     * directory. Skipped unless log diffing was requested. Only matched tasks
+     * are inspected — an added/removed task has no counterpart to diff against.
+     * This layer is informational and never affects {@link DiffResult#isIdentical()}.
+     */
+    private void computeLogs(DiffResult result) {
+        if( !diffLogs )
+            return
+        result.diffLogs = true
+
+        final comparator = new LogComparator(logsMaxLines)
+        result.tasks.each { TaskDiff td ->
+            if( td.a != null && td.b != null )
+                result.logs << comparator.compare(td.a, td.b)
+        }
+
+        final unavailable = result.logs.count { DiffResult.LogDiff ld -> !ld.availableA || !ld.availableB }
+        if( result.logs.isEmpty() )
+            result.logsNote = 'No tasks were matched in both runs, so there were no task logs to compare.'
+        else if( unavailable == result.logs.size() )
+            result.logsNote = ('No work directories were available locally, so task logs could not be compared. ' +
+                    'Log diffing needs the tasks\' work directories to still exist on this machine.').toString()
+        else
+            result.logsNote = ("Task stdout/stderr (.command.out/.err/.log) compared line by line, tailed to the last " +
+                    "${logsMaxLines} lines per file. Logs are informational only — they never affect the " +
+                    "\"identical\" verdict or --fail-on-change." +
                     (unavailable > 0 ? " ${unavailable} task(s) had a missing work directory and were skipped." : '')).toString()
     }
 

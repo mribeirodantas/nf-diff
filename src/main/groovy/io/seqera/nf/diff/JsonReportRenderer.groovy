@@ -40,6 +40,7 @@ class JsonReportRenderer {
                         tasksRecomputed: diff.tasksRecomputed,
                         regressions    : diff.regressions.count { it.regression },
                         outputsChanged : diff.outputs.count { it.hasChanges() },
+                        logsChanged    : diff.logs.count { it.hasChanges() },
                 ],
                 metadata   : diff.metadata.collect { fieldModel(it, diff.showObvious) },
                 params     : diff.params.collect { fieldModel(it, diff.showObvious) },
@@ -52,7 +53,54 @@ class JsonReportRenderer {
                 diffOutputs: diff.diffOutputs,
                 outputsNote: diff.outputsNote,
                 outputs    : diff.outputs.collect { outputModel(it) },
+                diffLogs   : diff.diffLogs,
+                logsNote   : diff.logsNote,
+                logs       : diff.logs.collect { logModel(it) },
         ] as Map<String,Object>
+    }
+
+    private Map<String,Object> logModel(DiffResult.LogDiff ld) {
+        return [
+                task         : ld.taskKey,
+                process      : ld.process,
+                workdirA     : ld.workdirA,
+                workdirB     : ld.workdirB,
+                availableA   : ld.availableA,
+                availableB   : ld.availableB,
+                sameWorkdir  : ld.sameWorkdir,
+                hasChanges   : ld.hasChanges(),
+                failure      : ld.failure,
+                exitChanged  : ld.exitChanged,
+                statusChanged: ld.statusChanged,
+                exitA        : ld.exitA,
+                exitB        : ld.exitB,
+                statusA      : ld.statusA,
+                statusB      : ld.statusB,
+                note         : ld.note,
+                logs         : ld.logs.collect { logFileModel(it) },
+        ] as Map<String,Object>
+    }
+
+    private Map<String,Object> logFileModel(DiffResult.LogFileDiff f) {
+        return [
+                name        : f.name,
+                kind        : f.kind?.name()?.toLowerCase(),
+                bytesA      : f.bytesA,
+                bytesB      : f.bytesB,
+                linesAdded  : f.linesAdded(),
+                linesRemoved: f.linesRemoved(),
+                truncated   : f.truncated,
+                diff        : unifiedDiff(f.ops),
+        ] as Map<String,Object>
+    }
+
+    /** Render line-diff ops as a unified-style array (' ' context, '+' add, '-' del). */
+    private static List<String> unifiedDiff(List<LineDiff.Op> ops) {
+        return ops.collect { LineDiff.Op op ->
+            final prefix = op.type == LineDiff.Type.INSERT ? '+'
+                    : (op.type == LineDiff.Type.DELETE ? '-' : ' ')
+            return "${prefix}${op.text}".toString()
+        }
     }
 
     private Map<String,Object> outputModel(DiffResult.OutputDiff od) {

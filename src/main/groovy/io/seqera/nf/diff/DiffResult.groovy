@@ -145,6 +145,87 @@ class DiffResult {
         }
     }
 
+    /**
+     * A single task log file ({@code .command.out}, {@code .command.err} or
+     * {@code .command.log}) compared between the two matched tasks' work
+     * directories. {@code kind} classifies it like everything else:
+     * {@link Kind#ADDED} present only in Run B, {@link Kind#REMOVED} only in
+     * Run A, {@link Kind#CHANGED} when the contents differ, {@link Kind#UNCHANGED}
+     * when identical. The line-level {@link #ops} drive the side-by-side and
+     * unified renderings.
+     */
+    @CompileStatic
+    static class LogFileDiff {
+        /** Log file name, e.g. {@code .command.err}. */
+        String name
+        Kind kind
+        /** File size in bytes on each side, or null when absent. */
+        Long bytesA
+        Long bytesB
+        /** True when the content was tailed to the line cap before diffing. */
+        boolean truncatedA
+        boolean truncatedB
+        /** Line-level diff ops (over the tailed content). */
+        List<LineDiff.Op> ops = []
+
+        int linesAdded()   { ops.count { it.type == LineDiff.Type.INSERT } as int }
+        int linesRemoved() { ops.count { it.type == LineDiff.Type.DELETE } as int }
+        boolean isTruncated() { truncatedA || truncatedB }
+    }
+
+    /**
+     * Comparison of the standard log files a task produced in each run. Populated
+     * only when log diffing is enabled ({@link #diffLogs}). Because task stdout
+     * and stderr legitimately vary between runs (timestamps, absolute paths,
+     * ordering), this layer is <em>informational only</em> — it never affects
+     * {@link #isIdentical()} or {@code --fail-on-change}. The meaningful signal,
+     * an exit-code or status change, is already captured by the per-task field
+     * diff; this layer explains <em>why</em> a task behaved differently.
+     */
+    @CompileStatic
+    static class LogDiff {
+        String taskKey
+        String process
+        String workdirA
+        String workdirB
+        /** Whether each run's work directory existed and was readable. */
+        boolean availableA
+        boolean availableB
+        /** True when both tasks resolved to the same physical work directory. */
+        boolean sameWorkdir
+        /** Human note when logs could not be compared (missing work dir, etc.). */
+        String note
+        /** Exit code / status captured from each task, to surface failures. */
+        String exitA
+        String exitB
+        String statusA
+        String statusB
+        List<LogFileDiff> logs = []
+
+        boolean isExitChanged()   { (exitA ?: '') != (exitB ?: '') }
+        boolean isStatusChanged() { (statusA ?: '') != (statusB ?: '') }
+        /** True when either side failed (non-zero, numeric exit code). */
+        boolean isFailure()       { failed(exitA) || failed(exitB) }
+
+        List<LogFileDiff> changedLogs() { logs.findAll { it.kind != Kind.UNCHANGED } }
+
+        /** True when any log file differs, or the exit/status changed. */
+        boolean hasChanges() {
+            return exitChanged || statusChanged || logs.any { it.kind != Kind.UNCHANGED }
+        }
+
+        private static boolean failed(String exit) {
+            if( !exit )
+                return false
+            try {
+                return Integer.parseInt(exit.trim()) != 0
+            }
+            catch( NumberFormatException ignored ) {
+                return false
+            }
+        }
+    }
+
     /** Comparison of a single task matched (or not) across runs. */
     @CompileStatic
     static class TaskDiff {
@@ -211,6 +292,31 @@ class DiffResult {
     /** True when any compared task produced a changed/added/removed output file. */
     boolean hasOutputChanges() {
         return diffOutputs && outputs.any { it.hasChanges() }
+    }
+
+    /**
+     * Whether the log-diff layer was computed. When false, {@link #logs} is
+     * empty. This layer is always informational and never affects
+     * {@link #isIdentical()}.
+     */
+    boolean diffLogs = false
+
+    /**
+     * Per-task comparison of the standard log files ({@code .command.out},
+     * {@code .command.err}, {@code .command.log}) each matched task wrote.
+     * Populated only when {@link #diffLogs} is set.
+     */
+    List<LogDiff> logs = []
+
+    /**
+     * Human-readable note about the logs layer: how it was computed, or why it
+     * is empty/limited (e.g. missing work directories). Surfaced by renderers.
+     */
+    String logsNote
+
+    /** True when any compared task has a differing log file or exit/status. */
+    boolean hasLogChanges() {
+        return diffLogs && logs.any { it.hasChanges() }
     }
 
     int tasksAdded
