@@ -1,0 +1,16 @@
+# Gradle
+.gradle
+build
+
+# Nextflow
+.nextflow*
+work
+results
+
+# nf-diff generated reports
+nf-diff-report.html
+
+# IDE
+.idea
+.vscode
+*.iml
