@@ -13,6 +13,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   check:
@@ -41,7 +42,8 @@ jobs:
         run: make check
 
       - name: Upload test reports
-        if: always()
+        # Fork PRs get a read-only token, so artifact finalize always 403s there.
+        if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/upload-artifact@v4
         with:
           name: test-reports-jdk${{ matrix.java }}
