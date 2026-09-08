@@ -68,6 +68,59 @@ class RunComparatorTest extends Specification {
         diff.tasksUnchanged == 1
     }
 
+    def 'obvious-only differences are not flagged by default'() {
+        given: 'two tasks that differ only in always-changing fields'
+        def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)',
+                display: [status: 'COMPLETED', script: 'echo hi',
+                          realtime: '10s', workdir: '/work/aa'])])
+        def b = snap('runB', [task(process: 'FOO', name: 'FOO (1)',
+                display: [status: 'COMPLETED', script: 'echo hi',
+                          realtime: '12s', workdir: '/work/bb'])])
+
+        when: 'the default (meaningful-only) comparison'
+        def diff = new RunComparator().compare(a, b)
+
+        then: 'the task is unchanged and the runs are identical'
+        diff.tasksChanged == 0
+        diff.tasksUnchanged == 1
+        diff.identical
+        !diff.showObvious
+    }
+
+    def 'obvious differences are flagged in verbose mode'() {
+        given: 'two tasks that differ only in always-changing fields'
+        def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)',
+                display: [status: 'COMPLETED', script: 'echo hi',
+                          realtime: '10s', workdir: '/work/aa'])])
+        def b = snap('runB', [task(process: 'FOO', name: 'FOO (1)',
+                display: [status: 'COMPLETED', script: 'echo hi',
+                          realtime: '12s', workdir: '/work/bb'])])
+
+        when: 'the verbose comparison'
+        def diff = new RunComparator(true).compare(a, b)
+
+        then: 'the task is now flagged as changed'
+        diff.tasksChanged == 1
+        diff.tasksUnchanged == 0
+        !diff.identical
+        diff.showObvious
+    }
+
+    def 'meaningful differences are still flagged in default mode'() {
+        given: 'tasks differing in a meaningful field (exit) and an obvious one'
+        def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)',
+                display: [status: 'COMPLETED', exit: '0', realtime: '10s'])])
+        def b = snap('runB', [task(process: 'FOO', name: 'FOO (1)',
+                display: [status: 'FAILED', exit: '1', realtime: '99s'])])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then:
+        diff.tasksChanged == 1
+        !diff.identical
+    }
+
     def 'process diff counts tasks per process'() {
         given:
         def a = snap('runA', [

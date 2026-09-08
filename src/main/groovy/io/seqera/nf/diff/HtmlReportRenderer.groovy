@@ -64,8 +64,11 @@ class HtmlReportRenderer {
         sb << '      <div class="vs">vs</div>\n'
         sb << runChip(diff.runB, 'b')
         sb << '    </div>\n'
+        final sameText = diff.showObvious
+                ? 'These runs are identical across every inspected layer'
+                : 'These runs are identical (ignoring always-changing fields)'
         final verdict = diff.identical
-                ? '<span class="verdict same">These runs are identical across every inspected layer</span>'
+                ? "<span class=\"verdict same\">${sameText}</span>"
                 : "<span class=\"verdict diff\">${diff.tasksChanged + diff.tasksAdded + diff.tasksRemoved} task-level difference(s) detected</span>"
         sb << "    <div class=\"verdict-wrap\">${verdict}</div>\n"
         sb << '  </div>\n'
@@ -140,8 +143,7 @@ class HtmlReportRenderer {
         sb << '  <table class="kv">\n'
         sb << '    <thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead>\n  <tbody>\n'
         diff.metadata.each { FieldDiff fd ->
-            final cls = fd.changed ? ' class="row-changed"' : ''
-            sb << "    <tr${cls}><th>${esc(fd.field)}</th><td>${esc(Format.orNa(fd.valueA))}</td><td>${esc(Format.orNa(fd.valueB))}</td></tr>\n"
+            sb << fieldRow(fd, diff.showObvious)
         }
         sb << '  </tbody>\n  </table>\n'
         sb << '</section>\n'
@@ -176,14 +178,16 @@ class HtmlReportRenderer {
         sb << '      <label><input type="checkbox" id="hide-unchanged" checked> Hide unchanged</label>\n'
         sb << '    </div>\n'
         sb << '  </div>\n'
+        if( !diff.showObvious )
+            sb << '  <p class="mode-note">Showing meaningful differences only. Fields that always change between runs — run name, session id, work dir, timing and resource usage — are shown for context but not flagged. Re-run with <code>--verbose</code> to diff them too.</p>\n'
 
         diff.tasks.each { TaskDiff td ->
-            renderTaskCard(sb, td)
+            renderTaskCard(sb, td, diff.showObvious)
         }
         sb << '</section>\n'
     }
 
-    private void renderTaskCard(StringBuilder sb, TaskDiff td) {
+    private void renderTaskCard(StringBuilder sb, TaskDiff td, boolean showObvious) {
         final kind = td.kind.name().toLowerCase()
         final unchangedAttr = td.kind == Kind.UNCHANGED ? ' data-unchanged="1"' : ''
         sb << "  <div class=\"task ${kind}\"${unchangedAttr}>\n"
@@ -199,7 +203,7 @@ class HtmlReportRenderer {
             renderSoloTask(sb, td)
         }
         else {
-            renderChangedTask(sb, td)
+            renderChangedTask(sb, td, showObvious)
         }
 
         sb << '    </div>\n  </div>\n'
@@ -218,7 +222,7 @@ class HtmlReportRenderer {
         sb << '      </tbody></table>\n'
     }
 
-    private void renderChangedTask(StringBuilder sb, TaskDiff td) {
+    private void renderChangedTask(StringBuilder sb, TaskDiff td, boolean showObvious) {
         // resource comparison bars
         sb << '      <div class="metrics">\n'
         METRICS.each { List<String> m ->
@@ -240,12 +244,11 @@ class HtmlReportRenderer {
         sb << '      <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>\n'
         td.fieldDiffs.each { FieldDiff fd ->
             if( fd.field == 'script' || fd.field == 'container' ) {
-                if( fd.changed )
+                if( fd.isHighlighted(showObvious) )
                     renderTextDiffRow(sb, fd)
                 return
             }
-            final cls = fd.changed ? ' class="row-changed"' : ''
-            sb << "        <tr${cls}><th>${esc(fd.field)}</th><td>${esc(Format.orNa(fd.valueA))}</td><td>${esc(Format.orNa(fd.valueB))}</td></tr>\n"
+            sb << fieldRow(fd, showObvious)
         }
         sb << '      </tbody></table>\n'
     }
@@ -313,6 +316,20 @@ class HtmlReportRenderer {
     }
 
     // ---------------------------------------------------------------- helpers
+
+    /**
+     * Render a key/value comparison row. Rows are only highlighted as changed
+     * when the change is meaningful for the current view. An "obvious" field
+     * that differs is shown with a muted marker (unless verbose), so the reader
+     * sees the values differ without it being flagged as a real change.
+     */
+    private static String fieldRow(FieldDiff fd, boolean showObvious) {
+        final highlighted = fd.isHighlighted(showObvious)
+        final softChange = fd.changed && fd.obvious && !showObvious
+        final cls = highlighted ? ' class="row-changed"' : (softChange ? ' class="row-obvious"' : '')
+        final tag = softChange ? ' <span class="tag-auto" title="Always differs between runs">auto</span>' : ''
+        return "        <tr${cls}><th>${esc(fd.field)}${tag}</th><td>${esc(Format.orNa(fd.valueA))}</td><td>${esc(Format.orNa(fd.valueB))}</td></tr>\n"
+    }
 
     private static String fmt(double v) {
         return String.format('%.2f', v)
@@ -424,6 +441,10 @@ tbody tr:last-child th,tbody tr:last-child td{border-bottom:none}
 table.kv th{width:180px;color:var(--muted);font-weight:600}
 .row-changed{background:rgba(251,191,36,.10)}
 .row-changed th{color:var(--changed)}
+.row-obvious th{color:var(--muted)}
+.tag-auto{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);vertical-align:middle}
+.mode-note{color:var(--muted);font-size:13px;margin:0 0 14px;line-height:1.5}
+.mode-note code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px}
 .row-added{background:rgba(52,211,153,.08)} .row-removed{background:rgba(248,113,113,.08)}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
 .pill.added{background:rgba(52,211,153,.18);color:var(--added)}

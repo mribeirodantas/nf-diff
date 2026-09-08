@@ -24,6 +24,8 @@ class DiffCommand {
     String runB
     Path outputFile = Paths.get('nf-diff-report.html')
     Path baseDir = Paths.get('.')
+    /** Include fields that always differ between runs (run name, work dir, timing, resources). */
+    boolean verbose = false
 
     int run(List<String> args) {
         parse(args)
@@ -36,7 +38,7 @@ class DiffCommand {
         final snapA = loader.load(runA)
         final snapB = loader.load(runB)
 
-        final diff = new RunComparator().compare(snapA, snapB)
+        final diff = new RunComparator(verbose).compare(snapA, snapB)
 
         final html = new HtmlReportRenderer().render(diff)
         final out = outputFile.toAbsolutePath()
@@ -49,6 +51,7 @@ nf-diff: comparison complete
   Run A : ${snapA.label()}  (${snapA.tasks.size()} tasks)
   Run B : ${snapB.label()}  (${snapB.tasks.size()} tasks)
   Diff  : ${diff.tasksChanged} changed, ${diff.tasksAdded} only-in-B, ${diff.tasksRemoved} only-in-A, ${diff.tasksUnchanged} unchanged
+  Mode  : ${verbose ? 'verbose (all fields, including always-changing ones)' : 'meaningful changes only (use --verbose for all fields)'}
   Report: ${out}""")
         return 0
     }
@@ -96,6 +99,11 @@ nf-diff: comparison complete
                         baseDir = Paths.get(args[++i])
                     }
                     break
+                case '-v':
+                case '--verbose':
+                case '--all':
+                    verbose = true
+                    break
                 default:
                     if( arg.startsWith('-') )
                         throw new UsageException("unknown option '${key}'")
@@ -124,6 +132,10 @@ Arguments:
 Options:
   --output=<file>      Output HTML report path (default: nf-diff-report.html)
   --dir=<dir>          Project directory containing .nextflow/ (default: .)
+  -v, --verbose, --all Also diff fields that always change between runs
+                       (run name, session id, launch time, work dir, wall/real
+                       time, and resource usage). By default these are shown for
+                       context but not flagged as changes.
   -h, --help           Show this help
 
   Use the inline `--output=<file>` form (with `=`). Nextflow's `plugin`

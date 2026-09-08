@@ -25,8 +25,30 @@ class RunComparator {
             'rchar', 'wchar', 'attempt', 'queue', 'workdir', 'tag'
     ]
 
+    /**
+     * Task fields that vary between essentially any two runs even when the work
+     * is identical (unique work dir, timing, and measured resource usage). These
+     * are flagged {@code obvious} and excluded from change detection unless the
+     * verbose view is enabled.
+     */
+    static final Set<String> OBVIOUS_TASK_FIELDS = [
+            'realtime', '%cpu', 'peak_rss', 'peak_vmem', 'rchar', 'wchar', 'workdir'
+    ] as Set
+
+    /** Run-metadata labels that always differ between two distinct runs. */
+    static final Set<String> OBVIOUS_METADATA = [
+            'Run name', 'Session ID', 'Launched', 'Wall duration', 'Total task realtime'
+    ] as Set
+
+    /** When true, always-changing fields are treated as meaningful changes. */
+    private final boolean showObvious
+
+    RunComparator(boolean showObvious = false) {
+        this.showObvious = showObvious
+    }
+
     DiffResult compare(RunSnapshot a, RunSnapshot b) {
-        final result = new DiffResult(runA: a, runB: b)
+        final result = new DiffResult(runA: a, runB: b, showObvious: showObvious)
         result.metadata = compareMetadata(a, b)
         result.processes = compareProcesses(a, b)
         result.tasks = compareTasks(a, b)
@@ -55,6 +77,7 @@ class RunComparator {
         diffs << field('Task count', String.valueOf(a.tasks.size()), String.valueOf(b.tasks.size()))
         diffs << field('Cached tasks', String.valueOf(a.cachedCount()), String.valueOf(b.cachedCount()))
         diffs << field('Distinct processes', String.valueOf(a.processNames().size()), String.valueOf(b.processNames().size()))
+        diffs.each { FieldDiff fd -> fd.obvious = OBVIOUS_METADATA.contains(fd.field) }
         return diffs
     }
 
@@ -88,7 +111,7 @@ class RunComparator {
                 return new TaskDiff(key: key, kind: Kind.ADDED, b: tb)
 
             final fieldDiffs = compareTaskFields(ta, tb)
-            final changed = fieldDiffs.any { it.changed }
+            final changed = fieldDiffs.any { it.isHighlighted(showObvious) }
             return new TaskDiff(
                     key: key,
                     kind: changed ? Kind.CHANGED : Kind.UNCHANGED,
@@ -99,11 +122,11 @@ class RunComparator {
 
     private List<FieldDiff> compareTaskFields(TaskInfo a, TaskInfo b) {
         return TASK_FIELDS.collect { String f ->
-            field(f, a.display.get(f), b.display.get(f))
+            field(f, a.display.get(f), b.display.get(f), OBVIOUS_TASK_FIELDS.contains(f))
         }
     }
 
-    private static FieldDiff field(String name, String va, String vb) {
-        return new FieldDiff(field: name, valueA: va, valueB: vb)
+    private static FieldDiff field(String name, String va, String vb, boolean obvious = false) {
+        return new FieldDiff(field: name, valueA: va, valueB: vb, obvious: obvious)
     }
 }

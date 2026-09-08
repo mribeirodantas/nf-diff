@@ -9,6 +9,7 @@ results
 
 # nf-diff generated reports
 nf-diff-report.html
+compare.html
 
 # IDE
 .idea
