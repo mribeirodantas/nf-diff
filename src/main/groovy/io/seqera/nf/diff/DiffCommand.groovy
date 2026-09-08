@@ -23,9 +23,18 @@ class DiffCommand {
     String runA
     String runB
     Path outputFile = Paths.get('nf-diff-report.html')
+    /** Whether {@link #outputFile} was set explicitly (vs. the format default). */
+    private boolean outputExplicit = false
     Path baseDir = Paths.get('.')
     /** Include fields that always differ between runs (run name, work dir, timing, resources). */
     boolean verbose = false
+    /** Report format: {@code html} (default) or {@code json}. */
+    String format = 'html'
+    /** When true, return a non-zero exit code if the runs are not identical. */
+    boolean failOnChange = false
+
+    /** Exit code returned when {@link #failOnChange} is set and runs differ. */
+    static final int EXIT_CHANGED = 3
 
     int run(List<String> args) {
         parse(args)
@@ -40,11 +49,13 @@ class DiffCommand {
 
         final diff = new RunComparator(verbose).compare(snapA, snapB)
 
-        final html = new HtmlReportRenderer().render(diff)
+        final content = (format == 'json')
+                ? new JsonReportRenderer().render(diff)
+                : new HtmlReportRenderer().render(diff)
         final out = outputFile.toAbsolutePath()
         if( out.parent != null )
             java.nio.file.Files.createDirectories(out.parent)
-        java.nio.file.Files.write(out, html.getBytes('UTF-8'))
+        java.nio.file.Files.write(out, content.getBytes('UTF-8'))
 
         System.out.println("""\
 nf-diff: comparison complete
@@ -52,7 +63,12 @@ nf-diff: comparison complete
   Run B : ${snapB.label()}  (${snapB.tasks.size()} tasks)
   Diff  : ${diff.tasksChanged} changed, ${diff.tasksAdded} only-in-B, ${diff.tasksRemoved} only-in-A, ${diff.tasksUnchanged} unchanged
   Mode  : ${verbose ? 'verbose (all fields, including always-changing ones)' : 'meaningful changes only (use --verbose for all fields)'}
-  Report: ${out}""")
+  Report: ${out} (${format})""")
+
+        if( failOnChange && !diff.identical ) {
+            log.debug "nf-diff: runs differ and --fail-on-change is set; exiting ${EXIT_CHANGED}"
+            return EXIT_CHANGED
+        }
         return 0
     }
 
@@ -87,6 +103,22 @@ nf-diff: comparison complete
                             throw new UsageException("missing value for ${key}")
                         outputFile = Paths.get(args[++i])
                     }
+                    outputExplicit = true
+                    break
+                case '-f':
+                case '--format':
+                    final fmt = inlineVal
+                    if( fmt != null ) {
+                        format = fmt
+                    }
+                    else {
+                        if( i + 1 >= args.size() )
+                            throw new UsageException("missing value for ${key}")
+                        format = args[++i]
+                    }
+                    break
+                case '--fail-on-change':
+                    failOnChange = true
                     break
                 case '-d':
                 case '--dir':
@@ -117,6 +149,15 @@ nf-diff: comparison complete
 
         runA = positional[0]
         runB = positional[1]
+
+        format = format.toLowerCase()
+        if( format != 'html' && format != 'json' )
+            throw new UsageException("unsupported format '${format}' (expected 'html' or 'json')")
+
+        // When the format is JSON and the user did not pick an output path,
+        // default to a .json file rather than the .html default.
+        if( format == 'json' && !outputExplicit )
+            outputFile = Paths.get('nf-diff-report.json')
     }
 
     static String usage() {
@@ -130,12 +171,17 @@ Arguments:
   <runA> <runB>        Run names or session UUIDs from .nextflow/history
 
 Options:
-  --output=<file>      Output HTML report path (default: nf-diff-report.html)
+  --output=<file>      Output report path (default: nf-diff-report.<ext>,
+                       where <ext> matches the chosen --format)
+  --format=<fmt>       Report format: html (default) or json. JSON is
+                       machine-readable for CI, PR bots and dashboards.
   --dir=<dir>          Project directory containing .nextflow/ (default: .)
   -v, --verbose, --all Also diff fields that always change between runs
                        (run name, session id, launch time, work dir, wall/real
                        time, and resource usage). By default these are shown for
                        context but not flagged as changes.
+  --fail-on-change     Exit with a non-zero status (3) when the runs are not
+                       identical. Useful for gating CI on unexpected changes.
   -h, --help           Show this help
 
   Use the inline `--output=<file>` form (with `=`). Nextflow's `plugin`
@@ -145,6 +191,8 @@ Options:
 Examples:
   nextflow plugin nf-diff:diff tender_euler happy_curie
   nextflow plugin nf-diff:diff 3a8c1f2e 9f2b7d10 --output=compare.html
+  nextflow plugin nf-diff:diff runA runB --format=json --output=diff.json
+  nextflow plugin nf-diff:diff runA runB --format=json --fail-on-change
 
 Note:
   Invoke the plugin verb with the BARE id (nf-diff:diff), not a pinned
