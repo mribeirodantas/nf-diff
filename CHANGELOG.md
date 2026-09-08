@@ -5,6 +5,25 @@ All notable changes to `nf-diff` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Output-file diffing** — a new opt-in `--diff-outputs` layer that compares
+  the files each task matched in both runs wrote to its work directory,
+  classifying them as added / removed / changed / unchanged. Files are compared
+  by size first, then by a streamed SHA-256 for same-size files. Staged inputs
+  (symlinks) and Nextflow control files (`.command.*`, `.exitcode`) are skipped;
+  cache-resumed tasks that share a work directory short-circuit as identical.
+  Unlike the performance-regressions layer, an output-file change counts toward
+  the "identical" verdict and `--fail-on-change`, so this is the layer that
+  answers "did my pipeline actually produce different results?".
+- **`--outputs-max-bytes=<n>`** — caps the size of same-size files that are
+  hashed under `--diff-outputs`; larger files are reported content-unverified.
+  Default `0` means no limit.
+- Output diffs are surfaced in all three report formats (HTML, JSON, Markdown),
+  with an `outputsChanged` count in the JSON/HTML summary.
+
 ## [0.1.0] - 2026-09-08
 
 First release. `nf-diff` is a Nextflow plugin that adds a `diff` CLI verb to

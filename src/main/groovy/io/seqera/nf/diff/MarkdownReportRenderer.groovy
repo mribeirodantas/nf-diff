@@ -30,6 +30,7 @@ class MarkdownReportRenderer {
         renderProcesses(sb, diff)
         renderRegressions(sb, diff)
         renderTasks(sb, diff)
+        renderOutputs(sb, diff)
         return sb.toString()
     }
 
@@ -154,6 +155,34 @@ class MarkdownReportRenderer {
             sb << "| ${cell(r.taskKey)} | ${cell(r.label)} | ${cell(r.displayA)} | ${cell(r.displayB)} | ${arrow} ${Format.signedPct(r.pctDelta)} | ${r.sameHash ? '✓' : ''} |\n"
         }
         sb << '\n'
+    }
+
+    private void renderOutputs(StringBuilder sb, DiffResult diff) {
+        if( !diff.diffOutputs )
+            return
+        sb << '## Output files\n\n'
+        if( diff.outputsNote )
+            sb << "> ${cell(diff.outputsNote)}\n\n"
+
+        final changed = diff.outputs.findAll { DiffResult.OutputDiff od -> od.hasChanges() }
+        if( changed.isEmpty() ) {
+            sb << '_No output-file differences detected._\n\n'
+            return
+        }
+        changed.each { DiffResult.OutputDiff od ->
+            sb << "### ${cell(od.taskKey)}\n\n"
+            sb << '| File | Run A | Run B | Status |\n'
+            sb << '|---|---|---|---|\n'
+            od.files.findAll { it.kind != DiffResult.Kind.UNCHANGED }.each { DiffResult.OutputFileDiff f ->
+                sb << "| ${cell(f.path)} | ${cell(sizeCell(f.sizeA))} | ${cell(sizeCell(f.sizeB))} | ${f.kind.name().toLowerCase()} |\n"
+            }
+            sb << '\n'
+        }
+    }
+
+    /** Byte size for a table cell, or an em dash when the file is absent on that side. */
+    private static String sizeCell(Long size) {
+        return size == null ? '—' : "${size} B".toString()
     }
 
     /** Trim a whole-number threshold to an integer string (25.0 -> "25"). */

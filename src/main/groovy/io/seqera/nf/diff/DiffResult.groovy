@@ -86,6 +86,65 @@ class DiffResult {
     /** How a task relates between the two runs. */
     static enum Kind { ADDED, REMOVED, CHANGED, UNCHANGED }
 
+    /**
+     * A single output file compared between the two matched tasks' work
+     * directories, keyed by its path relative to the work dir. {@code kind}
+     * classifies it exactly like a task: {@link Kind#ADDED} means present only
+     * in Run B, {@link Kind#REMOVED} only in Run A, {@link Kind#CHANGED} when
+     * size or content differs, {@link Kind#UNCHANGED} when identical.
+     */
+    @CompileStatic
+    static class OutputFileDiff {
+        /** Path relative to the task work directory. */
+        String path
+        Long sizeA
+        Long sizeB
+        /** Short content hash (SHA-256 prefix), or null when not computed. */
+        String hashA
+        String hashB
+        Kind kind
+        /**
+         * True when the classification was fully verified (by size, or by
+         * content hash when sizes matched). False when two equal-sized files
+         * exceeded the hashing cap and were left content-unverified.
+         */
+        boolean verified = true
+        /** Optional human note (e.g. why a file was left unverified). */
+        String note
+    }
+
+    /**
+     * Comparison of the output files produced by a task in each run. Populated
+     * only when output diffing is enabled ({@link #diffOutputs}). When the two
+     * tasks share a physical work directory (e.g. Run B resumed the task from
+     * cache), {@link #sameWorkdir} is set and no files are enumerated — the
+     * outputs are identical by construction.
+     */
+    @CompileStatic
+    static class OutputDiff {
+        String taskKey
+        String process
+        String workdirA
+        String workdirB
+        /** Whether each run's work directory existed and was readable. */
+        boolean availableA
+        boolean availableB
+        /** True when both tasks resolved to the same physical work directory. */
+        boolean sameWorkdir
+        /** Human note when outputs could not be compared (missing work dir, etc.). */
+        String note
+        List<OutputFileDiff> files = []
+
+        List<OutputFileDiff> changedFiles() { files.findAll { it.kind == Kind.CHANGED } }
+        List<OutputFileDiff> addedFiles()   { files.findAll { it.kind == Kind.ADDED } }
+        List<OutputFileDiff> removedFiles()  { files.findAll { it.kind == Kind.REMOVED } }
+
+        /** True when any output file was added, removed, or changed. */
+        boolean hasChanges() {
+            return files.any { it.kind == Kind.ADDED || it.kind == Kind.REMOVED || it.kind == Kind.CHANGED }
+        }
+    }
+
     /** Comparison of a single task matched (or not) across runs. */
     @CompileStatic
     static class TaskDiff {
@@ -130,6 +189,30 @@ class DiffResult {
     /** The percentage threshold used to flag {@link #regressions}. */
     double perfThreshold
 
+    /**
+     * Whether the output-diff layer was computed. When false, {@link #outputs}
+     * is empty and output content never affects {@link #isIdentical()}.
+     */
+    boolean diffOutputs = false
+
+    /**
+     * Per-task comparison of the files each matched task wrote to its work
+     * directory. Populated only when {@link #diffOutputs} is set. When enabled,
+     * an output-file change breaks {@link #isIdentical()}.
+     */
+    List<OutputDiff> outputs = []
+
+    /**
+     * Human-readable note about the outputs layer: how it was computed, or why
+     * it is empty/limited (e.g. missing work directories). Surfaced by renderers.
+     */
+    String outputsNote
+
+    /** True when any compared task produced a changed/added/removed output file. */
+    boolean hasOutputChanges() {
+        return diffOutputs && outputs.any { it.hasChanges() }
+    }
+
     int tasksAdded
     int tasksRemoved
     int tasksChanged
@@ -160,6 +243,7 @@ class DiffResult {
                 metadata.every { !it.isHighlighted(showObvious) } &&
                 params.every { !it.isHighlighted(showObvious) } &&
                 config.every { !it.isHighlighted(showObvious) } &&
-                processes.every { it.unchanged }
+                processes.every { it.unchanged } &&
+                !hasOutputChanges()
     }
 }

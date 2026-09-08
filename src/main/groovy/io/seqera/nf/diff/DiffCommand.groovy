@@ -48,6 +48,15 @@ class DiffCommand {
     /** Percentage change beyond which a task metric is flagged as a regression. */
     double perfThreshold = RunComparator.DEFAULT_PERF_THRESHOLD
 
+    /** When true, compare the output files each matched task wrote to its work dir. */
+    boolean diffOutputs = false
+
+    /**
+     * Maximum file size (bytes) to hash when comparing same-size outputs; 0
+     * (the default) means no limit. Only used when {@link #diffOutputs} is set.
+     */
+    long outputsMaxBytes = 0L
+
     /** Exit code returned when {@link #failOnChange} is set and runs differ. */
     static final int EXIT_CHANGED = 3
 
@@ -71,7 +80,8 @@ class DiffCommand {
         final snapB = loader.load(runB)
 
         final filter = ProcessFilter.of(onlyGlobs, excludeGlobs)
-        final diff = new RunComparator(verbose, filter, baseDir, perfThreshold).compare(snapA, snapB)
+        final diff = new RunComparator(verbose, filter, baseDir, perfThreshold, diffOutputs, outputsMaxBytes)
+                .compare(snapA, snapB)
 
         final content = renderContent(diff)
 
@@ -206,6 +216,21 @@ nf-diff: comparison complete
                     if( perfThreshold < 0 )
                         throw new UsageException("--perf-threshold must be >= 0, got ${perfThreshold}")
                     break
+                case '--diff-outputs':
+                    diffOutputs = true
+                    break
+                case '--outputs-max-bytes':
+                    final mb = requireValue(key, inlineVal, args, i)
+                    if( inlineVal == null ) i++
+                    try {
+                        outputsMaxBytes = Long.parseLong(mb)
+                    }
+                    catch( NumberFormatException ignored ) {
+                        throw new UsageException("--outputs-max-bytes must be an integer number of bytes, got '${mb}'")
+                    }
+                    if( outputsMaxBytes < 0 )
+                        throw new UsageException("--outputs-max-bytes must be >= 0, got ${outputsMaxBytes}")
+                    break
                 case '-d':
                 case '--dir':
                     if( inlineVal != null ) {
@@ -304,6 +329,15 @@ Options:
   --perf-threshold=<n> Percentage change (default: 25) in a task metric
                        (realtime, peak_rss, peak_vmem) beyond which it is
                        flagged in the performance-regressions layer.
+  --diff-outputs       Compare the output files each matched task wrote to its
+                       work directory (by size, then SHA-256 for same-size
+                       files). Needs the tasks' work directories to still exist
+                       locally. When enabled, an output-file change counts as a
+                       difference for --fail-on-change.
+  --outputs-max-bytes=<n>
+                       When --diff-outputs is set, skip hashing same-size files
+                       larger than <n> bytes (they are reported as content-
+                       unverified). Default 0 = no limit (hash any size).
   --dir=<dir>          Project directory containing .nextflow/ (default: .)
   -v, --verbose, --all Also diff fields that always change between runs
                        (run name, session id, launch time, work dir, wall/real
@@ -325,6 +359,7 @@ Examples:
   nextflow plugin nf-diff:diff --last --format=json --fail-on-change
   nextflow plugin nf-diff:diff --last --format=md --output=diff.md
   nextflow plugin nf-diff:diff --last --only='ALIGN:*' --exclude='*:INDEX'
+  nextflow plugin nf-diff:diff --last --diff-outputs --fail-on-change
   nextflow plugin nf-diff:diff runA runB --format=json --output=diff.json
   nextflow plugin nf-diff:diff --last --format=json --output=- | jq .summary
 

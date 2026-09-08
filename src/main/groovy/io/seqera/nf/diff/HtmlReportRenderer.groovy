@@ -46,6 +46,7 @@ class HtmlReportRenderer {
         renderProcesses(sb, diff)
         renderRegressions(sb, diff)
         renderTasks(sb, diff)
+        renderOutputs(sb, diff)
         sb << '</main>\n'
         renderFooter(sb, diff)
 
@@ -103,6 +104,8 @@ class HtmlReportRenderer {
         sb << '  <a href="#processes">Processes</a>\n'
         sb << '  <a href="#regressions">Regressions</a>\n'
         sb << '  <a href="#tasks">Tasks</a>\n'
+        if( diff.diffOutputs )
+            sb << '  <a href="#outputs">Outputs</a>\n'
         sb << '</nav>\n'
     }
 
@@ -118,6 +121,8 @@ class HtmlReportRenderer {
         sb << statCard('Unchanged', diff.tasksUnchanged, 'unchanged')
         sb << statCard('Recomputed', diff.tasksRecomputed, 'changed')
         sb << statCard('Regressions', diff.regressions.count { it.regression } as int, 'removed')
+        if( diff.diffOutputs )
+            sb << statCard('Outputs changed', diff.outputs.count { it.hasChanges() } as int, 'changed')
         sb << '  </div>\n'
 
         // wall-time comparison bar
@@ -274,6 +279,51 @@ class HtmlReportRenderer {
     /** Trim a whole-number threshold to an integer string (25.0 -> "25"). */
     private static String trim(double value) {
         return value == Math.floor(value) ? String.valueOf((long) value) : String.valueOf(value)
+    }
+
+    // ------------------------------------------------------------- outputs
+
+    private void renderOutputs(StringBuilder sb, DiffResult diff) {
+        if( !diff.diffOutputs )
+            return
+        sb << '<section id="outputs" class="section">\n'
+        sb << '  <h2>Output files</h2>\n'
+        if( diff.outputsNote )
+            sb << "  <p class=\"mode-note\">${esc(diff.outputsNote)}</p>\n"
+
+        final changed = diff.outputs.findAll { DiffResult.OutputDiff od -> od.hasChanges() }
+        if( changed.isEmpty() ) {
+            sb << '  <p class="mode-note">No output-file differences were detected across the compared tasks.</p>\n'
+            sb << '</section>\n'
+            return
+        }
+        changed.each { DiffResult.OutputDiff od ->
+            sb << '  <div class="task changed">\n'
+            sb << '    <div class="task-hdr" onclick="toggleTask(this)">\n'
+            sb << '      <span class="pill changed">outputs</span>\n'
+            sb << "      <span class=\"task-key mono\">${esc(od.taskKey)}</span>\n"
+            sb << "      <span class=\"task-proc\">${esc(od.process ?: '')}</span>\n"
+            sb << '      <span class="chev">▸</span>\n'
+            sb << '    </div>\n'
+            sb << '    <div class="task-body">\n'
+            sb << '      <table class="kv diff-table"><thead><tr><th>File</th><th>Run A</th><th>Run B</th></tr></thead><tbody>\n'
+            od.files.findAll { it.kind != Kind.UNCHANGED }.each { DiffResult.OutputFileDiff f ->
+                final label = f.kind.name().toLowerCase()
+                sb << "        <tr class=\"row-changed\"><th class=\"mono\">${esc(f.path)} <span class=\"pill ${label}\">${label}</span></th>"
+                sb << "<td>${esc(sizeCell(f.sizeA, f.hashA))}</td>"
+                sb << "<td>${esc(sizeCell(f.sizeB, f.hashB))}</td></tr>\n"
+            }
+            sb << '      </tbody></table>\n'
+            sb << '    </div>\n  </div>\n'
+        }
+        sb << '</section>\n'
+    }
+
+    /** Compact "size · hash" cell for an output file, or an em dash when absent. */
+    private static String sizeCell(Long size, String hash) {
+        if( size == null )
+            return Format.NA
+        return hash ? "${size} B · ${hash}".toString() : "${size} B".toString()
     }
 
     // ----------------------------------------------------------------- tasks

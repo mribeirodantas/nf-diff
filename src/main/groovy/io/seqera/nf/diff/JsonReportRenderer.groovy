@@ -39,6 +39,7 @@ class JsonReportRenderer {
                         tasksUnchanged : diff.tasksUnchanged,
                         tasksRecomputed: diff.tasksRecomputed,
                         regressions    : diff.regressions.count { it.regression },
+                        outputsChanged : diff.outputs.count { it.hasChanges() },
                 ],
                 metadata   : diff.metadata.collect { fieldModel(it, diff.showObvious) },
                 params     : diff.params.collect { fieldModel(it, diff.showObvious) },
@@ -48,7 +49,39 @@ class JsonReportRenderer {
                 tasks      : diff.tasks.collect { taskModel(it, diff.showObvious) },
                 perfThreshold: diff.perfThreshold,
                 regressions: diff.regressions.collect { regressionModel(it) },
+                diffOutputs: diff.diffOutputs,
+                outputsNote: diff.outputsNote,
+                outputs    : diff.outputs.collect { outputModel(it) },
         ] as Map<String,Object>
+    }
+
+    private Map<String,Object> outputModel(DiffResult.OutputDiff od) {
+        return [
+                task       : od.taskKey,
+                process    : od.process,
+                workdirA   : od.workdirA,
+                workdirB   : od.workdirB,
+                availableA : od.availableA,
+                availableB : od.availableB,
+                sameWorkdir: od.sameWorkdir,
+                hasChanges : od.hasChanges(),
+                note       : od.note,
+                files      : od.files.collect { outputFileModel(it) },
+        ] as Map<String,Object>
+    }
+
+    private Map<String,Object> outputFileModel(DiffResult.OutputFileDiff f) {
+        final model = [
+                path    : f.path,
+                kind    : f.kind?.name()?.toLowerCase(),
+                sizeA   : f.sizeA,
+                sizeB   : f.sizeB,
+                verified: f.verified,
+        ] as Map<String,Object>
+        if( f.hashA != null ) model.hashA = f.hashA
+        if( f.hashB != null ) model.hashB = f.hashB
+        if( f.note != null )  model.note = f.note
+        return model
     }
 
     private Map<String,Object> runModel(RunSnapshot run) {

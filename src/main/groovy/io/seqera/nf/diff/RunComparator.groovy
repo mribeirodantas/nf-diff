@@ -91,12 +91,24 @@ class RunComparator {
     /** Percentage change beyond which a task metric is flagged as a regression. */
     private final double perfThreshold
 
+    /** When true, compare the output files each matched task wrote to its work dir. */
+    private final boolean diffOutputs
+
+    /**
+     * Maximum file size (bytes) to hash when comparing same-size outputs; 0
+     * means no limit. Only meaningful when {@link #diffOutputs} is set.
+     */
+    private final long outputsMaxBytes
+
     RunComparator(boolean showObvious = false, ProcessFilter filter = null, Path baseDir = null,
-                  double perfThreshold = DEFAULT_PERF_THRESHOLD) {
+                  double perfThreshold = DEFAULT_PERF_THRESHOLD,
+                  boolean diffOutputs = false, long outputsMaxBytes = 0L) {
         this.showObvious = showObvious
         this.filter = filter ?: ProcessFilter.of([], [])
         this.baseDir = baseDir
         this.perfThreshold = perfThreshold
+        this.diffOutputs = diffOutputs
+        this.outputsMaxBytes = outputsMaxBytes
     }
 
     DiffResult compare(RunSnapshot a, RunSnapshot b) {
@@ -118,7 +130,38 @@ class RunComparator {
 
         result.tasksRecomputed = countRecomputed(result.tasks)
         result.regressions = computeRegressions(result.tasks)
+        computeOutputs(result)
         return result
+    }
+
+    /**
+     * Populate the outputs layer: for each task matched in both runs, compare
+     * the files it wrote to its work directory. Skipped unless output diffing
+     * was requested. Only matched tasks are inspected — an added/removed task
+     * has no counterpart to diff outputs against.
+     */
+    private void computeOutputs(DiffResult result) {
+        if( !diffOutputs )
+            return
+        result.diffOutputs = true
+
+        final comparator = new OutputComparator(outputsMaxBytes)
+        result.tasks.each { TaskDiff td ->
+            if( td.a != null && td.b != null )
+                result.outputs << comparator.compare(td.a, td.b)
+        }
+
+        final unavailable = result.outputs.count { DiffResult.OutputDiff od -> !od.availableA || !od.availableB }
+        final capped = outputsMaxBytes > 0 ? " Same-size files larger than ${outputsMaxBytes} bytes are left content-unverified." : ''
+        if( result.outputs.isEmpty() )
+            result.outputsNote = 'No tasks were matched in both runs, so there were no outputs to compare.'
+        else if( unavailable == result.outputs.size() )
+            result.outputsNote = ('No work directories were available locally, so outputs could not be compared. ' +
+                    'Output diffing needs the tasks\' work directories to still exist on this machine.').toString()
+        else
+            result.outputsNote = ("Output files compared by size, then SHA-256 for same-size files, from each task's " +
+                    "work directory as it exists now.${capped}" +
+                    (unavailable > 0 ? " ${unavailable} task(s) had a missing work directory and were skipped." : '')).toString()
     }
 
     /**

@@ -414,6 +414,51 @@ class RunComparatorTest extends Specification {
         input.sourceB == CommandParams.SRC_CLI
     }
 
+    // -- outputs layer ------------------------------------------------------
+
+    private TaskInfo taskWithWork(String workdir) {
+        return new TaskInfo(process: 'FOO', name: 'FOO (1)', hash: 'h',
+                display: [status: 'COMPLETED', script: 'echo hi'], workdir: workdir)
+    }
+
+    def 'outputs layer is not computed unless --diff-outputs is enabled'() {
+        given:
+        def dirA = Files.createDirectories(projectDir.resolve('wa'))
+        def dirB = Files.createDirectories(projectDir.resolve('wb'))
+        Files.write(dirA.resolve('out.txt'), 'AAAA'.bytes)
+        Files.write(dirB.resolve('out.txt'), 'BBBB'.bytes)
+        def a = snap('runA', [taskWithWork(dirA.toString())])
+        def b = snap('runB', [taskWithWork(dirB.toString())])
+
+        when: 'default comparison (no output diffing)'
+        def diff = new RunComparator().compare(a, b)
+
+        then:
+        !diff.diffOutputs
+        diff.outputs.isEmpty()
+        diff.identical // tasks match on every inspected field
+    }
+
+    def 'enabling --diff-outputs surfaces a content change and breaks identical'() {
+        given: 'matched tasks whose only difference is their output file content'
+        def dirA = Files.createDirectories(projectDir.resolve('wa'))
+        def dirB = Files.createDirectories(projectDir.resolve('wb'))
+        Files.write(dirA.resolve('out.txt'), 'AAAA'.bytes)
+        Files.write(dirB.resolve('out.txt'), 'BBBB'.bytes) // same size, different content
+        def a = snap('runA', [taskWithWork(dirA.toString())])
+        def b = snap('runB', [taskWithWork(dirB.toString())])
+
+        when:
+        def diff = new RunComparator(false, null, null, RunComparator.DEFAULT_PERF_THRESHOLD, true, 0L).compare(a, b)
+
+        then:
+        diff.diffOutputs
+        diff.outputs.size() == 1
+        diff.outputs[0].hasChanges()
+        diff.hasOutputChanges()
+        !diff.identical
+    }
+
     def 'renderer escapes HTML in task values'() {
         given:
         def a = snap('runA', [task(process: '<b>', name: 'X (1)', display: [status: 'COMPLETED', script: 'a'])])
