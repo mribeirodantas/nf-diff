@@ -36,8 +36,10 @@ class DiffPlugin extends BasePlugin implements PluginAbstractExec {
     @Override
     int exec(String cmd, List<String> args) {
         if( cmd != 'diff' ) {
-            System.err.println "nf-diff: unknown command '${cmd}'"
-            return 1
+            // An unknown verb is a usage error, not a runtime failure, so it
+            // returns 2 (matching DiffCommand.UsageException handling below).
+            System.err.println "nf-diff: unknown command '${cmd}' (only 'diff' is supported)"
+            return 2
         }
         try {
             return new DiffCommand().run(args)
