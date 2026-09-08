@@ -70,7 +70,7 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 |------------------------|--------------------------------------------------------------------------------------------------|
 | `-l`, `--last`         | Compare the two most recent runs in history (A = the older, B = the most recent). Cannot be combined with explicit run identifiers. |
 | `--format=<fmt>`       | Report format: `html` (default) or `json`                                                        |
-| `--output=<file>`      | Output report path (default: `nf-diff-report.html`, or `nf-diff-report.json` when `--format=json`) |
+| `--output=<file>`      | Output report path (default: `nf-diff-report.html`, or `nf-diff-report.json` when `--format=json`). Use `-` to write to stdout. |
 | `--fail-on-change`     | Exit with code `3` if the runs are not identical (useful in CI)                                  |
 | `--dir=<dir>`          | Project directory containing `.nextflow/` (default: `.`)                                         |
 | `-v`, `--verbose`, `--all` | Also diff fields that always change between runs (run name, session id, launch time, work dir, wall/real time, resource usage) |
@@ -95,7 +95,12 @@ nextflow plugin nf-diff:diff runA runB --dir=/path/to/project --verbose
 
 # CI-friendly: emit JSON and fail the step if anything changed
 nextflow plugin nf-diff:diff --last --format=json --fail-on-change
+
+# Stream JSON to stdout and pipe it straight into jq
+nextflow plugin nf-diff:diff --last --format=json --output=- | jq .summary
 ```
+
+> When `--output=-` is used, only the report is written to stdout; the human-readable summary is redirected to stderr so the piped stream stays clean.
 
 Finding run names or session ids is as easy as:
 

@@ -62,24 +62,42 @@ class DiffCommand {
         final content = (format == 'json')
                 ? new JsonReportRenderer().render(diff)
                 : new HtmlReportRenderer().render(diff)
-        final out = outputFile.toAbsolutePath()
-        if( out.parent != null )
-            java.nio.file.Files.createDirectories(out.parent)
-        java.nio.file.Files.write(out, content.getBytes('UTF-8'))
 
-        System.out.println("""\
+        // When writing to stdout ("-"), the report is the only thing on stdout
+        // so it can be piped (e.g. `--format=json --output=- | jq`). The human
+        // summary then goes to stderr to keep the piped stream clean.
+        final destination = toStdout() ? '<stdout>' : outputFile.toAbsolutePath().toString()
+        final summary = """\
 nf-diff: comparison complete
   Run A : ${snapA.label()}  (${snapA.tasks.size()} tasks)
   Run B : ${snapB.label()}  (${snapB.tasks.size()} tasks)
   Diff  : ${diff.tasksChanged} changed, ${diff.tasksAdded} only-in-B, ${diff.tasksRemoved} only-in-A, ${diff.tasksUnchanged} unchanged
   Mode  : ${verbose ? 'verbose (all fields, including always-changing ones)' : 'meaningful changes only (use --verbose for all fields)'}
-  Report: ${out} (${format})""")
+  Report: ${destination} (${format})"""
+
+        if( toStdout() ) {
+            System.out.print(content)
+            System.out.flush()
+            System.err.println(summary)
+        }
+        else {
+            final out = outputFile.toAbsolutePath()
+            if( out.parent != null )
+                java.nio.file.Files.createDirectories(out.parent)
+            java.nio.file.Files.write(out, content.getBytes('UTF-8'))
+            System.out.println(summary)
+        }
 
         if( failOnChange && !diff.identical ) {
             log.debug "nf-diff: runs differ and --fail-on-change is set; exiting ${EXIT_CHANGED}"
             return EXIT_CHANGED
         }
         return 0
+    }
+
+    /** True when the report should be written to stdout ({@code --output=-}). */
+    protected boolean toStdout() {
+        return outputFile.toString() == '-'
     }
 
     /**
@@ -196,7 +214,9 @@ Options:
                        older of the two, B = the most recent). Cannot be
                        combined with explicit run identifiers.
   --output=<file>      Output report path (default: nf-diff-report.<ext>,
-                       where <ext> matches the chosen --format)
+                       where <ext> matches the chosen --format). Use "-" to
+                       write the report to stdout (the summary then goes to
+                       stderr), e.g. `--format=json --output=- | jq`.
   --format=<fmt>       Report format: html (default) or json. JSON is
                        machine-readable for CI, PR bots and dashboards.
   --dir=<dir>          Project directory containing .nextflow/ (default: .)
@@ -218,6 +238,7 @@ Examples:
   nextflow plugin nf-diff:diff --last
   nextflow plugin nf-diff:diff --last --format=json --fail-on-change
   nextflow plugin nf-diff:diff runA runB --format=json --output=diff.json
+  nextflow plugin nf-diff:diff --last --format=json --output=- | jq .summary
 
 Note:
   Invoke the plugin verb with the BARE id (nf-diff:diff), not a pinned

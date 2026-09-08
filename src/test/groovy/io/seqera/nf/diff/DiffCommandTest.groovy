@@ -102,4 +102,29 @@ class DiffCommandTest extends Specification {
         then:
         thrown(DiffCommand.UsageException)
     }
+
+    def '--output=- selects stdout output'() {
+        when:
+        def cmd = parse(['runA', 'runB', '--output=-'])
+
+        then:
+        cmd.toStdout()
+        cmd.outputFile.toString() == '-'
+    }
+
+    def 'stdout output is preserved even with json format'() {
+        when:
+        def cmd = parse(['runA', 'runB', '--format=json', '--output=-'])
+
+        then:
+        cmd.format == 'json'
+        cmd.toStdout()
+        cmd.outputFile.toString() == '-'
+    }
+
+    def 'a normal output path is not treated as stdout'() {
+        expect:
+        !parse(['runA', 'runB']).toStdout()
+        !parse(['runA', 'runB', '--output=report.html']).toStdout()
+    }
 }
