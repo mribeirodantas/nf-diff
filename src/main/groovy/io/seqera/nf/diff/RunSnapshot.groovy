@@ -1,0 +1,68 @@
+package io.seqera.nf.diff
+
+import groovy.transform.CompileStatic
+
+/**
+ * A full snapshot of a Nextflow run: the run-level metadata taken from the
+ * history file plus every task recovered from the run's cache DB.
+ */
+@CompileStatic
+class RunSnapshot {
+
+    /** The identifier the user supplied on the command line (name or UUID prefix). */
+    String requestedId
+
+    // -- run-level metadata (from HistoryFile.Record)
+    String runName
+    UUID sessionId
+    String status
+    String revisionId
+    String command
+    Date timestamp
+    Long durationMillis
+
+    // -- tasks (from CacheDB)
+    List<TaskInfo> tasks = []
+
+    /** Count of tasks grouped by process name, sorted by process name. */
+    Map<String,Integer> taskCountByProcess() {
+        final counts = new TreeMap<String,Integer>()
+        tasks.each { t ->
+            final p = t.process ?: '(unknown)'
+            counts[p] = (counts[p] ?: 0) + 1
+        }
+        return counts
+    }
+
+    /** Distinct process names present in this run. */
+    Set<String> processNames() {
+        return tasks.collect { it.process ?: '(unknown)' } as TreeSet
+    }
+
+    /** Tasks indexed by their {@link TaskInfo#matchKey()}. */
+    Map<String,TaskInfo> tasksByKey() {
+        final map = new LinkedHashMap<String,TaskInfo>()
+        tasks.each { t -> map[t.matchKey()] = t }
+        return map
+    }
+
+    /** Sum of task realtimes in milliseconds. */
+    long totalRealtimeMillis() {
+        long total = 0L
+        tasks.each { TaskInfo t -> total += t.realtimeMillis }
+        return total
+    }
+
+    /** Number of tasks served from cache. */
+    int cachedCount() {
+        int n = 0
+        tasks.each { TaskInfo t -> if( t.cached ) n++ }
+        return n
+    }
+
+    /** A short label combining run name and short session id. */
+    String label() {
+        final shortId = sessionId ? sessionId.toString().substring(0, 8) : '????????'
+        return "${runName ?: requestedId} (${shortId})".toString()
+    }
+}
