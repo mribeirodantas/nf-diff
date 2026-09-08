@@ -239,7 +239,12 @@ class RunLoader {
                 realtimeMillis : realtime ?: 0L,
                 durationMillis : (submit != null && complete != null) ? (complete - submit) : (realtime ?: 0L),
                 display   : display,
-                raw       : new LinkedHashMap<String,Object>(store) )
+                // No defensive copy: CacheDB.eachRecord deserializes a fresh
+                // TraceRecord (hence a fresh store map) per iteration, and the
+                // record is discarded here, so nothing else can mutate or reuse
+                // this map. Copying it just doubled per-task memory on large
+                // runs for no isolation benefit.
+                raw       : store )
 
         return info
     }

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`--diff-all` convenience flag** enables the three opt-in work-dir layers
+  (`--diff-outputs`, `--diff-logs`, `--diff-dag`) at once. They share the same
+  precondition — the tasks' work directories must still exist — and are commonly
+  wanted together. The flag only enables, never forces off, so a later explicit
+  `--diff-<layer>=false` still opts an individual layer back out.
 - **Direct unit tests for `RunLoader`'s pure helpers.** `RunLoader` is the
   riskiest component (it reuses Nextflow's internal `HistoryFile`/`CacheDB`) yet
   had no test. A new `RunLoaderTest` pins the pieces that are pure and
@@ -18,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Per-task `raw` trace map is no longer deep-copied.** `RunLoader.toTaskInfo`
+  built each `TaskInfo` with `raw = new LinkedHashMap<>(store)`, duplicating the
+  entire trace store on top of the already-copied `display` map — roughly
+  doubling per-task memory on large runs. `CacheDB.eachRecord` deserializes a
+  fresh `TraceRecord` (and store map) per iteration and the record is discarded
+  immediately, so nothing can mutate or reuse it; the defensive copy bought no
+  isolation. `TaskInfo` now references the store map directly.
 - **Cache-lock detection is no longer coupled to a single literal message.**
   `RunLoader.isLockError` — which decides whether a failed cache open is a
   transient lock contention worth retrying — previously matched exactly one

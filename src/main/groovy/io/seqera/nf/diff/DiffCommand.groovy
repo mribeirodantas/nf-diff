@@ -314,6 +314,19 @@ nf-diff: comparison complete
                     diffDag = boolFlag(inlineVal, args, i)
                     if( inlineVal == null && nextIsBool(args, i) ) i++
                     break
+                case '--diff-all':
+                    // Convenience: the three opt-in work-dir layers share the
+                    // same precondition (work dirs must still exist) and are
+                    // commonly wanted together. Only enables — never force
+                    // false — so a later explicit --diff-<layer>=false can still
+                    // switch an individual layer back off.
+                    if( boolFlag(inlineVal, args, i) ) {
+                        diffOutputs = true
+                        diffLogs = true
+                        diffDag = true
+                    }
+                    if( inlineVal == null && nextIsBool(args, i) ) i++
+                    break
                 case '--logs-max-lines':
                     final ml = requireValue(key, inlineVal, args, i)
                     if( inlineVal == null ) i++
@@ -486,6 +499,10 @@ Options:
                        tasks' work directories to still exist locally. Best
                        effort and informational only: incomplete when work dirs
                        were cleaned up, so it never affects --fail-on-change.
+  --diff-all           Enable all three work-dir layers at once
+                       (--diff-outputs, --diff-logs, --diff-dag); they share the
+                       same precondition (work dirs must still exist). Enables
+                       only, so a later --diff-<layer>=false still opts one out.
   --dir=<dir>          Project directory containing .nextflow/ (default: .).
                        Used for both runs unless overridden per-run below.
   --dir-a=<dir>        Project directory for run A only (its .nextflow/ history,
@@ -517,6 +534,7 @@ Examples:
   nextflow plugin nf-diff:diff --last --diff-outputs --fail-on-change
   nextflow plugin nf-diff:diff --last --diff-logs
   nextflow plugin nf-diff:diff --last --diff-dag
+  nextflow plugin nf-diff:diff --last --diff-all --output=compare.html
   nextflow plugin nf-diff:diff runA runB --format=json --output=diff.json
   nextflow plugin nf-diff:diff --last --format=json --output=- | jq .summary
 

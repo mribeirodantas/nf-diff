@@ -147,6 +147,36 @@ class DiffCommandTest extends Specification {
         cmd.runB == null
     }
 
+    def '--diff-all enables all three work-dir layers'() {
+        when:
+        def cmd = parse(['runA', 'runB', '--diff-all'])
+
+        then:
+        cmd.diffOutputs
+        cmd.diffLogs
+        cmd.diffDag
+    }
+
+    def '--diff-all=false is a no-op, leaving the layers off'() {
+        when:
+        def cmd = parse(['runA', 'runB', '--diff-all=false'])
+
+        then:
+        !cmd.diffOutputs
+        !cmd.diffLogs
+        !cmd.diffDag
+    }
+
+    def '--diff-all only enables, so a later --diff-dag=false still opts one layer out'() {
+        when:
+        def cmd = parse(['runA', 'runB', '--diff-all', '--diff-dag=false'])
+
+        then:
+        cmd.diffOutputs
+        cmd.diffLogs
+        !cmd.diffDag
+    }
+
     def '--last cannot be combined with explicit run identifiers'() {
         when:
         parse(['runA', 'runB', '--last'])
