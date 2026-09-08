@@ -557,6 +557,92 @@ class RunComparatorTest extends Specification {
         diff.identical // logs are informational only
     }
 
+    // -- config provenance --------------------------------------------------
+
+    private void gitInProject(String... args) {
+        final cmd = (['git'] + (args as List)) as List<String>
+        final proc = new ProcessBuilder(cmd).directory(projectDir.toFile()).start()
+        proc.inputStream.text
+        proc.errorStream.text
+        assert proc.waitFor() == 0
+    }
+
+    private String initGitWithConfig(String content) {
+        gitInProject('init', '-q')
+        gitInProject('config', 'user.email', 'test@example.com')
+        gitInProject('config', 'user.name', 'Test')
+        writeConfig(content)
+        gitInProject('add', '.')
+        gitInProject('commit', '-q', '-m', 'initial')
+        final proc = new ProcessBuilder(['git', 'rev-parse', 'HEAD'] as List<String>)
+                .directory(projectDir.toFile()).start()
+        final head = proc.inputStream.text.trim()
+        proc.errorStream.text
+        assert proc.waitFor() == 0
+        return head
+    }
+
+    @spock.lang.Requires({ GitProvenanceTest.isGitAvailable() })
+    def 'config provenance warns when a run was launched at a different git revision'() {
+        given: 'a committed config and one run whose recorded revision matches HEAD'
+        def head = initGitWithConfig('process.cpus = 1\n')
+        def tasks = [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED'])]
+        def a = snap('runA', tasks.collect { it }, 'nextflow run main.nf')
+        def b = snap('runB', tasks.collect { it }, 'nextflow run main.nf')
+        a.revisionId = 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef' // different commit
+        b.revisionId = head
+
+        when:
+        def diff = new RunComparator(false, null, projectDir).compare(a, b)
+
+        then:
+        diff.configProvenance != null
+        diff.configProvenance.gitAvailable
+        diff.configProvenance.driftedA
+        !diff.configProvenance.driftedB
+        diff.configProvenance.warning().contains('run A was')
+
+        and: 'the caveat is rendered in every format'
+        new MarkdownReportRenderer().render(diff).contains('Config provenance')
+        new HtmlReportRenderer().render(diff).contains('warn-note')
+        new JsonReportRenderer().render(diff).contains('driftedA')
+    }
+
+    @spock.lang.Requires({ GitProvenanceTest.isGitAvailable() })
+    def 'config provenance is clean when both runs match HEAD on an unmodified tree'() {
+        given:
+        def head = initGitWithConfig('process.cpus = 1\n')
+        def tasks = [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED'])]
+        def a = snap('runA', tasks.collect { it }, 'nextflow run main.nf')
+        def b = snap('runB', tasks.collect { it }, 'nextflow run main.nf')
+        a.revisionId = head
+        b.revisionId = head
+
+        when:
+        def diff = new RunComparator(false, null, projectDir).compare(a, b)
+
+        then:
+        diff.configProvenance.gitAvailable
+        !diff.configProvenance.hasWarning()
+        diff.configProvenance.warning() == null
+    }
+
+    def 'config provenance reports git unavailable outside a repository'() {
+        given: 'a project dir with config but no git repo'
+        writeConfig('process.cpus = 1\n')
+        def tasks = [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED'])]
+        def a = snap('runA', tasks.collect { it }, 'nextflow run main.nf')
+        def b = snap('runB', tasks.collect { it }, 'nextflow run main.nf')
+
+        when:
+        def diff = new RunComparator(false, null, projectDir).compare(a, b)
+
+        then: 'provenance exists but reports unknown git state and no warning'
+        diff.configProvenance != null
+        !diff.configProvenance.gitAvailable
+        !diff.configProvenance.hasWarning()
+    }
+
     def 'renderer escapes HTML in task values'() {
         given:
         def a = snap('runA', [task(process: '<b>', name: 'X (1)', display: [status: 'COMPLETED', script: 'a'])])

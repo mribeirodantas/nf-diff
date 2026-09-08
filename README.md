@@ -2,7 +2,7 @@
 
 > Compare two Nextflow runs and render a detailed, self-contained HTML report of what changed.
 
-`nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history — or just say `--last` to grab the two most recent — and it produces a report that walks through their differences across six layers: **run metadata**, **parameters & options** (the resolved flags each run was launched with, merging `-params-file` contents with the command line), **resolved configuration** (the effective `nextflow.config` after profiles), **process topology**, **software & versions** (the container image and Conda spec each process ran with), and **per-task detail** (resources, scripts, containers, exit codes). On top of those, it derives a **performance-regressions** view — the tasks whose runtime or memory moved beyond a threshold between the two runs — and a **recompute count** telling you how many matched tasks were re-executed rather than resumed.
+`nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history — or just say `--last` to grab the two most recent — and it produces a report that walks through their differences across six layers: **run metadata**, **parameters & options** (the resolved flags each run was launched with, merging `-params-file` contents with the command line), **resolved configuration** (the effective `nextflow.config` after profiles, with a caveat when the working tree has drifted from the git revision a run was launched at), **process topology**, **software & versions** (the container image and Conda spec each process ran with), and **per-task detail** (resources, scripts, containers, exit codes). On top of those, it derives a **performance-regressions** view — the tasks whose runtime or memory moved beyond a threshold between the two runs — and a **recompute count** telling you how many matched tasks were re-executed rather than resumed.
 
 Opt into a sixth layer with `--diff-outputs`: for every task matched in both runs, it compares the **output files** each one wrote to its work directory — by size first, then a content SHA-256 for same-size files — so you can see not just whether the runs were *launched* differently, but whether they actually *produced* different results.
 
@@ -217,6 +217,7 @@ src/main/groovy/io/seqera/nf/diff/
   RunComparator.groovy      # six-layer comparison logic
   CommandParams.groovy      # resolves launch params (CLI + -params-file), tagged by source
   ConfigLoader.groovy       # resolves the effective nextflow.config (profiles + -c)
+  GitProvenance.groovy      # inspects working-tree git HEAD + dirty state for the config caveat
   OutputComparator.groovy   # --diff-outputs: compares task work-dir output files
   LogComparator.groovy      # --diff-logs: diffs task .command.out/.err/.log files
   ProcessFilter.groovy      # --only / --exclude process-name globbing

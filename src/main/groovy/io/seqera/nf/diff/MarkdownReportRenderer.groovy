@@ -115,6 +115,9 @@ class MarkdownReportRenderer {
         final highlighted = diff.config.findAll { FieldDiff fd -> fd.isHighlighted(diff.showObvious) }
         if( diff.configNote )
             sb << "> ${cell(diff.configNote)}\n\n"
+        final provWarning = diff.configProvenance?.warning()
+        if( provWarning )
+            sb << "> ⚠️ **Config provenance:** ${cell(provWarning)}\n\n"
         if( diff.config.isEmpty() ) {
             return
         }

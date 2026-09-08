@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Config-provenance caveat** — the configuration layer now inspects the git
+  state of the working tree it resolves config from and warns when that tree has
+  drifted from the revision a run was actually launched at. Because
+  `ConfigLoader` rebuilds each run's effective config from the files *as they
+  exist now*, a run launched at commit A and re-run at commit B have their
+  configs both resolved against whatever is checked out now — silently masking
+  config differences driven by code changes between those revisions. The
+  metadata layer already records each run's `revisionId`; this compares it to
+  the current `HEAD` (via `git rev-parse`, prefix-matching abbreviated ids) and
+  also flags an uncommitted (dirty) working tree. When either run drifted, or
+  the tree is dirty, a prominent caveat is surfaced in all three report formats
+  (HTML warning banner, Markdown blockquote, and a `configProvenance` object
+  with `driftedA`/`driftedB`/`workingTreeDirty`/`warning` fields in JSON). Git
+  state is inspected best-effort — a non-git project, missing `git`, or a
+  command timeout degrades to "unknown" without breaking the diff. The caveat is
+  informational only: it never affects the "identical" verdict or
+  `--fail-on-change`.
 - **Software & versions diffing** — a new always-on layer that compares, per
   process, the distinct container image(s) and Conda package spec(s) that
   process's tasks ran with in each run. Both values are read straight from the

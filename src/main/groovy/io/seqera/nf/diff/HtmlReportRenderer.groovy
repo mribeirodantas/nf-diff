@@ -225,6 +225,9 @@ class HtmlReportRenderer {
         sb << '  <h2>Resolved configuration</h2>\n'
         if( diff.configNote )
             sb << "  <p class=\"mode-note\">${esc(diff.configNote)}</p>\n"
+        final provWarning = diff.configProvenance?.warning()
+        if( provWarning )
+            sb << "  <p class=\"warn-note\"><strong>⚠ Config provenance:</strong> ${esc(provWarning)}</p>\n"
         if( diff.config.isEmpty() ) {
             sb << '</section>\n'
             return
@@ -711,6 +714,8 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 .src-na{color:var(--muted)}
 .mode-note{color:var(--muted);font-size:13px;margin:0 0 14px;line-height:1.5}
 .mode-note code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px}
+.warn-note{color:var(--changed);font-size:13px;margin:0 0 14px;line-height:1.5;background:rgba(251,191,36,.10);border:1px solid var(--changed);border-radius:10px;padding:10px 14px}
+.warn-note strong{color:var(--changed)}
 .row-added{background:rgba(52,211,153,.08)} .row-removed{background:rgba(248,113,113,.08)}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
 .pill.added{background:rgba(52,211,153,.18);color:var(--added)}

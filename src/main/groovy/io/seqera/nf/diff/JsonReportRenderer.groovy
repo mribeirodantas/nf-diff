@@ -47,6 +47,7 @@ class JsonReportRenderer {
                 params     : diff.params.collect { fieldModel(it, diff.showObvious) },
                 config     : diff.config.collect { fieldModel(it, diff.showObvious) },
                 configNote : diff.configNote,
+                configProvenance: configProvenanceModel(diff.configProvenance),
                 processes  : diff.processes.collect { processModel(it) },
                 software   : diff.software.collect { softwareModel(it) },
                 tasks      : diff.tasks.collect { taskModel(it, diff.showObvious) },
@@ -163,6 +164,27 @@ class JsonReportRenderer {
         if( fd.sourceB != null )
             model.sourceB = fd.sourceB
         return model
+    }
+
+    /**
+     * Model the config-provenance caveat. Returns null when it was not computed
+     * (no project directory), so consumers can distinguish "not checked" from
+     * "checked, clean". The {@code warning} is null when config provenance is
+     * trustworthy.
+     */
+    private Map<String,Object> configProvenanceModel(DiffResult.ConfigProvenance prov) {
+        if( prov == null )
+            return null
+        return [
+                gitAvailable    : prov.gitAvailable,
+                currentRevision : prov.currentRevision,
+                workingTreeDirty: prov.workingTreeDirty,
+                revisionA       : prov.revisionA,
+                revisionB       : prov.revisionB,
+                driftedA        : prov.driftedA,
+                driftedB        : prov.driftedB,
+                warning         : prov.warning(),
+        ] as Map<String,Object>
     }
 
     private Map<String,Object> processModel(ProcessDiff pd) {

@@ -337,6 +337,46 @@ class RunComparator {
                 : ('Resolved from the current on-disk config files under ' +
                    "${baseDir}, applying each run's -profile/-c options — not a " +
                    'snapshot of the config at launch time.')
+
+        result.configProvenance = computeConfigProvenance(a, b)
+    }
+
+    /**
+     * Determine whether the working tree the config was resolved from has
+     * drifted from the git revision each run was launched at. When the checkout
+     * moved (or has uncommitted changes) since a run, the resolved config no
+     * longer reflects what that run actually used — a caveat surfaced by the
+     * renderers. Git state is inspected best-effort: when {@code baseDir} is not
+     * a git work tree, the provenance simply reports "unknown" and warns about
+     * nothing.
+     */
+    private DiffResult.ConfigProvenance computeConfigProvenance(RunSnapshot a, RunSnapshot b) {
+        final prov = new DiffResult.ConfigProvenance(
+                revisionA: a.revisionId,
+                revisionB: b.revisionId )
+        final state = new GitProvenance().inspect(baseDir)
+        prov.gitAvailable = state.isRepo()
+        if( !state.isRepo() )
+            return prov
+        prov.currentRevision = state.headCommit
+        prov.workingTreeDirty = state.dirty
+        prov.driftedA = revisionDrifted(a.revisionId, state.headCommit)
+        prov.driftedB = revisionDrifted(b.revisionId, state.headCommit)
+        return prov
+    }
+
+    /**
+     * True when a run's recorded git revision is known and differs from the
+     * current working-tree HEAD. Commit ids may be abbreviated (Nextflow can
+     * record a short id), so a shared prefix in either direction counts as a
+     * match. An unknown revision (non-git run) is never treated as drift.
+     */
+    private static boolean revisionDrifted(String runRevision, String currentHead) {
+        if( !runRevision || !currentHead )
+            return false
+        final r = runRevision.trim()
+        final c = currentHead.trim()
+        return !(c.startsWith(r) || r.startsWith(c))
     }
 
     private List<ProcessDiff> compareProcesses(RunSnapshot a, RunSnapshot b) {

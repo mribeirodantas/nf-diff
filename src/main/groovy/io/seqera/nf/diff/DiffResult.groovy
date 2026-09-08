@@ -109,6 +109,68 @@ class DiffResult {
         boolean isRegression() { pctDelta != null && pctDelta > 0 }
     }
 
+    /**
+     * Git-provenance context for the resolved-configuration layer. Because
+     * {@link ConfigLoader} rebuilds each run's effective config from the working
+     * tree <em>as it exists now</em>, a config that changed with the code between
+     * the two runs' git revisions is invisible: both sides resolve against the
+     * current checkout. This captures the current HEAD and working-tree state so
+     * the report can warn when that masking is possible. It is informational —
+     * it never affects {@link #isIdentical()} or {@code --fail-on-change}.
+     */
+    @CompileStatic
+    static class ConfigProvenance {
+        /** Whether git state could be determined at all (a git work tree was found). */
+        boolean gitAvailable
+        /** Commit id of the working tree HEAD config was resolved against; null when unknown. */
+        String currentRevision
+        /** True when the working tree has uncommitted (tracked) changes. */
+        boolean workingTreeDirty
+        /** Each run's recorded git revision at launch; may be null (non-git run). */
+        String revisionA
+        String revisionB
+        /** True when run A / B was launched at a git revision other than the current checkout. */
+        boolean driftedA
+        boolean driftedB
+
+        /** True when drift or a dirty tree undermines the config layer's trustworthiness. */
+        boolean hasWarning() {
+            return driftedA || driftedB || workingTreeDirty
+        }
+
+        /**
+         * Human-readable caveat about config provenance, or null when the layer
+         * is trustworthy (or git state is unknown, in which case there is nothing
+         * to warn about beyond the standard "resolved from current files" note).
+         */
+        String warning() {
+            if( !hasWarning() )
+                return null
+            final parts = new ArrayList<String>()
+            if( driftedA || driftedB ) {
+                final which = (driftedA && driftedB) ? 'both runs were'
+                        : (driftedA ? 'run A was' : 'run B was')
+                parts << ("The resolved configuration was rebuilt from the working tree at " +
+                        "${shortSha(currentRevision)}, but ${which} launched at a different git revision " +
+                        "(A: ${shortSha(revisionA)}, B: ${shortSha(revisionB)}). Any config difference driven " +
+                        "by code changes between those revisions is NOT visible here — both sides were resolved " +
+                        "against the current checkout.").toString()
+            }
+            if( workingTreeDirty )
+                parts << ('The working tree has uncommitted changes, so the resolved configuration reflects ' +
+                        'local edits that may not match either run.')
+            return parts.join(' ')
+        }
+
+        /** Abbreviate a commit id to 10 chars for display; {@code (unknown)} when null. */
+        private static String shortSha(String sha) {
+            if( !sha )
+                return '(unknown)'
+            final s = sha.trim()
+            return s.length() > 10 ? s.substring(0, 10) : s
+        }
+    }
+
     /** How a task relates between the two runs. */
     static enum Kind { ADDED, REMOVED, CHANGED, UNCHANGED }
 
@@ -283,6 +345,13 @@ class DiffResult {
      * (or why it is empty). Surfaced by the renderers as context.
      */
     String configNote
+    /**
+     * Git-provenance caveat for the configuration layer: whether the working
+     * tree config was resolved from matches the git revision each run was
+     * launched at. Null when not computed (e.g. no project directory). See
+     * {@link ConfigProvenance}.
+     */
+    ConfigProvenance configProvenance
     List<ProcessDiff> processes = []
     List<TaskDiff> tasks = []
 
