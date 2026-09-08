@@ -5,7 +5,10 @@ plugins {
 version = '0.2.0'
 
 nextflowPlugin {
-    nextflowVersion = '25.04.0'
+    // 25.04.0 is the supported floor; CI overrides via NXF_VER to also
+    // exercise newer lines (e.g. 26.x, which defaults to the v2 strict
+    // parser) and catch internal-API drift early.
+    nextflowVersion = System.getenv('NXF_VER') ?: '25.04.0'
 
     provider = 'nextflow'
     className = 'io.seqera.nf.diff.DiffPlugin'

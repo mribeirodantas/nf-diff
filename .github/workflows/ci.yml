@@ -17,13 +17,18 @@ permissions:
 
 jobs:
   check:
-    name: check (JDK ${{ matrix.java }})
+    name: check (JDK ${{ matrix.java }}, NF ${{ matrix.nextflow }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         # nf-diff requires Java 17+; also exercise the current LTS (21).
         java: ['17', '21']
+        # 25.04.0 is the supported floor; 26.04.0 makes the v2 strict parser
+        # the default and touches CLI/plugin surfaces, so exercise both to
+        # catch drift in the internal APIs the plugin reuses (HistoryFile,
+        # CacheDB, DefaultCacheStore, ConfigBuilder).
+        nextflow: ['25.04.0', '26.04.0']
 
     steps:
       - name: Checkout
@@ -39,6 +44,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Compile + test + checks
+        env:
+          # build.gradle reads NXF_VER to override the plugin's Nextflow
+          # version; unset it falls back to the 25.04.0 floor.
+          NXF_VER: ${{ matrix.nextflow }}
         run: make check
 
       - name: Upload test reports
@@ -46,7 +55,7 @@ jobs:
         if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports-jdk${{ matrix.java }}
+          name: test-reports-jdk${{ matrix.java }}-nf${{ matrix.nextflow }}
           path: |
             build/reports/tests/
             build/test-results/
