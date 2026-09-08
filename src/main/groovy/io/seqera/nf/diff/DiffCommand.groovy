@@ -425,8 +425,11 @@ nf-diff: comparison complete
         return '''\
 Usage: nextflow plugin nf-diff:diff <runA> <runB> [options]
 
-  Compare two Nextflow runs and render a detailed HTML report of their
-  differences (metadata, processes, and per-task resources/scripts).
+  Compare two Nextflow runs and render a detailed report of their
+  differences: run metadata, parameters & options, resolved configuration,
+  process topology, software & versions, per-task detail, failure rollup,
+  performance regressions and resource-efficiency. Opt into output-file
+  (--diff-outputs), log (--diff-logs) and process-wiring (--diff-dag) layers.
 
 Arguments:
   <runA> <runB>        Run names or session UUIDs from .nextflow/history.
