@@ -199,9 +199,14 @@ class CommandParams {
      * Split a command line into tokens, honouring single and double quotes so a
      * quoted value containing spaces stays intact. Backslash escaping is not
      * handled — recorded launch commands rarely need it.
+     *
+     * <p>Shared with {@link ConfigLoader} so command-line tokenisation has a
+     * single source of truth and the two layers cannot drift.
      */
-    private static List<String> tokenize(String command) {
+    static List<String> tokenize(String command) {
         final tokens = new ArrayList<String>()
+        if( !command )
+            return tokens
         final sb = new StringBuilder()
         char quote = 0
         boolean inToken = false

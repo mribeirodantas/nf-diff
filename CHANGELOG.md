@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Command-line tokenisation now has a single source of truth.** `ConfigLoader`
+  previously carried its own copy of the quote-aware command tokenizer that
+  "mirrored" `CommandParams`'; the two could silently drift. `CommandParams.tokenize`
+  is now shared and `ConfigLoader` delegates to it, so `-c`/`-config` extraction
+  and flag parsing always split commands identically.
+
 ## [0.3.0] - 2026-09-08
 
 ### Added

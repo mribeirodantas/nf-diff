@@ -75,7 +75,7 @@ class ConfigLoader {
      */
     private static List<Path> configFilesFrom(String command, Path baseDir) {
         final paths = new ArrayList<Path>()
-        final tokens = tokenize(command)
+        final tokens = CommandParams.tokenize(command)
         int i = 0
         while( i < tokens.size() ) {
             final tok = tokens[i]
@@ -120,44 +120,5 @@ class ConfigLoader {
         else if( prefix && !prefix.startsWith(PARAMS_PREFIX) ) {
             out[prefix] = (node == null) ? 'null' : node.toString()
         }
-    }
-
-    // -- minimal command tokenizer (mirrors CommandParams' quoting rules) -----
-
-    private static List<String> tokenize(String command) {
-        final tokens = new ArrayList<String>()
-        if( !command )
-            return tokens
-        final sb = new StringBuilder()
-        char quote = 0
-        boolean inToken = false
-        for( int i = 0; i < command.length(); i++ ) {
-            final char c = command.charAt(i)
-            if( quote != 0 ) {
-                if( c == quote )
-                    quote = 0
-                else
-                    sb.append(c)
-                inToken = true
-            }
-            else if( c == ('"' as char) || c == ("'" as char) ) {
-                quote = c
-                inToken = true
-            }
-            else if( Character.isWhitespace(c) ) {
-                if( inToken ) {
-                    tokens.add(sb.toString())
-                    sb.setLength(0)
-                    inToken = false
-                }
-            }
-            else {
-                sb.append(c)
-                inToken = true
-            }
-        }
-        if( inToken )
-            tokens.add(sb.toString())
-        return tokens
     }
 }
