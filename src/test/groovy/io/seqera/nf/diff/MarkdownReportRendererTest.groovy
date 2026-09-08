@@ -31,7 +31,7 @@ class MarkdownReportRendererTest extends Specification {
     }
 
     private String md(List<TaskInfo> a, List<TaskInfo> b, boolean verbose = false) {
-        def diff = new RunComparator(verbose).compare(snap('runA', a), snap('runB', b))
+        def diff = new RunComparator(new CompareOptions(showObvious: verbose)).compare(snap('runA', a), snap('runB', b))
         return new MarkdownReportRenderer().render(diff)
     }
 

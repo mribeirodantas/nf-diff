@@ -32,7 +32,7 @@ class JsonReportRendererTest extends Specification {
     }
 
     private Object json(List<TaskInfo> a, List<TaskInfo> b, boolean verbose = false) {
-        def diff = new RunComparator(verbose).compare(snap('runA', a), snap('runB', b))
+        def diff = new RunComparator(new CompareOptions(showObvious: verbose)).compare(snap('runA', a), snap('runB', b))
         def text = new JsonReportRenderer().render(diff)
         return new JsonSlurper().parseText(text)
     }

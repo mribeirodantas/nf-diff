@@ -139,25 +139,20 @@ class RunComparator {
     /** When true, reconstruct and diff each run's process&#8594;process wiring. */
     private final boolean diffDag
 
-    RunComparator(boolean showObvious = false, ProcessFilter filter = null, Path baseDir = null,
-                  double perfThreshold = DEFAULT_PERF_THRESHOLD,
-                  boolean diffOutputs = false, long outputsMaxBytes = 0L,
-                  boolean diffLogs = false, int logsMaxLines = LogComparator.DEFAULT_MAX_LINES,
-                  int outputsMaxLines = OutputComparator.DEFAULT_MAX_LINES,
-                  Path baseDirA = null, Path baseDirB = null, boolean diffDag = false) {
-        this.showObvious = showObvious
-        this.filter = filter ?: ProcessFilter.of([], [])
-        this.baseDir = baseDir
-        this.baseDirA = baseDirA ?: baseDir
-        this.baseDirB = baseDirB ?: baseDir
+    RunComparator(CompareOptions opts = new CompareOptions()) {
+        this.showObvious = opts.showObvious
+        this.filter = opts.filter ?: ProcessFilter.of([], [])
+        this.baseDir = opts.baseDir
+        this.baseDirA = opts.baseDirA ?: opts.baseDir
+        this.baseDirB = opts.baseDirB ?: opts.baseDir
         this.crossProject = norm(this.baseDirA) != norm(this.baseDirB)
-        this.perfThreshold = perfThreshold
-        this.diffOutputs = diffOutputs
-        this.outputsMaxBytes = outputsMaxBytes
-        this.diffLogs = diffLogs
-        this.logsMaxLines = logsMaxLines
-        this.outputsMaxLines = outputsMaxLines
-        this.diffDag = diffDag
+        this.perfThreshold = opts.perfThreshold
+        this.diffOutputs = opts.diffOutputs
+        this.outputsMaxBytes = opts.outputsMaxBytes
+        this.diffLogs = opts.diffLogs
+        this.logsMaxLines = opts.logsMaxLines
+        this.outputsMaxLines = opts.outputsMaxLines
+        this.diffDag = opts.diffDag
     }
 
     /** Absolute, normalised form of a directory for equality comparison; null-safe. */

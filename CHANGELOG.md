@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`RunComparator` now takes a single `CompareOptions` value object instead of
+  a twelve-argument positional constructor.** The old signature interleaved four
+  `boolean`s (`showObvious`, `diffOutputs`, `diffLogs`, `diffDag`) and three
+  numeric limits (`outputsMaxBytes`, `logsMaxLines`, `outputsMaxLines`), so only
+  argument *order* told them apart and a transposition compiled silently under
+  `@CompileStatic` — the classic long-parameter-list hazard, made worse because
+  adding a layer meant threading a new positional through every call site. The
+  new `CompareOptions` names each knob and defaults each to the constructor's old
+  default, so `DiffCommand` sets them by name and `new RunComparator()` still
+  reproduces the no-argument behaviour. Future layers become one added field, not
+  a signature change at every call site.
+
 ### Added
 
 - **Direct unit tests for the `ArgCursor` parsing primitive.** A new

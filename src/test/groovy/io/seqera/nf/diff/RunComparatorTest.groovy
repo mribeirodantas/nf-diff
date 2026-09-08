@@ -166,7 +166,7 @@ class RunComparatorTest extends Specification {
                           realtime: '12s', workdir: '/work/bb'])])
 
         when: 'the verbose comparison'
-        def diff = new RunComparator(true).compare(a, b)
+        def diff = new RunComparator(new CompareOptions(showObvious: true)).compare(a, b)
 
         then: 'the task is now flagged as changed'
         diff.tasksChanged == 1
@@ -311,7 +311,7 @@ class RunComparatorTest extends Specification {
         new RunComparator().compare(a, b).regressions.isEmpty()
 
         and: 'a 5% threshold flags it'
-        def diff = new RunComparator(false, null, null, 5.0d).compare(a, b)
+        def diff = new RunComparator(new CompareOptions(perfThreshold: 5.0d)).compare(a, b)
         diff.regressions*.metric == ['realtime']
         diff.regressions[0].pctDelta == 10.0d
     }
@@ -364,7 +364,7 @@ class RunComparatorTest extends Specification {
         ])
 
         when:
-        def diff = new RunComparator(false, ProcessFilter.of(['ALIGN:*'], [])).compare(a, b)
+        def diff = new RunComparator(new CompareOptions(filter: ProcessFilter.of(['ALIGN:*'], []))).compare(a, b)
 
         then: 'only the aligned process is present in both layers'
         diff.processes*.process == ['ALIGN:BWA']
@@ -384,7 +384,7 @@ class RunComparatorTest extends Specification {
         ])
 
         when: 'the only changing process is excluded'
-        def diff = new RunComparator(false, ProcessFilter.of([], ['QC:*'])).compare(a, b)
+        def diff = new RunComparator(new CompareOptions(filter: ProcessFilter.of([], ['QC:*']))).compare(a, b)
 
         then: 'the remaining process is unchanged, so the filtered runs look identical'
         diff.processes*.process == ['ALIGN:BWA']
@@ -430,7 +430,7 @@ class RunComparatorTest extends Specification {
         def b = snap('runB', tasks.collect { it }, 'nextflow run main.nf -profile docker')
 
         when:
-        def diff = new RunComparator(false, null, projectDir).compare(a, b)
+        def diff = new RunComparator(new CompareOptions(baseDir: projectDir)).compare(a, b)
 
         then: 'process.cpus and docker.enabled show up as config changes'
         def cpus = diff.config.find { it.field == 'process.cpus' }
@@ -466,9 +466,7 @@ class RunComparatorTest extends Specification {
         def b = snap('runB', tasks.collect { it }, 'nextflow run main.nf')
 
         when: 'run A is resolved from dirA and run B from dirB'
-        def diff = new RunComparator(false, null, null, RunComparator.DEFAULT_PERF_THRESHOLD,
-                false, 0L, false, LogComparator.DEFAULT_MAX_LINES,
-                OutputComparator.DEFAULT_MAX_LINES, dirA, dirB).compare(a, b)
+        def diff = new RunComparator(new CompareOptions(baseDirA: dirA, baseDirB: dirB)).compare(a, b)
 
         then: 'the per-directory config values are diffed against each other'
         def cpus = diff.config.find { it.field == 'process.cpus' }
@@ -495,7 +493,7 @@ class RunComparatorTest extends Specification {
         def b = snap('runB', tasks.collect { it }, 'nextflow run main.nf --input from-cli.csv')
 
         when:
-        def diff = new RunComparator(false, null, projectDir).compare(a, b)
+        def diff = new RunComparator(new CompareOptions(baseDir: projectDir)).compare(a, b)
 
         then:
         def input = diff.params.find { it.field == '--input' }
@@ -540,7 +538,7 @@ class RunComparatorTest extends Specification {
         def b = snap('runB', [taskWithWork(dirB.toString())])
 
         when:
-        def diff = new RunComparator(false, null, null, RunComparator.DEFAULT_PERF_THRESHOLD, true, 0L).compare(a, b)
+        def diff = new RunComparator(new CompareOptions(diffOutputs: true)).compare(a, b)
 
         then:
         diff.diffOutputs
@@ -579,8 +577,7 @@ class RunComparatorTest extends Specification {
         def b = snap('runB', [taskWithWork(dirB.toString())])
 
         when:
-        def diff = new RunComparator(false, null, null, RunComparator.DEFAULT_PERF_THRESHOLD,
-                false, 0L, true, LogComparator.DEFAULT_MAX_LINES).compare(a, b)
+        def diff = new RunComparator(new CompareOptions(diffLogs: true)).compare(a, b)
 
         then:
         diff.diffLogs
@@ -626,7 +623,7 @@ class RunComparatorTest extends Specification {
         b.revisionId = head
 
         when:
-        def diff = new RunComparator(false, null, projectDir).compare(a, b)
+        def diff = new RunComparator(new CompareOptions(baseDir: projectDir)).compare(a, b)
 
         then:
         diff.configProvenance != null
@@ -652,7 +649,7 @@ class RunComparatorTest extends Specification {
         b.revisionId = head
 
         when:
-        def diff = new RunComparator(false, null, projectDir).compare(a, b)
+        def diff = new RunComparator(new CompareOptions(baseDir: projectDir)).compare(a, b)
 
         then:
         diff.configProvenance.gitAvailable
@@ -668,7 +665,7 @@ class RunComparatorTest extends Specification {
         def b = snap('runB', tasks.collect { it }, 'nextflow run main.nf')
 
         when:
-        def diff = new RunComparator(false, null, projectDir).compare(a, b)
+        def diff = new RunComparator(new CompareOptions(baseDir: projectDir)).compare(a, b)
 
         then: 'provenance exists but reports unknown git state and no warning'
         diff.configProvenance != null

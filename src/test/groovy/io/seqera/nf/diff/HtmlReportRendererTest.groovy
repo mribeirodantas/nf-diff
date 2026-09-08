@@ -37,7 +37,7 @@ class HtmlReportRendererTest extends Specification {
     }
 
     private DiffResult diffOf(List<TaskInfo> a, List<TaskInfo> b, boolean verbose = false) {
-        return new RunComparator(verbose).compare(snap('runA', a), snap('runB', b))
+        return new RunComparator(new CompareOptions(showObvious: verbose)).compare(snap('runA', a), snap('runB', b))
     }
 
     private String render(List<TaskInfo> a, List<TaskInfo> b, boolean verbose = false) {

@@ -135,10 +135,23 @@ class DiffCommand {
         final snapB = new RunLoader(dirB).load(runB)
 
         final filter = ProcessFilter.of(onlyGlobs, excludeGlobs)
-        final diff = new RunComparator(verbose, filter, baseDir, perfThreshold,
-                        diffOutputs, outputsMaxBytes, diffLogs, logsMaxLines, outputsMaxLines,
-                        dirA, dirB, diffDag)
-                .compare(snapA, snapB)
+        // Set each knob by name (property assignment compiles cleanly under
+        // @CompileStatic) so the comparator can never be handed a transposed
+        // pair of same-typed arguments.
+        final opts = new CompareOptions()
+        opts.showObvious = verbose
+        opts.filter = filter
+        opts.baseDir = baseDir
+        opts.baseDirA = dirA
+        opts.baseDirB = dirB
+        opts.perfThreshold = perfThreshold
+        opts.diffOutputs = diffOutputs
+        opts.outputsMaxBytes = outputsMaxBytes
+        opts.outputsMaxLines = outputsMaxLines
+        opts.diffLogs = diffLogs
+        opts.logsMaxLines = logsMaxLines
+        opts.diffDag = diffDag
+        final diff = new RunComparator(opts).compare(snapA, snapB)
 
         final content = renderContent(diff)
 
