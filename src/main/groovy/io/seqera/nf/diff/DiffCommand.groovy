@@ -66,22 +66,39 @@ nf-diff: comparison complete
         int i = 0
         while( i < args.size() ) {
             final arg = args[i]
-            switch( arg ) {
+            // Support the inline `--opt=value` form as well as `--opt value`.
+            // Nextflow's `plugin` launcher forwards `--output=<file>` reliably,
+            // whereas a space-separated short flag like `-o <file>` is swallowed
+            // by the launcher before it reaches the plugin.
+            final eq = arg.indexOf('=')
+            final key = (arg.startsWith('-') && eq > 0) ? arg.substring(0, eq) : arg
+            final inlineVal = (arg.startsWith('-') && eq > 0) ? arg.substring(eq + 1) : null
+            switch( key ) {
                 case '-o':
                 case '--output':
-                    if( i + 1 >= args.size() )
-                        throw new UsageException("missing value for ${arg}")
-                    outputFile = Paths.get(args[++i])
+                    if( inlineVal != null ) {
+                        outputFile = Paths.get(inlineVal)
+                    }
+                    else {
+                        if( i + 1 >= args.size() )
+                            throw new UsageException("missing value for ${key}")
+                        outputFile = Paths.get(args[++i])
+                    }
                     break
                 case '-d':
                 case '--dir':
-                    if( i + 1 >= args.size() )
-                        throw new UsageException("missing value for ${arg}")
-                    baseDir = Paths.get(args[++i])
+                    if( inlineVal != null ) {
+                        baseDir = Paths.get(inlineVal)
+                    }
+                    else {
+                        if( i + 1 >= args.size() )
+                            throw new UsageException("missing value for ${key}")
+                        baseDir = Paths.get(args[++i])
+                    }
                     break
                 default:
                     if( arg.startsWith('-') )
-                        throw new UsageException("unknown option '${arg}'")
+                        throw new UsageException("unknown option '${key}'")
                     positional.add(arg)
             }
             i++
@@ -105,19 +122,34 @@ Arguments:
   <runA> <runB>        Run names or session UUIDs from .nextflow/history
 
 Options:
-  -o, --output <file>  Output HTML report path (default: nf-diff-report.html)
-  -d, --dir <dir>      Project directory containing .nextflow/ (default: .)
+  --output=<file>      Output HTML report path (default: nf-diff-report.html)
+  --dir=<dir>          Project directory containing .nextflow/ (default: .)
   -h, --help           Show this help
 
+  Use the inline `--output=<file>` form (with `=`). Nextflow's `plugin`
+  launcher swallows space-separated flags such as `-o compare.html`
+  before they reach the plugin.
+
 Examples:
-  nextflow plugin nf-diff@0.1.0:diff tender_euler happy_curie
-  nextflow plugin nf-diff@0.1.0:diff 3a8c1f2e 9f2b7d10 -o compare.html
+  nextflow plugin nf-diff:diff tender_euler happy_curie
+  nextflow plugin nf-diff:diff 3a8c1f2e 9f2b7d10 --output=compare.html
 
 Note:
-  A locally installed plugin must be invoked with a pinned version,
-  e.g. nf-diff@<version>:diff. Without the version, Nextflow tries to
-  resolve the latest release from the plugin registry and fails with
-  "Cannot find latest version of nf-diff plugin".
+  Invoke the plugin verb with the BARE id (nf-diff:diff), not a pinned
+  version. Nextflow's `plugin` command resolves the plugin instance by
+  its bare id, so `nf-diff@<version>:diff` starts the plugin but then
+  fails with "Cannot find target plugin: nf-diff@<version>".
+
+  For an unpublished (locally built) plugin, the bare id needs a source
+  that advertises its version. Point Nextflow at the local test repo
+  produced by `make dev-repo`, then run the verb:
+
+    make dev-repo
+    export NXF_PLUGINS_TEST_REPOSITORY="file://$PWD/build/plugin-repo/plugins.json"
+    nextflow plugin nf-diff:diff <runA> <runB>
+
+  Once nf-diff is published to the Nextflow plugin registry, the
+  NXF_PLUGINS_TEST_REPOSITORY step is no longer needed.
 '''
     }
 }
