@@ -29,11 +29,27 @@ class DiffCommand {
         parse(args)
 
         log.info "nf-diff: comparing runs '${runA}' and '${runB}'"
-        log.info "nf-diff: base directory = ${baseDir.toAbsolutePath()}"
-        log.info "nf-diff: report output  = ${outputFile.toAbsolutePath()}"
+        log.debug "nf-diff: base directory = ${baseDir.toAbsolutePath()}"
+        log.debug "nf-diff: report output  = ${outputFile.toAbsolutePath()}"
 
-        // Loading, comparison and rendering are wired in subsequent steps.
-        System.out.println("nf-diff: comparing '${runA}' vs '${runB}' — report will be written to ${outputFile}")
+        final loader = new RunLoader(baseDir)
+        final snapA = loader.load(runA)
+        final snapB = loader.load(runB)
+
+        final diff = new RunComparator().compare(snapA, snapB)
+
+        final html = new HtmlReportRenderer().render(diff)
+        final out = outputFile.toAbsolutePath()
+        if( out.parent != null )
+            java.nio.file.Files.createDirectories(out.parent)
+        java.nio.file.Files.write(out, html.getBytes('UTF-8'))
+
+        System.out.println("""\
+nf-diff: comparison complete
+  Run A : ${snapA.label()}  (${snapA.tasks.size()} tasks)
+  Run B : ${snapB.label()}  (${snapB.tasks.size()} tasks)
+  Diff  : ${diff.tasksChanged} changed, ${diff.tasksAdded} only-in-B, ${diff.tasksRemoved} only-in-A, ${diff.tasksUnchanged} unchanged
+  Report: ${out}""")
         return 0
     }
 
