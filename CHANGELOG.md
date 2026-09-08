@@ -40,6 +40,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Log diffs are surfaced in all three report formats (HTML, JSON, Markdown),
   with a `logsChanged` count in the JSON/HTML summary.
 
+### Fixed
+
+- **`--last` and bare boolean flags dropped by the plugin launcher** — Nextflow's
+  `plugin` launcher rewrites forwarded arguments before they reach the verb: a
+  bare `--flag` arrives as `--flag true`, and `--opt=value` arrives
+  space-separated as `--opt value`. The `diff` parser assumed the inline `=`
+  form survived, so `nextflow plugin nf-diff:diff --last` reached it as
+  `['--last', 'true']` and the injected `true` leaked into the positional list,
+  tripping the "--last cannot be combined with explicit run identifiers" guard.
+  The same latent bug affected `--last=N` and every bare boolean flag
+  (`--fail-on-change`, `--verbose`, `--diff-outputs`, `--diff-logs`). The parser
+  now tolerates the launcher-normalized forms, consuming an injected/inline
+  `true`/`false` (or an integer for `--last N`) instead of treating it as a
+  positional run identifier.
+
 ## [0.1.0] - 2026-09-08
 
 First release. `nf-diff` is a Nextflow plugin that adds a `diff` CLI verb to
