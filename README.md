@@ -159,7 +159,7 @@ Tests live under `src/test/groovy/...` and use [Spock](https://spockframework.or
 
 ## License
 
-See the repository for license details.
+Licensed under the [Apache License, Version 2.0](LICENSE).
 
 ## Author
 
