@@ -1,0 +1,71 @@
+# Changelog
+
+All notable changes to `nf-diff` are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.1.0] - 2026-09-08
+
+First release. `nf-diff` is a Nextflow plugin that adds a `diff` CLI verb to
+compare two runs from the local `.nextflow/history` and cache, and render a
+readable report of what changed. It never re-executes anything — each run is
+reconstructed entirely from local state via Nextflow's own history and cache
+APIs.
+
+### Added
+
+- **`diff` command** — `nextflow plugin nf-diff:diff <runA> <runB>`, resolving
+  runs by name or session-id prefix from `.nextflow/history`.
+- **Five comparison layers:**
+  - **Run metadata** — run-level field diffs (status, revision, command, …).
+  - **Parameters & options** — the resolved launch flags, splitting Nextflow
+    options (`-profile`, `-r`) from pipeline params (`--genome`, `--input`)
+    and diffing them flag by flag. `-params-file` (JSON/YAML) contents are
+    parsed, flattened to dotted keys, and merged under the command line with
+    Nextflow's precedence; each value is tagged by source (`CLI`, `file`,
+    `CLI+file`).
+  - **Resolved configuration** — the effective `nextflow.config` rebuilt with
+    Nextflow's `ConfigBuilder` (applying each run's `-profile`/`-c`), flattened
+    to dotted keys (`process.cpus`, `docker.enabled`) and diffed.
+  - **Process topology** — task counts per process, classified as
+    added / removed / changed / unchanged.
+  - **Per-task detail** — tasks matched across runs (by name, falling back to
+    process + tag) with per-field diffs of status, exit code, container,
+    script, requested resources, and measured usage.
+- **Performance-regressions layer** — derived from matched tasks' numeric trace
+  metrics (`realtime`, `peak_rss`); flags each metric that moved by at least
+  `--perf-threshold` percent (default `25`), sorted worst-regression first, and
+  notes whether both tasks shared a cache hash ("same work"). Informational
+  only — never affects the "identical" verdict or `--fail-on-change`.
+- **Recompute count** — matched tasks whose cache hash differs, i.e. work
+  re-executed rather than resumed.
+- **Meaningful-change filtering** — fields that always differ between two runs
+  (run name, session id, timestamps, work dir, wall/real time, resource usage,
+  and noisy options like `-name`, `-resume`, `-with-tower`) are shown for
+  context but excluded from change detection unless `--verbose` is set.
+- **Output formats** — self-contained HTML report (inline CSS/JS/SVG, light/dark
+  theme, no network assets) by default; `--format=json` for machine-readable
+  output and `--format=md` for a Markdown report suited to PR comments.
+- **CLI options:**
+  - `-l`, `--last[=N]` — compare recent runs from history (bare `--last`
+    compares the two most recent; `--last=N` compares the run N-before-latest
+    against the latest).
+  - `--only=<globs>` / `--exclude=<globs>` — restrict the comparison by
+    process-name globs (`*` spans `:` scopes).
+  - `--perf-threshold=<pct>` — threshold for the performance-regressions layer.
+  - `--output=<file>` — report path; `-` streams the report to stdout (the
+    human summary is redirected to stderr to keep the stream clean).
+  - `--dir=<dir>` — project directory containing `.nextflow/`.
+  - `--fail-on-change` — exit with code `3` when the runs are not identical
+    (for CI).
+  - `-v`, `--verbose`, `--all` — flag always-changing fields too.
+- **Exit codes** — `0` success, `1` runtime error, `2` usage error, `3` runs
+  differ with `--fail-on-change`.
+
+### Requirements
+
+- Nextflow `>= 25.04.0`
+- Java 17+
+
+[0.1.0]: https://github.com/mribeirodantas/nf-diff/releases/tag/v0.1.0
