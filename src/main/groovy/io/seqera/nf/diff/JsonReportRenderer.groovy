@@ -132,6 +132,12 @@ class JsonReportRenderer {
         if( f.hashA != null ) model.hashA = f.hashA
         if( f.hashB != null ) model.hashB = f.hashB
         if( f.note != null )  model.note = f.note
+        if( f.hasLineDiff() ) {
+            model.linesAdded   = f.linesAdded()
+            model.linesRemoved = f.linesRemoved()
+            model.truncated    = f.truncated
+            model.diff         = unifiedDiff(f.ops)
+        }
         return model
     }
 

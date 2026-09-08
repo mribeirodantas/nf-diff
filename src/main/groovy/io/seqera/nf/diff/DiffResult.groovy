@@ -199,6 +199,25 @@ class DiffResult {
         boolean verified = true
         /** Optional human note (e.g. why a file was left unverified). */
         String note
+        /**
+         * Line-level diff ops for a {@link Kind#CHANGED} file that was
+         * recognised as text on both sides. Empty for binary files, for
+         * added/removed files (no counterpart to diff), or when the layer left
+         * the file unverified. When populated, it answers <em>what</em> changed
+         * rather than merely <em>that</em> it changed. Bounded by the read/line
+         * caps so an enormous file never blows up memory.
+         */
+        List<LineDiff.Op> ops = []
+        /** True when the line-level diff was capped (byte or line limit hit) on that side. */
+        boolean truncatedA
+        boolean truncatedB
+
+        /** True when a line-level diff was computed for this file. */
+        boolean hasLineDiff() { !ops.isEmpty() }
+        /** True when the line-level diff was capped on either side. */
+        boolean isTruncated() { truncatedA || truncatedB }
+        int linesAdded()   { ops.count { it.type == LineDiff.Type.INSERT } as int }
+        int linesRemoved() { ops.count { it.type == LineDiff.Type.DELETE } as int }
     }
 
     /**

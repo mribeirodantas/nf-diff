@@ -129,6 +129,78 @@ class OutputComparatorTest extends Specification {
         od.note?.contains("Run B")
     }
 
+    def 'computes a line-level diff for a changed text file'() {
+        given:
+        def a = task(workdir('a', [out: "line1\nline2\nline3\n"]).toString())
+        def b = task(workdir('b', [out: "line1\nline2-changed\nline3\nline4\n"]).toString())
+
+        when:
+        def od = new OutputComparator().compare(a, b)
+
+        then:
+        def f = od.files.find { it.path == 'out' }
+        f.kind == DiffResult.Kind.CHANGED
+        f.hasLineDiff()
+        // line2 removed + line2-changed and line4 inserted
+        f.linesRemoved() == 1
+        f.linesAdded() == 2
+        !f.truncated
+        def texts = f.ops.collect { it.text }
+        texts.contains('line2')
+        texts.contains('line2-changed')
+        texts.contains('line4')
+    }
+
+    def 'line-diffs a same-size text change (still confirmed by hashing)'() {
+        given:
+        def a = task(workdir('a', [out: 'AAAA']).toString())
+        def b = task(workdir('b', [out: 'BBBB']).toString()) // same size, different bytes
+
+        when:
+        def od = new OutputComparator().compare(a, b)
+
+        then:
+        def f = od.files.find { it.path == 'out' }
+        f.kind == DiffResult.Kind.CHANGED
+        f.verified
+        f.hasLineDiff()
+        f.ops.any { it.type == LineDiff.Type.DELETE && it.text == 'AAAA' }
+        f.ops.any { it.type == LineDiff.Type.INSERT && it.text == 'BBBB' }
+    }
+
+    def 'does not line-diff a changed binary file'() {
+        given: 'two different files that each contain a NUL byte in the head'
+        def da = Files.createDirectories(tmp.resolve('a'))
+        def db = Files.createDirectories(tmp.resolve('b'))
+        Files.write(da.resolve('out.bin'), [0x01, 0x00, 0x02, 0x41] as byte[])
+        Files.write(db.resolve('out.bin'), [0x01, 0x00, 0x02, 0x42] as byte[]) // same size, differs
+
+        when:
+        def od = new OutputComparator().compare(task(da.toString()), task(db.toString()))
+
+        then: 'still flagged changed, but no line-level diff is produced'
+        def f = od.files.find { it.path == 'out.bin' }
+        f.kind == DiffResult.Kind.CHANGED
+        !f.hasLineDiff()
+    }
+
+    def 'caps the line diff to the configured max lines and flags truncation'() {
+        given: 'files far longer than the 2-line cap'
+        def a = task(workdir('a', [out: (1..50).collect { "a-line-${it}" }.join('\n') + '\n']).toString())
+        def b = task(workdir('b', [out: (1..50).collect { "b-line-${it}" }.join('\n') + '\n']).toString())
+
+        when:
+        def od = new OutputComparator(0L, 2).compare(a, b)
+
+        then:
+        def f = od.files.find { it.path == 'out' }
+        f.kind == DiffResult.Kind.CHANGED
+        f.hasLineDiff()
+        f.truncated
+        // only the first 2 lines per side were considered
+        f.ops.every { it.text ==~ /[ab]-line-[12]/ }
+    }
+
     def 'leaves same-size files above the byte cap content-unverified'() {
         given: 'two same-size but different files, with a cap below their size'
         def a = task(workdir('a', [out: 'AAAA']).toString())

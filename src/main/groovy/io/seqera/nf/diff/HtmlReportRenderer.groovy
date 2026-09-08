@@ -358,6 +358,15 @@ class HtmlReportRenderer {
                 sb << "<td>${esc(sizeCell(f.sizeB, f.hashB))}</td></tr>\n"
             }
             sb << '      </tbody></table>\n'
+            // Line-level diff of each changed text file, below the size/hash summary.
+            od.files.findAll { it.kind == Kind.CHANGED && it.hasLineDiff() }.each { DiffResult.OutputFileDiff f ->
+                sb << "      <div class=\"log-file\"><span class=\"mono\">${esc(f.path)}</span> "
+                sb << "<span class=\"pill changed\">+${f.linesAdded()} −${f.linesRemoved()}</span>"
+                if( f.truncated )
+                    sb << ' <span class="tag-auto" title="Diff capped at the line limit">truncated</span>'
+                sb << "</div>\n"
+                sb << logDiffPre(f.ops)
+            }
             sb << '    </div>\n  </div>\n'
         }
         sb << '</section>\n'

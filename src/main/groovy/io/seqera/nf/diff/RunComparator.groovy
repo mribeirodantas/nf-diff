@@ -100,6 +100,12 @@ class RunComparator {
      */
     private final long outputsMaxBytes
 
+    /**
+     * Maximum leading lines kept per side when line-diffing a changed text
+     * output file. Only meaningful when {@link #diffOutputs} is set.
+     */
+    private final int outputsMaxLines
+
     /** When true, compare the standard log files each matched task wrote. */
     private final boolean diffLogs
 
@@ -112,7 +118,8 @@ class RunComparator {
     RunComparator(boolean showObvious = false, ProcessFilter filter = null, Path baseDir = null,
                   double perfThreshold = DEFAULT_PERF_THRESHOLD,
                   boolean diffOutputs = false, long outputsMaxBytes = 0L,
-                  boolean diffLogs = false, int logsMaxLines = LogComparator.DEFAULT_MAX_LINES) {
+                  boolean diffLogs = false, int logsMaxLines = LogComparator.DEFAULT_MAX_LINES,
+                  int outputsMaxLines = OutputComparator.DEFAULT_MAX_LINES) {
         this.showObvious = showObvious
         this.filter = filter ?: ProcessFilter.of([], [])
         this.baseDir = baseDir
@@ -121,6 +128,7 @@ class RunComparator {
         this.outputsMaxBytes = outputsMaxBytes
         this.diffLogs = diffLogs
         this.logsMaxLines = logsMaxLines
+        this.outputsMaxLines = outputsMaxLines
     }
 
     DiffResult compare(RunSnapshot a, RunSnapshot b) {
@@ -159,7 +167,7 @@ class RunComparator {
             return
         result.diffOutputs = true
 
-        final comparator = new OutputComparator(outputsMaxBytes)
+        final comparator = new OutputComparator(outputsMaxBytes, outputsMaxLines)
         result.tasks.each { TaskDiff td ->
             if( td.a != null && td.b != null )
                 result.outputs << comparator.compare(td.a, td.b)
@@ -174,7 +182,8 @@ class RunComparator {
                     'Output diffing needs the tasks\' work directories to still exist on this machine.').toString()
         else
             result.outputsNote = ("Output files compared by size, then SHA-256 for same-size files, from each task's " +
-                    "work directory as it exists now.${capped}" +
+                    "work directory as it exists now. Changed text files are additionally diffed line by line " +
+                    "(first ${outputsMaxLines} lines per file; binary files show a size/hash change only).${capped}" +
                     (unavailable > 0 ? " ${unavailable} task(s) had a missing work directory and were skipped." : '')).toString()
     }
 

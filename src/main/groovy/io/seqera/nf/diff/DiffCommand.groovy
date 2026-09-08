@@ -57,6 +57,13 @@ class DiffCommand {
      */
     long outputsMaxBytes = 0L
 
+    /**
+     * Maximum leading lines kept per side when line-diffing a changed text
+     * output file under {@link #diffOutputs}. Defaults to
+     * {@link OutputComparator#DEFAULT_MAX_LINES}.
+     */
+    int outputsMaxLines = OutputComparator.DEFAULT_MAX_LINES
+
     /** When true, compare the standard log files each matched task wrote. */
     boolean diffLogs = false
 
@@ -90,7 +97,7 @@ class DiffCommand {
 
         final filter = ProcessFilter.of(onlyGlobs, excludeGlobs)
         final diff = new RunComparator(verbose, filter, baseDir, perfThreshold,
-                        diffOutputs, outputsMaxBytes, diffLogs, logsMaxLines)
+                        diffOutputs, outputsMaxBytes, diffLogs, logsMaxLines, outputsMaxLines)
                 .compare(snapA, snapB)
 
         final content = renderContent(diff)
@@ -260,6 +267,18 @@ nf-diff: comparison complete
                     if( outputsMaxBytes < 0 )
                         throw new UsageException("--outputs-max-bytes must be >= 0, got ${outputsMaxBytes}")
                     break
+                case '--outputs-max-lines':
+                    final oml = requireValue(key, inlineVal, args, i)
+                    if( inlineVal == null ) i++
+                    try {
+                        outputsMaxLines = Integer.parseInt(oml)
+                    }
+                    catch( NumberFormatException ignored ) {
+                        throw new UsageException("--outputs-max-lines must be an integer, got '${oml}'")
+                    }
+                    if( outputsMaxLines < 1 )
+                        throw new UsageException("--outputs-max-lines must be >= 1, got ${outputsMaxLines}")
+                    break
                 case '--diff-logs':
                     diffLogs = boolFlag(inlineVal, args, i)
                     if( inlineVal == null && nextIsBool(args, i) ) i++
@@ -396,13 +415,20 @@ Options:
                        flagged in the performance-regressions layer.
   --diff-outputs       Compare the output files each matched task wrote to its
                        work directory (by size, then SHA-256 for same-size
-                       files). Needs the tasks' work directories to still exist
-                       locally. When enabled, an output-file change counts as a
-                       difference for --fail-on-change.
+                       files). Changed text files (VCF, CSV, JSON, reports, …)
+                       are additionally diffed line by line so you can see what
+                       changed, not just that it changed; binary files show a
+                       size/hash change only. Needs the tasks' work directories
+                       to still exist locally. When enabled, an output-file
+                       change counts as a difference for --fail-on-change.
   --outputs-max-bytes=<n>
                        When --diff-outputs is set, skip hashing same-size files
                        larger than <n> bytes (they are reported as content-
                        unverified). Default 0 = no limit (hash any size).
+  --outputs-max-lines=<n>
+                       When --diff-outputs is set, keep only the first <n> lines
+                       of each changed text file before line-diffing it
+                       (default: 1000).
   --diff-logs          Compare the standard log files (.command.out/.err/.log)
                        each matched task wrote to its work directory, line by
                        line. Ideal for inspecting why a task's exit code changed.

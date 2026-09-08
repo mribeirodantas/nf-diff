@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Line-level output diffing** — under `--diff-outputs`, a file classified as
+  *changed* that is text on both sides is now additionally diffed line by line
+  (reusing the same `LineDiff` engine as `--diff-logs`), so the report answers
+  *what* changed rather than merely *that* it changed — a VCF, CSV, JSON, or
+  report file shows its added/removed lines inline. `OutputComparator` sniffs
+  the head of each changed file for a NUL byte; binary files fall back to the
+  existing size/hash verdict and produce no line diff. Reads are bounded: the
+  first `--outputs-max-lines` lines (new option, default `1000`) and a hard byte
+  cap, so a huge file never blows up memory, with a `truncated` marker when a
+  cap dropped content. Surfaced in all three report formats (HTML unified-diff
+  pane with an added/removed line count, Markdown fenced `diff` block, and
+  `diff`/`linesAdded`/`linesRemoved`/`truncated` fields on each output file in
+  JSON). This enriches the existing layer only — an output change still counts
+  toward the "identical" verdict and `--fail-on-change` exactly as before.
 - **Config-provenance caveat** — the configuration layer now inspects the git
   state of the working tree it resolves config from and warns when that tree has
   drifted from the revision a run was actually launched at. Because

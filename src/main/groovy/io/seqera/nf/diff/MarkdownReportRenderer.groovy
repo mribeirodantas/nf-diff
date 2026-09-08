@@ -211,6 +211,14 @@ class MarkdownReportRenderer {
                 sb << "| ${cell(f.path)} | ${cell(sizeCell(f.sizeA))} | ${cell(sizeCell(f.sizeB))} | ${f.kind.name().toLowerCase()} |\n"
             }
             sb << '\n'
+            // Line-level diff of each changed text file, below the size summary.
+            od.files.findAll { it.kind == DiffResult.Kind.CHANGED && it.hasLineDiff() }.each { DiffResult.OutputFileDiff f ->
+                sb << "**${cell(f.path)}** (+${f.linesAdded()} −${f.linesRemoved()}"
+                if( f.truncated )
+                    sb << ', truncated'
+                sb << ")\n\n"
+                fencedDiff(sb, f.ops)
+            }
         }
     }
 

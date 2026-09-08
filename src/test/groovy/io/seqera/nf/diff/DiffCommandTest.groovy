@@ -53,6 +53,29 @@ class DiffCommandTest extends Specification {
         parse(['runA', 'runB', '--fail-on-change']).failOnChange
     }
 
+    def 'outputs-max-lines defaults and is parsed from inline or spaced form'() {
+        expect:
+        parse(['runA', 'runB']).outputsMaxLines == OutputComparator.DEFAULT_MAX_LINES
+        parse(['runA', 'runB', '--outputs-max-lines=50']).outputsMaxLines == 50
+        parse(['runA', 'runB', '--outputs-max-lines', '80']).outputsMaxLines == 80
+    }
+
+    def 'a non-integer outputs-max-lines is rejected'() {
+        when:
+        parse(['runA', 'runB', '--outputs-max-lines=lots'])
+
+        then:
+        thrown(DiffCommand.UsageException)
+    }
+
+    def 'a non-positive outputs-max-lines is rejected'() {
+        when:
+        parse(['runA', 'runB', '--outputs-max-lines=0'])
+
+        then:
+        thrown(DiffCommand.UsageException)
+    }
+
     def 'an unsupported format is rejected'() {
         when:
         parse(['runA', 'runB', '--format=yaml'])
