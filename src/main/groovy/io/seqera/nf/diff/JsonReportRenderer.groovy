@@ -12,7 +12,7 @@ import io.seqera.nf.diff.DiffResult.TaskDiff
  * as an HTML document.
  *
  * The shape mirrors {@link DiffResult}: run metadata, a summary, and the three
- * comparison layers (metadata / processes / tasks). Field-level diffs carry
+ * comparison layers (metadata / params / processes / tasks). Field-level diffs carry
  * {@code changed}, {@code obvious} and {@code highlighted} flags so consumers
  * can apply the same meaningful-vs-verbose distinction the HTML report uses.
  */
@@ -38,6 +38,7 @@ class JsonReportRenderer {
                         tasksUnchanged: diff.tasksUnchanged,
                 ],
                 metadata   : diff.metadata.collect { fieldModel(it, diff.showObvious) },
+                params     : diff.params.collect { fieldModel(it, diff.showObvious) },
                 processes  : diff.processes.collect { processModel(it) },
                 tasks      : diff.tasks.collect { taskModel(it, diff.showObvious) },
         ] as Map<String,Object>

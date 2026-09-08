@@ -27,10 +27,11 @@ class HtmlReportRendererTest extends Specification {
         return t
     }
 
-    private RunSnapshot snap(String name, List<TaskInfo> tasks) {
+    private RunSnapshot snap(String name, List<TaskInfo> tasks, String command = null) {
         return new RunSnapshot(
                 requestedId: name, runName: name,
                 sessionId: UUID.randomUUID(), status: 'OK',
+                command: command,
                 durationMillis: 1000L, tasks: tasks )
     }
 
@@ -127,7 +128,7 @@ class HtmlReportRendererTest extends Specification {
         html.trim().endsWith('</html>')
 
         and: 'each section and its matching nav anchor exist'
-        ['summary', 'metadata', 'processes', 'tasks'].every { id ->
+        ['summary', 'metadata', 'params', 'processes', 'tasks'].every { id ->
             html.contains("id=\"${id}\"") && html.contains("href=\"#${id}\"")
         }
     }
@@ -179,6 +180,35 @@ class HtmlReportRendererTest extends Specification {
 
         and: 'verbose mode drops the note and flags the change'
         !render(a, b, true).contains('meaningful differences only')
+    }
+
+    // --------------------------------------------------------------- params
+
+    def 'params section renders flags parsed from the launch command'() {
+        given:
+        def t = task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'x'])
+        def diff = new RunComparator().compare(
+                snap('runA', [t], 'nextflow run main.nf -profile docker --genome GRCh38'),
+                snap('runB', [t], 'nextflow run main.nf -profile test --genome GRCh38') )
+
+        when:
+        def html = new HtmlReportRenderer().render(diff)
+
+        then: 'both flags are listed with their per-run values'
+        html.contains('-profile')
+        html.contains('docker')
+        html.contains('test')
+        html.contains('--genome')
+    }
+
+    def 'params section shows an explicit note when no command was recorded'() {
+        given:
+        def html = render(
+                [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED'])],
+                [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED'])] )
+
+        expect:
+        html.contains('No command-line parameters were recorded')
     }
 
     // -------------------------------------------------------------- escaping

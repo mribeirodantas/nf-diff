@@ -16,10 +16,11 @@ class RunComparatorTest extends Specification {
         return t
     }
 
-    private RunSnapshot snap(String name, List<TaskInfo> tasks) {
+    private RunSnapshot snap(String name, List<TaskInfo> tasks, String command = null) {
         return new RunSnapshot(
                 requestedId: name, runName: name,
                 sessionId: UUID.randomUUID(), status: 'OK',
+                command: command,
                 tasks: tasks )
     }
 
@@ -119,6 +120,48 @@ class RunComparatorTest extends Specification {
         then:
         diff.tasksChanged == 1
         !diff.identical
+    }
+
+    def 'diffs launch-command params and options, options first then params'() {
+        given:
+        def task = task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'x'])
+        def a = snap('runA', [task], 'nextflow run main.nf -profile docker --genome GRCh38 --input a.csv')
+        def b = snap('runB', [task], 'nextflow run main.nf -profile singularity --genome GRCh38 --input b.csv')
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+        def byField = diff.params.collectEntries { [(it.field): it] }
+
+        then: 'single-dash options sort before double-dash params'
+        diff.params*.field == ['-profile', '--genome', '--input']
+
+        and: 'changed flags are highlighted, unchanged ones are not'
+        byField['-profile'].valueA == 'docker' && byField['-profile'].valueB == 'singularity'
+        byField['-profile'].isHighlighted(false)
+        byField['--input'].isHighlighted(false)
+        !byField['--genome'].isHighlighted(false)
+
+        and: 'a param change breaks identical'
+        !diff.identical
+    }
+
+    def 'a param present in only one run shows a missing value on the other side'() {
+        given:
+        def task = task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'x'])
+        def a = snap('runA', [task], 'nextflow run main.nf --input a.csv')
+        def b = snap('runB', [task], 'nextflow run main.nf --input a.csv -resume')
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+        def resume = diff.params.find { it.field == '-resume' }
+
+        then:
+        resume.valueA == null
+        resume.valueB == 'true'
+
+        and: '-resume is an obvious option, so it does not break identical by default'
+        !resume.isHighlighted(false)
+        diff.identical
     }
 
     def 'process diff counts tasks per process'() {

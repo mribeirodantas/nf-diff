@@ -21,10 +21,11 @@ class MarkdownReportRendererTest extends Specification {
         return t
     }
 
-    private RunSnapshot snap(String name, List<TaskInfo> tasks) {
+    private RunSnapshot snap(String name, List<TaskInfo> tasks, String command = null) {
         return new RunSnapshot(
                 requestedId: name, runName: name,
                 sessionId: UUID.randomUUID(), status: 'OK',
+                command: command,
                 durationMillis: 1000L, tasks: tasks )
     }
 
@@ -44,6 +45,7 @@ class MarkdownReportRendererTest extends Specification {
         text.contains('## Summary')
         text.contains('## Runs')
         text.contains('## Run metadata')
+        text.contains('## Parameters & options')
         text.contains('## Process topology')
         text.contains('## Task detail')
     }
@@ -96,6 +98,21 @@ class MarkdownReportRendererTest extends Specification {
         def text = md(a, b, true)
         text.contains('**realtime**')
         text.contains('verbose (all fields)')
+    }
+
+    def 'changed launch-command flags surface in the parameters table'() {
+        given:
+        def t = task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'x'])
+        def diff = new RunComparator().compare(
+                snap('runA', [t], 'nextflow run main.nf -profile docker --genome GRCh38'),
+                snap('runB', [t], 'nextflow run main.nf -profile test --genome GRCh38') )
+
+        when:
+        def text = new MarkdownReportRenderer().render(diff)
+
+        then: 'the changed flag appears, the unchanged one is not listed as a row'
+        text.contains('| -profile | docker | test |')
+        !text.contains('| --genome |')
     }
 
     def 'pipe characters in values are escaped so table rows stay well-formed'() {

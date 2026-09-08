@@ -24,6 +24,7 @@ class MarkdownReportRenderer {
         renderHeader(sb, diff)
         renderRuns(sb, diff)
         renderMetadata(sb, diff)
+        renderParams(sb, diff)
         renderProcesses(sb, diff)
         renderTasks(sb, diff)
         return sb.toString()
@@ -72,6 +73,23 @@ class MarkdownReportRenderer {
             return
         }
         sb << '| Field | Run A | Run B |\n'
+        sb << '|---|---|---|\n'
+        highlighted.each { FieldDiff fd -> row(sb, fd.field, fd.valueA, fd.valueB) }
+        sb << '\n'
+    }
+
+    private void renderParams(StringBuilder sb, DiffResult diff) {
+        sb << '## Parameters & options\n\n'
+        if( diff.params.isEmpty() ) {
+            sb << '_No command-line parameters recorded._\n\n'
+            return
+        }
+        final highlighted = diff.params.findAll { FieldDiff fd -> fd.isHighlighted(diff.showObvious) }
+        if( highlighted.isEmpty() ) {
+            sb << '_No parameter changes._\n\n'
+            return
+        }
+        sb << '| Flag | Run A | Run B |\n'
         sb << '|---|---|---|\n'
         highlighted.each { FieldDiff fd -> row(sb, fd.field, fd.valueA, fd.valueB) }
         sb << '\n'

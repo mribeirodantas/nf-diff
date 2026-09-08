@@ -2,7 +2,7 @@
 
 > Compare two Nextflow runs and render a detailed, self-contained HTML report of what changed.
 
-`nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history — or just say `--last` to grab the two most recent — and it produces a report that walks through their differences across three layers: **run metadata**, **process topology**, and **per-task detail** (resources, scripts, containers, exit codes).
+`nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history — or just say `--last` to grab the two most recent — and it produces a report that walks through their differences across four layers: **run metadata**, **parameters & options** (the flags each run was launched with), **process topology**, and **per-task detail** (resources, scripts, containers, exit codes).
 
 The default report is a single, standalone HTML document — no external assets, no network access — that you can open in a browser or email to a colleague. For scripting and CI, `--format=json` emits the same comparison as machine-readable JSON, `--format=md` produces Markdown you can drop straight into a pull-request comment, and `--fail-on-change` turns a difference into a non-zero exit code.
 
@@ -14,11 +14,12 @@ It's the tool you reach for when you ask *"my pipeline behaved differently this 
 
 Nextflow already records everything about a run in `.nextflow/history` and the per-session LevelDB cache under `.nextflow/cache/`. That data is rich, but it's not built for eyeballing two runs side by side. `nf-diff` reads that same data — reusing Nextflow's own internal cache and history APIs — and turns it into a readable comparison:
 
+- **Were the runs launched differently?** A structured, flag-by-flag diff of each run's launch command — Nextflow options (`-profile`, `-r`) and pipeline params (`--genome`, `--input`) side by side — instead of eyeballing two opaque command strings.
 - **Did the topology change?** Which processes gained or lost tasks between the two runs.
 - **Did a task change?** Per-task diffs of status, exit code, container, script, requested resources, and measured usage.
 - **Was work reused?** Cached-task counts and total task realtime, so you can see whether a re-run actually recomputed anything.
 
-By default the report highlights **meaningful** changes and treats fields that *always* differ between two distinct runs (run name, session id, launch time, work directory, wall-clock time, and measured resource usage) as context rather than "changes". Use `--verbose` when you want everything flagged.
+By default the report highlights **meaningful** changes and treats fields that *always* differ between two distinct runs (run name, session id, launch time, work directory, wall-clock time, and measured resource usage) as context rather than "changes". The same rule applies to the parameters layer: launch options that routinely differ without changing what was executed (`-name`, `-resume`, `-ansi-log`, `-with-tower`, `-with-weblog`, `-bg`) are shown for context but not flagged as changes. Use `--verbose` when you want everything flagged.
 
 ---
 
@@ -132,7 +133,7 @@ nf-diff: comparison complete
   Report: /path/to/nf-diff-report.html (html)
 ```
 
-The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark theme toggle, so you can open it directly in a browser or email it to a colleague. With `--format=json` the same three-layer comparison is written as structured JSON instead — convenient for diffing in scripts or asserting against in a pipeline.
+The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark theme toggle, so you can open it directly in a browser or email it to a colleague. With `--format=json` the same four-layer comparison is written as structured JSON instead — convenient for diffing in scripts or asserting against in a pipeline.
 
 ### Exit codes
 
@@ -151,8 +152,9 @@ The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark th
 
 1. **Resolve the run** — `RunLoader` looks up the identifier (name or session-id prefix) in `.nextflow/history` via Nextflow's `HistoryFile`, capturing run-level metadata: run name, session id, status, revision, command, launch time, and duration.
 2. **Hydrate tasks** — it opens the run's LevelDB cache (`.nextflow/cache/<sessionId>`) read-only through Nextflow's `CacheDB`, reading every `TraceRecord` into a `TaskInfo` (both human-formatted and raw values). Cache opens hold an exclusive lock, so reads retry with backoff when the lock is briefly contended (e.g. by `nextflow log` or an IDE indexing the cache).
-3. **Compare across three layers** — `RunComparator` produces:
-   - **Metadata** — run-level field diffs.
+3. **Compare across four layers** — `RunComparator` produces:
+   - **Metadata** — run-level field diffs. The raw launch command is kept here as context, since the structured Parameters layer is now the authoritative view of what changed on the command line.
+   - **Parameters** — each run's launch command is parsed by `CommandParams` into Nextflow options (single-dash, e.g. `-profile`) and pipeline params (double-dash, e.g. `--genome`), then diffed flag by flag. A flag present in only one run shows a missing value on the other side; noisy options (`-name`, `-resume`, …) are flagged "obvious" and excluded from change detection unless `--verbose` is set.
    - **Processes** — task counts per process, classified as added / removed / changed / unchanged.
    - **Tasks** — matched across runs by task name (falling back to process + tag), with per-field diffs. "Obvious" always-changing fields are shown for context but excluded from change detection unless `--verbose` is set.
 4. **Render** — `HtmlReportRenderer` emits the standalone HTML document, `JsonReportRenderer` the structured JSON (`--format=json`), or `MarkdownReportRenderer` the Markdown report (`--format=md`).
@@ -184,7 +186,8 @@ src/main/groovy/io/seqera/nf/diff/
   RunLoader.groovy          # reads history + cache into a RunSnapshot
   RunSnapshot.groovy        # run-level metadata + tasks
   TaskInfo.groovy           # per-task record (formatted + raw values)
-  RunComparator.groovy      # three-layer comparison logic
+  RunComparator.groovy      # four-layer comparison logic
+  CommandParams.groovy      # parses launch commands into options + pipeline params
   ProcessFilter.groovy      # --only / --exclude process-name globbing
   DiffResult.groovy         # structured comparison outcome
   LineDiff.groovy           # line-level diff (e.g. task scripts)

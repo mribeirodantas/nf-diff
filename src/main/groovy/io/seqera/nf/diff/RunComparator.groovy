@@ -35,9 +35,25 @@ class RunComparator {
             'realtime', '%cpu', 'peak_rss', 'peak_vmem', 'rchar', 'wchar', 'workdir'
     ] as Set
 
-    /** Run-metadata labels that always differ between two distinct runs. */
+    /**
+     * Run-metadata labels shown for context rather than treated as meaningful
+     * changes. Besides the fields that always differ between two distinct runs
+     * (run name, session id, timing), this includes the raw {@code Command}
+     * string: the structured Parameters layer is now the authoritative view of
+     * what changed on the command line, so the opaque command string is context.
+     */
     static final Set<String> OBVIOUS_METADATA = [
-            'Run name', 'Session ID', 'Launched', 'Wall duration', 'Total task realtime'
+            'Run name', 'Session ID', 'Launched', 'Wall duration', 'Total task realtime', 'Command'
+    ] as Set
+
+    /**
+     * Nextflow options that commonly differ between two runs without reflecting
+     * a meaningful change in what was executed (run naming, resume, monitoring).
+     * Flagged {@code obvious} so they are context rather than changes unless the
+     * verbose view is enabled.
+     */
+    static final Set<String> OBVIOUS_PARAM_KEYS = [
+            '-name', '-resume', '-ansi-log', '-with-tower', '-with-weblog', '-bg'
     ] as Set
 
     /** When true, always-changing fields are treated as meaningful changes. */
@@ -54,6 +70,7 @@ class RunComparator {
     DiffResult compare(RunSnapshot a, RunSnapshot b) {
         final result = new DiffResult(runA: a, runB: b, showObvious: showObvious)
         result.metadata = compareMetadata(a, b)
+        result.params = compareParams(a, b)
         result.processes = compareProcesses(a, b).findAll { ProcessDiff pd -> filter.accepts(pd.process) }
         result.tasks = compareTasks(a, b).findAll { TaskDiff td -> filter.accepts(td.process()) }
 
@@ -83,6 +100,28 @@ class RunComparator {
         diffs << field('Distinct processes', String.valueOf(a.processNames().size()), String.valueOf(b.processNames().size()))
         diffs.each { FieldDiff fd -> fd.obvious = OBVIOUS_METADATA.contains(fd.field) }
         return diffs
+    }
+
+    /**
+     * Diff the launch-command flags of the two runs. Nextflow options (single
+     * dash) are listed first, then pipeline params (double dash); each group is
+     * sorted by name for stable output. A flag present in only one run shows a
+     * missing value on the other side.
+     */
+    private List<FieldDiff> compareParams(RunSnapshot a, RunSnapshot b) {
+        final pa = CommandParams.parse(a.command)
+        final pb = CommandParams.parse(b.command)
+        final keys = new TreeSet<String>()
+        keys.addAll(pa.keySet())
+        keys.addAll(pb.keySet())
+
+        final ordered = new ArrayList<String>()
+        ordered.addAll(keys.findAll { String k -> !CommandParams.isPipelineParam(k) })
+        ordered.addAll(keys.findAll { String k -> CommandParams.isPipelineParam(k) })
+
+        return ordered.collect { String k ->
+            field(k, pa.get(k), pb.get(k), OBVIOUS_PARAM_KEYS.contains(k))
+        }
     }
 
     private List<ProcessDiff> compareProcesses(RunSnapshot a, RunSnapshot b) {

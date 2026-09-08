@@ -22,10 +22,11 @@ class JsonReportRendererTest extends Specification {
         return t
     }
 
-    private RunSnapshot snap(String name, List<TaskInfo> tasks) {
+    private RunSnapshot snap(String name, List<TaskInfo> tasks, String command = null) {
         return new RunSnapshot(
                 requestedId: name, runName: name,
                 sessionId: UUID.randomUUID(), status: 'OK',
+                command: command,
                 durationMillis: 1000L, tasks: tasks )
     }
 
@@ -43,7 +44,7 @@ class JsonReportRendererTest extends Specification {
 
         then:
         obj.keySet().containsAll(['generatedAt', 'identical', 'showObvious',
-                                  'runA', 'runB', 'summary', 'metadata', 'processes', 'tasks'])
+                                  'runA', 'runB', 'summary', 'metadata', 'params', 'processes', 'tasks'])
         obj.runA.runName == 'runA'
         obj.runB.runName == 'runB'
         obj.summary.tasksChanged == 1
@@ -85,6 +86,24 @@ class JsonReportRendererTest extends Specification {
         then:
         obj.identical
         obj.summary.tasksChanged == 0
+    }
+
+    def 'params layer carries per-flag diffs parsed from the launch command'() {
+        given:
+        def t = task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'x'])
+        def diff = new RunComparator().compare(
+                snap('runA', [t], 'nextflow run main.nf -profile docker --genome GRCh38'),
+                snap('runB', [t], 'nextflow run main.nf -profile test --genome GRCh38') )
+
+        when:
+        def obj = new JsonSlurper().parseText(new JsonReportRenderer().render(diff))
+        def profile = obj.params.find { it.field == '-profile' }
+
+        then:
+        profile.valueA == 'docker'
+        profile.valueB == 'test'
+        profile.highlighted
+        obj.params.find { it.field == '--genome' }.highlighted == false
     }
 
     def 'obvious-only differences are not surfaced by default but are in verbose'() {

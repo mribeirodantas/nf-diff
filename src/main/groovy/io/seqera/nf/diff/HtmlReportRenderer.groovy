@@ -40,6 +40,7 @@ class HtmlReportRenderer {
         sb << '<main class="wrap">\n'
         renderSummary(sb, diff)
         renderMetadata(sb, diff)
+        renderParams(sb, diff)
         renderProcesses(sb, diff)
         renderTasks(sb, diff)
         sb << '</main>\n'
@@ -94,6 +95,7 @@ class HtmlReportRenderer {
         sb << '<nav class="tabs" id="nav">\n'
         sb << '  <a href="#summary" class="active">Summary</a>\n'
         sb << '  <a href="#metadata">Metadata</a>\n'
+        sb << '  <a href="#params">Parameters</a>\n'
         sb << '  <a href="#processes">Processes</a>\n'
         sb << '  <a href="#tasks">Tasks</a>\n'
         sb << '</nav>\n'
@@ -143,6 +145,26 @@ class HtmlReportRenderer {
         sb << '  <table class="kv">\n'
         sb << '    <thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead>\n  <tbody>\n'
         diff.metadata.each { FieldDiff fd ->
+            sb << fieldRow(fd, diff.showObvious)
+        }
+        sb << '  </tbody>\n  </table>\n'
+        sb << '</section>\n'
+    }
+
+    // ----------------------------------------------------------------- params
+
+    private void renderParams(StringBuilder sb, DiffResult diff) {
+        sb << '<section id="params" class="section">\n'
+        sb << '  <h2>Parameters &amp; options</h2>\n'
+        if( diff.params.isEmpty() ) {
+            sb << '  <p class="mode-note">No command-line parameters were recorded for these runs.</p>\n'
+            sb << '</section>\n'
+            return
+        }
+        sb << '  <p class="mode-note">Pipeline params (<code>--foo</code>) and Nextflow options (<code>-profile</code>, <code>-r</code>) parsed from each run\'s launch command.</p>\n'
+        sb << '  <table class="kv">\n'
+        sb << '    <thead><tr><th>Flag</th><th>Run A</th><th>Run B</th></tr></thead>\n  <tbody>\n'
+        diff.params.each { FieldDiff fd ->
             sb << fieldRow(fd, diff.showObvious)
         }
         sb << '  </tbody>\n  </table>\n'

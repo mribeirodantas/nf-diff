@@ -69,6 +69,8 @@ class DiffResult {
     RunSnapshot runB
 
     List<FieldDiff> metadata = []
+    /** Launch-command parameters and Nextflow options, keyed by flag. */
+    List<FieldDiff> params = []
     List<ProcessDiff> processes = []
     List<TaskDiff> tasks = []
 
@@ -93,6 +95,7 @@ class DiffResult {
     boolean isIdentical() {
         return tasksAdded == 0 && tasksRemoved == 0 && tasksChanged == 0 &&
                 metadata.every { !it.isHighlighted(showObvious) } &&
+                params.every { !it.isHighlighted(showObvious) } &&
                 processes.every { it.unchanged }
     }
 }
