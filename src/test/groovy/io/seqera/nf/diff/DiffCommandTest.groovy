@@ -87,6 +87,43 @@ class DiffCommandTest extends Specification {
         cmd.outputFile.fileName.toString() == 'nf-diff-report.json'
     }
 
+    // --- Nextflow `plugin` launcher normalizes forwarded args: bare flags
+    //     arrive as `--flag true` and `--opt=val` arrives as `--opt val`. ---
+
+    def 'bare --last as forwarded by the launcher (--last true) needs no positionals'() {
+        when:
+        def cmd = parse(['--last', 'true'])
+
+        then:
+        cmd.last
+        cmd.lastBack == 1
+        cmd.runA == null
+        cmd.runB == null
+    }
+
+    def '--last=N as forwarded by the launcher (--last N) sets the offset'() {
+        when:
+        def cmd = parse(['--last', '2'])
+
+        then:
+        cmd.last
+        cmd.lastBack == 2
+    }
+
+    def 'boolean flags forwarded with an injected true value are parsed'() {
+        when:
+        def cmd = parse(['--last', 'true', '--fail-on-change', 'true', '--diff-outputs', 'true', '--diff-logs', 'true', '--verbose', 'true'])
+
+        then:
+        cmd.last
+        cmd.failOnChange
+        cmd.diffOutputs
+        cmd.diffLogs
+        cmd.verbose
+        cmd.runA == null
+        cmd.runB == null
+    }
+
     def '--last cannot be combined with explicit run identifiers'() {
         when:
         parse(['runA', 'runB', '--last'])

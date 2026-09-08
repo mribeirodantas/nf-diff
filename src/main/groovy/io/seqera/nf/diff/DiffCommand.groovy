@@ -190,17 +190,35 @@ nf-diff: comparison complete
                     }
                     break
                 case '--fail-on-change':
-                    failOnChange = true
+                    failOnChange = boolFlag(inlineVal, args, i)
+                    if( inlineVal == null && nextIsBool(args, i) ) i++
                     break
                 case '-l':
                 case '--last':
                     last = true
-                    if( inlineVal != null ) {
+                    // Nextflow's `plugin` launcher rewrites forwarded args:
+                    // bare `--last` arrives as `--last true`, and `--last=N`
+                    // arrives space-separated as `--last N`. So resolve the
+                    // value from the inline form OR the following token.
+                    String lastVal = inlineVal
+                    if( lastVal == null && i + 1 < args.size() ) {
+                        final nxt = args[i + 1]
+                        if( nxt == 'true' || nxt == 'false' ) {
+                            // Injected boolean for the bare flag; not a value.
+                            last = Boolean.parseBoolean(nxt)
+                            i++
+                        }
+                        else if( nxt ==~ /\d+/ ) {
+                            lastVal = nxt
+                            i++
+                        }
+                    }
+                    if( lastVal != null ) {
                         try {
-                            lastBack = Integer.parseInt(inlineVal)
+                            lastBack = Integer.parseInt(lastVal)
                         }
                         catch( NumberFormatException ignored ) {
-                            throw new UsageException("--last value must be an integer, got '${inlineVal}'")
+                            throw new UsageException("--last value must be an integer, got '${lastVal}'")
                         }
                         if( lastBack < 1 )
                             throw new UsageException("--last value must be >= 1, got ${lastBack}")
@@ -227,7 +245,8 @@ nf-diff: comparison complete
                         throw new UsageException("--perf-threshold must be >= 0, got ${perfThreshold}")
                     break
                 case '--diff-outputs':
-                    diffOutputs = true
+                    diffOutputs = boolFlag(inlineVal, args, i)
+                    if( inlineVal == null && nextIsBool(args, i) ) i++
                     break
                 case '--outputs-max-bytes':
                     final mb = requireValue(key, inlineVal, args, i)
@@ -242,7 +261,8 @@ nf-diff: comparison complete
                         throw new UsageException("--outputs-max-bytes must be >= 0, got ${outputsMaxBytes}")
                     break
                 case '--diff-logs':
-                    diffLogs = true
+                    diffLogs = boolFlag(inlineVal, args, i)
+                    if( inlineVal == null && nextIsBool(args, i) ) i++
                     break
                 case '--logs-max-lines':
                     final ml = requireValue(key, inlineVal, args, i)
@@ -270,7 +290,8 @@ nf-diff: comparison complete
                 case '-v':
                 case '--verbose':
                 case '--all':
-                    verbose = true
+                    verbose = boolFlag(inlineVal, args, i)
+                    if( inlineVal == null && nextIsBool(args, i) ) i++
                     break
                 default:
                     if( arg.startsWith('-') )
@@ -308,6 +329,25 @@ nf-diff: comparison complete
     private static final Map<String,String> FORMAT_EXTENSIONS = [
             html: 'html', json: 'json', md: 'md',
     ]
+
+    /**
+     * Resolve a boolean flag's value. A bare flag is {@code true}; Nextflow's
+     * `plugin` launcher forwards bare flags as `--flag true`, so an injected
+     * {@code true}/{@code false} in the following token (or the inline
+     * `--flag=true` form) is honoured.
+     */
+    private static boolean boolFlag(String inlineVal, List<String> args, int i) {
+        if( inlineVal != null )
+            return Boolean.parseBoolean(inlineVal)
+        if( nextIsBool(args, i) )
+            return Boolean.parseBoolean(args[i + 1])
+        return true
+    }
+
+    /** True when the token after index {@code i} is a literal {@code true}/{@code false}. */
+    private static boolean nextIsBool(List<String> args, int i) {
+        return i + 1 < args.size() && (args[i + 1] == 'true' || args[i + 1] == 'false')
+    }
 
     /** Resolve an option value from its inline (`--opt=val`) or next-arg form. */
     private static String requireValue(String key, String inlineVal, List<String> args, int i) {
