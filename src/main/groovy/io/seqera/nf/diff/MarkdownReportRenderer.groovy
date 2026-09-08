@@ -24,6 +24,7 @@ class MarkdownReportRenderer {
         final sb = new StringBuilder()
         renderHeader(sb, diff)
         renderRuns(sb, diff)
+        renderFailures(sb, diff)
         renderMetadata(sb, diff)
         renderParams(sb, diff)
         renderConfig(sb, diff)
@@ -69,6 +70,30 @@ class MarkdownReportRenderer {
         row(sb, 'Wall time (ms)', a.durationMillis?.toString(), b.durationMillis?.toString())
         row(sb, 'Tasks', a.tasks.size().toString(), b.tasks.size().toString())
         row(sb, 'Cached', a.cachedCount().toString(), b.cachedCount().toString())
+        sb << '\n'
+    }
+
+    private void renderFailures(StringBuilder sb, DiffResult diff) {
+        if( !diff.hasFailures() )
+            return
+        sb << '## Failure rollup\n\n'
+        sb << '> What failed and why, rolled up by process / status / exit code (read from the run cache). '
+        sb << '"new" = only in Run B; "resolved" = in Run A but gone in Run B. '
+        sb << 'A summary of the per-task status/exit — informational only.\n\n'
+        if( DiffResult.runFailed(diff.runA) )
+            sb << "> ⚠ **Run A** finished in status `${(diff.runA.status ?: 'UNKNOWN').toUpperCase()}`.\n\n"
+        if( DiffResult.runFailed(diff.runB) )
+            sb << "> ⚠ **Run B** finished in status `${(diff.runB.status ?: 'UNKNOWN').toUpperCase()}`.\n\n"
+        if( diff.failureGroups.isEmpty() ) {
+            sb << '_No task-level failures recorded in either run cache._\n\n'
+            return
+        }
+        sb << '| Process | Status | Exit | Run A | Run B | State |\n'
+        sb << '|---|---|---:|---:|---:|:---:|\n'
+        diff.failureGroups.each { DiffResult.FailureGroup g ->
+            final state = g.isNew() ? 'new' : (g.isResolved() ? 'resolved' : 'persistent')
+            sb << "| ${cell(g.process)} | ${cell(g.status)} | ${cell(g.exit)} | ${g.countA} | ${g.countB} | ${state} |\n"
+        }
         sb << '\n'
     }
 

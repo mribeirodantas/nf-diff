@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Failure rollup (top-level "what failed and why")** — a new always-on layer
+  that answers, at a glance, which tasks failed and why, instead of leaving that
+  scattered across per-task detail. Failed tasks are detected from the cached
+  `status`/`exit` fields (an explicit `FAILED`/`ABORTED` status, or a non-zero
+  exit code — the `NO_EXIT` sentinel and blanks are ignored), so the layer reads
+  straight from the run cache and needs no work directories. Failures are rolled
+  up by their `(process, status, exit)` signature and counted per run, sorted by
+  biggest blast radius first; a signature seen only in Run B is flagged **new**
+  (a regression), one present in Run A but gone in Run B is **resolved**, and one
+  in both is **persistent**. The layer also surfaces a run-level error state
+  (history `status` starting `ERR` or equal to `FAILED`/`ABORTED`/`KILLED`) even
+  when no individual task failure was recorded. Surfaced in all three report
+  formats (HTML "Failure rollup" section + nav link + summary cards, Markdown
+  section, and a `failures` block with `failedA`/`failedB`/`newFailures`/
+  `resolvedFailures` summary counts in JSON). Because the meaningful identity
+  signal — a task whose status or exit changed — is already carried by the task
+  field diffs, this rollup is informational only and never separately affects
+  `isIdentical()` / `--fail-on-change`.
 - **Resource-efficiency layer (requested vs. measured-peak provisioning)** — a
   new always-on layer that, per process, compares what each run *requested*
   (`cpus`, `memory`) against what it actually *peaked* at (`%cpu`, `peak_rss`).

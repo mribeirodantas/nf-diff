@@ -17,6 +17,8 @@ class RunComparatorTest extends Specification {
                 name: args.name as String,
                 hash: args.hash as String,
                 status: args.status as String,
+                exit: args.exit as String,
+                tag: args.tag as String,
                 script: args.script as String,
                 container: args.container as String )
         t.display = (args.display as Map<String,String>) ?: [:]
@@ -24,10 +26,10 @@ class RunComparatorTest extends Specification {
         return t
     }
 
-    private RunSnapshot snap(String name, List<TaskInfo> tasks, String command = null) {
+    private RunSnapshot snap(String name, List<TaskInfo> tasks, String command = null, String status = 'OK') {
         return new RunSnapshot(
                 requestedId: name, runName: name,
-                sessionId: UUID.randomUUID(), status: 'OK',
+                sessionId: UUID.randomUUID(), status: status,
                 command: command,
                 tasks: tasks )
     }
@@ -731,5 +733,109 @@ class RunComparatorTest extends Specification {
         then:
         html.contains('&lt;b&gt;')
         !html.contains('<b>')
+    }
+
+    // ------------------------------------------------------- failure rollup
+
+    def 'rolls up failed tasks by process/status/exit and classifies new vs resolved'() {
+        given: 'run A has one ALIGN failure; run B keeps it and adds a new CALL failure'
+        def a = snap('runA', [
+                task(process: 'ALIGN', name: 'ALIGN (1)', status: 'FAILED', exit: '1'),
+                task(process: 'QC',    name: 'QC (1)',    status: 'COMPLETED', exit: '0'),
+        ])
+        def b = snap('runB', [
+                task(process: 'ALIGN', name: 'ALIGN (1)', status: 'FAILED', exit: '1'),
+                task(process: 'QC',    name: 'QC (1)',    status: 'COMPLETED', exit: '0'),
+                task(process: 'CALL',  name: 'CALL (1)',  status: 'FAILED', exit: '137'),
+        ])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then: 'both failed tasks per run are collected'
+        diff.hasFailures()
+        diff.failedCountA() == 1
+        diff.failedCountB() == 2
+
+        and: 'the persistent ALIGN group and the new CALL group are distinguished'
+        def align = diff.failureGroups.find { it.process == 'ALIGN' }
+        align.countA == 1 && align.countB == 1
+        align.isPersistent()
+        def call = diff.failureGroups.find { it.process == 'CALL' }
+        call.exit == '137'
+        call.isNew()
+        diff.newFailureCount() == 1
+        diff.resolvedFailureCount() == 0
+    }
+
+    def 'flags a failure that was resolved in run B'() {
+        given:
+        def a = snap('runA', [task(process: 'ALIGN', name: 'ALIGN (1)', status: 'FAILED', exit: '1')])
+        def b = snap('runB', [task(process: 'ALIGN', name: 'ALIGN (1)', status: 'COMPLETED', exit: '0')])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then:
+        def align = diff.failureGroups.find { it.process == 'ALIGN' }
+        align.isResolved()
+        diff.resolvedFailureCount() == 1
+        diff.newFailureCount() == 0
+    }
+
+    def 'reports a run-level failure even with no failed tasks'() {
+        given: 'run B finished in an error state but every recorded task completed'
+        def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)', status: 'COMPLETED', exit: '0')])
+        def b = snap('runB', [task(process: 'FOO', name: 'FOO (1)', status: 'COMPLETED', exit: '0')],
+                null, 'ERR')
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then:
+        diff.hasFailures()
+        diff.failureGroups.isEmpty()
+        DiffResult.runFailed(diff.runB)
+        !DiffResult.runFailed(diff.runA)
+    }
+
+    def 'the failure rollup does not by itself break the identical verdict'() {
+        given: 'both runs fail identically (same process/status/exit)'
+        def a = snap('runA', [task(process: 'ALIGN', name: 'ALIGN (1)', status: 'FAILED', exit: '1',
+                display: [status: 'FAILED', exit: '1'])])
+        def b = snap('runB', [task(process: 'ALIGN', name: 'ALIGN (1)', status: 'FAILED', exit: '1',
+                display: [status: 'FAILED', exit: '1'])])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then: 'failures are surfaced but the runs remain identical'
+        diff.hasFailures()
+        diff.failureGroups.find { it.process == 'ALIGN' }.isPersistent()
+        diff.identical
+    }
+
+    def 'renders the failure rollup section in all three formats'() {
+        given:
+        def a = snap('runA', [task(process: 'ALIGN', name: 'ALIGN (1)', status: 'COMPLETED', exit: '0',
+                display: [status: 'COMPLETED', exit: '0'])])
+        def b = snap('runB', [task(process: 'ALIGN', name: 'ALIGN (1)', status: 'FAILED', exit: '137',
+                display: [status: 'FAILED', exit: '137'])])
+        def diff = new RunComparator().compare(a, b)
+
+        expect: 'HTML has the failures section'
+        def html = new HtmlReportRenderer().render(diff)
+        html.contains('id="failures"')
+        html.contains('137')
+
+        and: 'Markdown has the rollup heading and the new-failure row'
+        def md = new MarkdownReportRenderer().render(diff)
+        md.contains('## Failure rollup')
+        md.contains('new')
+
+        and: 'JSON carries the failures block and summary counts'
+        def json = new groovy.json.JsonSlurper().parseText(new JsonReportRenderer().render(diff)) as Map
+        json.summary.newFailures == 1
+        (json.failures as Map).groups.find { (it as Map).process == 'ALIGN' }.state == 'new'
     }
 }

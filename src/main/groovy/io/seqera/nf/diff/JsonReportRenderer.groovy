@@ -46,6 +46,10 @@ class JsonReportRenderer {
                         overProvisionedB: diff.overProvisionedB(),
                         tightA          : diff.tightA(),
                         tightB          : diff.tightB(),
+                        failedA         : diff.failedCountA(),
+                        failedB         : diff.failedCountB(),
+                        newFailures     : diff.newFailureCount(),
+                        resolvedFailures: diff.resolvedFailureCount(),
                 ],
                 metadata   : diff.metadata.collect { fieldModel(it, diff.showObvious) },
                 params     : diff.params.collect { fieldModel(it, diff.showObvious) },
@@ -55,6 +59,13 @@ class JsonReportRenderer {
                 processes  : diff.processes.collect { processModel(it) },
                 software   : diff.software.collect { softwareModel(it) },
                 efficiency : diff.efficiency.collect { efficiencyModel(it) },
+                failures   : [
+                        runFailedA   : DiffResult.runFailed(diff.runA),
+                        runFailedB   : DiffResult.runFailed(diff.runB),
+                        groups       : diff.failureGroups.collect { failureGroupModel(it) },
+                        tasksA       : diff.failuresA.collect { failureTaskModel(it) },
+                        tasksB       : diff.failuresB.collect { failureTaskModel(it) },
+                ],
                 tasks      : diff.tasks.collect { taskModel(it, diff.showObvious) },
                 perfThreshold: diff.perfThreshold,
                 regressions: diff.regressions.collect { regressionModel(it) },
@@ -244,6 +255,27 @@ class JsonReportRenderer {
                 memEfficiencyB : e.memEffB(),
                 memClassA      : e.memClassA(),
                 memClassB      : e.memClassB(),
+        ] as Map<String,Object>
+    }
+
+    private Map<String,Object> failureGroupModel(DiffResult.FailureGroup g) {
+        return [
+                process : g.process,
+                status  : g.status,
+                exit    : g.exit,
+                countA  : g.countA,
+                countB  : g.countB,
+                state   : g.isNew() ? 'new' : (g.isResolved() ? 'resolved' : 'persistent'),
+        ] as Map<String,Object>
+    }
+
+    private Map<String,Object> failureTaskModel(DiffResult.TaskFailure f) {
+        return [
+                task    : f.taskKey,
+                process : f.process,
+                tag     : f.tag,
+                status  : f.status,
+                exit    : f.exit,
         ] as Map<String,Object>
     }
 

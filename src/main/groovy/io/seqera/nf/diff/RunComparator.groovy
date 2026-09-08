@@ -175,6 +175,7 @@ class RunComparator {
 
         result.tasksRecomputed = countRecomputed(result.tasks)
         result.regressions = computeRegressions(result.tasks)
+        computeFailures(result, a, b)
         computeOutputs(result)
         computeLogs(result)
         return result
@@ -589,6 +590,76 @@ class RunComparator {
         if( val == null ) return cur
         if( cur == null ) return val
         return Math.max(cur, val)
+    }
+
+    /**
+     * Populate the failure rollup: the failed tasks in each run and their
+     * roll-up by (process, status, exit) signature — the top-level "what failed
+     * and why" summary. Failures are detected from cached status/exit fields, so
+     * no work directories are needed. Respects the active process filter so the
+     * rollup is consistent with the rest of the report. Informational only — it
+     * never affects {@link DiffResult#isIdentical()}.
+     */
+    private void computeFailures(DiffResult result, RunSnapshot a, RunSnapshot b) {
+        result.failuresA = collectFailures(a)
+        result.failuresB = collectFailures(b)
+        result.failureGroups = groupFailures(result.failuresA, result.failuresB)
+    }
+
+    /** Failed tasks in a run, in task order, filtered by the active process filter. */
+    private List<DiffResult.TaskFailure> collectFailures(RunSnapshot snap) {
+        final out = new ArrayList<DiffResult.TaskFailure>()
+        snap.tasks.each { TaskInfo t ->
+            final p = t.process ?: '(unknown)'
+            if( !filter.accepts(p) )
+                return
+            if( DiffResult.isTaskFailure(t.status, t.exit) ) {
+                out << new DiffResult.TaskFailure(
+                        taskKey: t.matchKey(),
+                        process: p,
+                        tag    : t.tag,
+                        status : (t.status ?: 'UNKNOWN'),
+                        exit   : DiffResult.normalizeExit(t.exit) )
+            }
+        }
+        return out
+    }
+
+    /**
+     * Roll failures up by their (process, status, exit) signature, counting how
+     * many tasks matched it in each run. Sorted with the biggest total blast
+     * radius first, then by process for stable output.
+     */
+    private static List<DiffResult.FailureGroup> groupFailures(List<DiffResult.TaskFailure> a,
+                                                               List<DiffResult.TaskFailure> b) {
+        final map = new LinkedHashMap<String,DiffResult.FailureGroup>()
+        accumulateFailures(map, a, true)
+        accumulateFailures(map, b, false)
+        final groups = new ArrayList<DiffResult.FailureGroup>(map.values())
+        groups.sort { DiffResult.FailureGroup x, DiffResult.FailureGroup y ->
+            final byTotal = (y.countA + y.countB) <=> (x.countA + x.countB)
+            if( byTotal != 0 )
+                return byTotal
+            final byProc = (x.process ?: '') <=> (y.process ?: '')
+            if( byProc != 0 )
+                return byProc
+            return (x.exit ?: '') <=> (y.exit ?: '')
+        }
+        return groups
+    }
+
+    private static void accumulateFailures(Map<String,DiffResult.FailureGroup> map,
+                                           List<DiffResult.TaskFailure> failures, boolean sideA) {
+        failures.each { DiffResult.TaskFailure f ->
+            final key = "${f.process}\u0000${f.status}\u0000${f.exit}".toString()
+            DiffResult.FailureGroup g = map.get(key)
+            if( g == null ) {
+                g = new DiffResult.FailureGroup(process: f.process, status: f.status, exit: f.exit)
+                map.put(key, g)
+            }
+            if( sideA ) g.countA++
+            else        g.countB++
+        }
     }
 
     private List<TaskDiff> compareTasks(RunSnapshot a, RunSnapshot b) {

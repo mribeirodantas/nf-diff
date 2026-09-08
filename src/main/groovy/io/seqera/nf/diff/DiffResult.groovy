@@ -164,6 +164,86 @@ class DiffResult {
         }
     }
 
+    /** Sentinel Nextflow writes to a task's {@code exit} field when it never produced one. */
+    static final int NO_EXIT = Integer.MAX_VALUE
+
+    /**
+     * True when a task's {@code status}/{@code exit} pair represents a failure:
+     * an explicit {@code FAILED}/{@code ABORTED} status, or a non-zero exit code
+     * (ignoring the {@link #NO_EXIT} sentinel and non-numeric values). Reads only
+     * cached trace fields, so it works without work directories.
+     */
+    static boolean isTaskFailure(String status, String exit) {
+        final s = status?.trim()?.toUpperCase()
+        if( s == 'FAILED' || s == 'ABORTED' )
+            return true
+        return failedExit(exit)
+    }
+
+    /** True when {@code exit} parses to a non-zero code other than the {@link #NO_EXIT} sentinel. */
+    static boolean failedExit(String exit) {
+        if( !exit )
+            return false
+        try {
+            final code = Integer.parseInt(exit.trim())
+            return code != 0 && code != NO_EXIT
+        }
+        catch( NumberFormatException ignored ) {
+            return false
+        }
+    }
+
+    /** Normalise an exit code for display/grouping: the {@link #NO_EXIT} sentinel and blanks become {@code -}. */
+    static String normalizeExit(String exit) {
+        if( !exit )
+            return '-'
+        final t = exit.trim()
+        if( t == '-' || t == String.valueOf(NO_EXIT) )
+            return '-'
+        return t
+    }
+
+    /**
+     * A single failed task in one run — the raw material of the failure rollup.
+     * Captured from the run cache trace (status + exit code), so no work
+     * directories are required.
+     */
+    @CompileStatic
+    static class TaskFailure {
+        String taskKey
+        String process
+        String tag
+        /** Task status, e.g. {@code FAILED}, {@code ABORTED}. */
+        String status
+        /** Exit code as recorded, already normalised via {@link DiffResult#normalizeExit}. */
+        String exit
+    }
+
+    /**
+     * A rolled-up group of failures sharing the same (process, status, exit)
+     * signature, with how many tasks matched it in each run. This is the
+     * top-level "what failed and why" answer: a compact table of failure
+     * signatures rather than a scroll through per-task detail. A group present
+     * in only one run is newly-appearing ({@link #isNew}) or resolved
+     * ({@link #isResolved}); a group in both whose count changed shifted.
+     */
+    @CompileStatic
+    static class FailureGroup {
+        String process
+        String status
+        /** Normalised exit code shared by the group ({@code -} when none). */
+        String exit
+        int countA
+        int countB
+
+        /** True when this failure signature appeared only in Run B (a new failure). */
+        boolean isNew()      { countA == 0 && countB > 0 }
+        /** True when this failure signature was in Run A but is gone in Run B (fixed). */
+        boolean isResolved() { countA > 0 && countB == 0 }
+        /** True when present in both runs. */
+        boolean isPersistent() { countA > 0 && countB > 0 }
+    }
+
     /**
      * A single task metric whose value changed enough between the two runs to
      * be worth surfacing (e.g. realtime, peak_rss). Larger values are "worse",
@@ -542,6 +622,39 @@ class DiffResult {
         return efficiency.any { ProcessEfficiency e ->
             e.cpuEffA() != null || e.cpuEffB() != null || e.memEffA() != null || e.memEffB() != null
         }
+    }
+
+    /** Failed tasks in run A / run B (status FAILED/ABORTED or a non-zero exit). */
+    List<TaskFailure> failuresA = []
+    List<TaskFailure> failuresB = []
+
+    /**
+     * Failures rolled up by (process, status, exit) signature — the top-level
+     * "what failed and why" summary. Derived from the per-task status/exit
+     * already captured in the run cache, so this layer is informational only:
+     * the meaningful identity signal (a task whose status or exit changed) is
+     * already carried by the task field diffs, so the rollup never separately
+     * affects {@link #isIdentical()} or {@code --fail-on-change}.
+     */
+    List<FailureGroup> failureGroups = []
+
+    int failedCountA() { failuresA.size() }
+    int failedCountB() { failuresB.size() }
+
+    /** Failure signatures that appear only in Run B (regressed). */
+    int newFailureCount()      { failureGroups.count { FailureGroup g -> g.isNew() } as int }
+    /** Failure signatures present in Run A but gone in Run B (fixed). */
+    int resolvedFailureCount() { failureGroups.count { FailureGroup g -> g.isResolved() } as int }
+
+    /** True when the run itself finished in an error state (history status). */
+    static boolean runFailed(RunSnapshot run) {
+        final s = run?.status?.trim()?.toUpperCase()
+        return s != null && (s.startsWith('ERR') || s == 'FAILED' || s == 'ABORTED' || s == 'KILLED')
+    }
+
+    /** True when there is anything for the failure rollup to report. */
+    boolean hasFailures() {
+        return !failuresA.isEmpty() || !failuresB.isEmpty() || runFailed(runA) || runFailed(runB)
     }
 
     /**

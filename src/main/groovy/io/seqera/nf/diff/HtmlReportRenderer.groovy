@@ -40,6 +40,7 @@ class HtmlReportRenderer {
         renderNav(sb, diff)
         sb << '<main class="wrap">\n'
         renderSummary(sb, diff)
+        renderFailures(sb, diff)
         renderMetadata(sb, diff)
         renderParams(sb, diff)
         renderConfig(sb, diff)
@@ -101,6 +102,8 @@ class HtmlReportRenderer {
     private void renderNav(StringBuilder sb, DiffResult diff) {
         sb << '<nav class="tabs" id="nav">\n'
         sb << '  <a href="#summary" class="active">Summary</a>\n'
+        if( diff.hasFailures() )
+            sb << '  <a href="#failures">Failures</a>\n'
         sb << '  <a href="#metadata">Metadata</a>\n'
         sb << '  <a href="#params">Parameters</a>\n'
         sb << '  <a href="#config">Configuration</a>\n'
@@ -128,6 +131,12 @@ class HtmlReportRenderer {
         sb << statCard('Only in B', diff.tasksAdded, 'added')
         sb << statCard('Unchanged', diff.tasksUnchanged, 'unchanged')
         sb << statCard('Recomputed', diff.tasksRecomputed, 'changed')
+        if( diff.hasFailures() ) {
+            sb << statCard('Failed (A)', diff.failedCountA(), 'removed')
+            sb << statCard('Failed (B)', diff.failedCountB(), 'removed')
+            if( diff.newFailureCount() > 0 )
+                sb << statCard('New failures', diff.newFailureCount(), 'removed')
+        }
         sb << statCard('Software changed', diff.software.count { it.changed } as int, 'changed')
         sb << statCard('Regressions', diff.regressions.count { it.regression } as int, 'removed')
         if( diff.hasEfficiency() )
@@ -160,6 +169,44 @@ class HtmlReportRenderer {
       <div class="stat-label">${esc(label)}</div>
     </div>
 """
+    }
+
+    // -------------------------------------------------------------- failures
+
+    private void renderFailures(StringBuilder sb, DiffResult diff) {
+        if( !diff.hasFailures() )
+            return
+        sb << '<section id="failures" class="section">\n'
+        sb << '  <h2>Failure rollup</h2>\n'
+        sb << '  <p class="mode-note">What failed and why, rolled up by process, status and exit code, read from the run cache (no work directories needed). '
+        sb << '<span class="pill removed">new</span> = a failure signature seen only in Run B; '
+        sb << '<span class="pill added">resolved</span> = one that was in Run A but is gone in Run B. '
+        sb << 'This is a summary of the per-task status/exit already shown in Tasks, so it is informational and does not by itself affect the identical verdict.</p>\n'
+
+        // run-level status callouts
+        if( DiffResult.runFailed(diff.runA) )
+            sb << "  <p class=\"warn-note\"><strong>⚠ Run A</strong> finished in status <span class=\"mono\">${esc((diff.runA.status ?: 'UNKNOWN').toUpperCase())}</span>.</p>\n"
+        if( DiffResult.runFailed(diff.runB) )
+            sb << "  <p class=\"warn-note\"><strong>⚠ Run B</strong> finished in status <span class=\"mono\">${esc((diff.runB.status ?: 'UNKNOWN').toUpperCase())}</span>.</p>\n"
+
+        if( diff.failureGroups.isEmpty() ) {
+            sb << '  <p class="mode-note">No task-level failures were recorded in either run cache.</p>\n'
+            sb << '</section>\n'
+            return
+        }
+        sb << '  <table class="proc">\n'
+        sb << '    <thead><tr><th>Process</th><th>Status</th><th>Exit</th><th>Run A</th><th>Run B</th><th></th></tr></thead>\n  <tbody>\n'
+        diff.failureGroups.each { DiffResult.FailureGroup g ->
+            final state = g.isNew() ? 'new' : (g.isResolved() ? 'resolved' : 'persistent')
+            final kind = g.isNew() ? 'removed' : (g.isResolved() ? 'added' : 'changed')
+            sb << "    <tr class=\"row-${kind}\"><th class=\"mono\">${esc(g.process)}</th>"
+            sb << "<td>${esc(g.status)}</td>"
+            sb << "<td class=\"mono\">${esc(g.exit)}</td>"
+            sb << "<td>${g.countA}</td><td>${g.countB}</td>"
+            sb << "<td><span class=\"pill ${kind}\">${state}</span></td></tr>\n"
+        }
+        sb << '  </tbody>\n  </table>\n'
+        sb << '</section>\n'
     }
 
     // -------------------------------------------------------------- metadata
