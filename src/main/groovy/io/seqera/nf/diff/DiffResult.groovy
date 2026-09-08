@@ -58,6 +58,38 @@ class DiffResult {
     }
 
     /**
+     * A single directed process&#8594;process edge in a run's reconstructed
+     * wiring: {@code from} produced an output that {@code to} consumed as a
+     * staged input. Reconstructed from work-dir input symlinks, so it needs the
+     * work directories to exist locally.
+     */
+    @groovy.transform.EqualsAndHashCode
+    @CompileStatic
+    static class DagEdge {
+        String from
+        String to
+
+        @Override
+        String toString() { "${from} → ${to}" }
+    }
+
+    /**
+     * A process&#8594;process edge compared across the two runs. {@link Kind#ADDED}
+     * means the wiring appeared only in Run B (a new dependency), {@link Kind#REMOVED}
+     * only in Run A (a dropped dependency), {@link Kind#UNCHANGED} in both.
+     */
+    @CompileStatic
+    static class DagEdgeDiff {
+        DagEdge edge
+        Kind kind
+
+        String from() { edge?.from }
+        String to()   { edge?.to }
+        boolean isAdded()   { kind == Kind.ADDED }
+        boolean isRemoved() { kind == Kind.REMOVED }
+    }
+
+    /**
      * Per-process comparison of the software environment — the container
      * image(s) and conda package spec(s) that process's tasks ran with in each
      * run. This is the "did a tool version change?" layer: both values are read
@@ -714,6 +746,41 @@ class DiffResult {
     /** True when any compared task has a differing log file or exit/status. */
     boolean hasLogChanges() {
         return diffLogs && logs.any { it.hasChanges() }
+    }
+
+    /**
+     * Whether the process&#8594;process wiring layer was computed. When false,
+     * {@link #dag} is empty.
+     */
+    boolean diffDag = false
+
+    /**
+     * The reconstructed process&#8594;process edges compared across the two
+     * runs, sorted with changed edges (added, then removed) before unchanged.
+     * Populated only when {@link #diffDag} is set.
+     *
+     * <p>The wiring is reconstructed heuristically from work-dir input symlinks
+     * and is only as complete as the work directories still present locally, so
+     * this layer is <em>informational only</em> — it never affects
+     * {@link #isIdentical()} or {@code --fail-on-change}.
+     */
+    List<DagEdgeDiff> dag = []
+
+    /**
+     * Human-readable note about the wiring layer: how it was reconstructed, or
+     * why it is empty/limited (e.g. missing work directories). Surfaced by
+     * renderers.
+     */
+    String dagNote
+
+    /** Edges present only in Run B (newly-added dependencies). */
+    int dagEdgesAdded()   { dag.count { DagEdgeDiff d -> d.isAdded() } as int }
+    /** Edges present only in Run A (dropped dependencies). */
+    int dagEdgesRemoved() { dag.count { DagEdgeDiff d -> d.isRemoved() } as int }
+
+    /** True when the reconstructed wiring differs between the two runs. */
+    boolean hasDagChanges() {
+        return diffDag && dag.any { DagEdgeDiff d -> d.kind == Kind.ADDED || d.kind == Kind.REMOVED }
     }
 
     int tasksAdded

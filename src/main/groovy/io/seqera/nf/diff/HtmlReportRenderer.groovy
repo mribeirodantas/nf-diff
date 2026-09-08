@@ -51,6 +51,7 @@ class HtmlReportRenderer {
         renderTasks(sb, diff)
         renderOutputs(sb, diff)
         renderLogs(sb, diff)
+        renderDag(sb, diff)
         sb << '</main>\n'
         renderFooter(sb, diff)
 
@@ -117,6 +118,8 @@ class HtmlReportRenderer {
             sb << '  <a href="#outputs">Outputs</a>\n'
         if( diff.diffLogs )
             sb << '  <a href="#logs">Logs</a>\n'
+        if( diff.diffDag )
+            sb << '  <a href="#dag">Wiring</a>\n'
         sb << '</nav>\n'
     }
 
@@ -145,6 +148,8 @@ class HtmlReportRenderer {
             sb << statCard('Outputs changed', diff.outputs.count { it.hasChanges() } as int, 'changed')
         if( diff.diffLogs )
             sb << statCard('Logs changed', diff.logs.count { it.hasChanges() } as int, 'changed')
+        if( diff.diffDag )
+            sb << statCard('Wiring edges changed', diff.dagEdgesAdded() + diff.dagEdgesRemoved(), 'changed')
         sb << '  </div>\n'
 
         // wall-time comparison bar
@@ -523,6 +528,34 @@ class HtmlReportRenderer {
             body << codeLine(op.text, cls)
         }
         return "      <div class=\"code-diff\"><div class=\"code-col wide\"><pre>${body}</pre></div></div>\n"
+    }
+
+    // ----------------------------------------------------------------- dag
+
+    private void renderDag(StringBuilder sb, DiffResult diff) {
+        if( !diff.diffDag )
+            return
+        sb << '<section id="dag" class="section">\n'
+        sb << '  <h2>Process wiring (DAG)</h2>\n'
+        if( diff.dagNote )
+            sb << "  <p class=\"mode-note\">${esc(diff.dagNote)}</p>\n"
+
+        final changed = diff.dag.findAll { DiffResult.DagEdgeDiff d -> d.isAdded() || d.isRemoved() }
+        if( changed.isEmpty() ) {
+            sb << '  <p class="mode-note">No process&rarr;process wiring differences were detected.</p>\n'
+            sb << '</section>\n'
+            return
+        }
+        sb << '  <table class="proc">\n'
+        sb << '    <thead><tr><th>Producer</th><th>Consumer</th><th></th></tr></thead>\n  <tbody>\n'
+        changed.each { DiffResult.DagEdgeDiff d ->
+            final label = d.isAdded() ? 'added' : 'removed'
+            sb << "    <tr class=\"row-${label}\"><th class=\"mono\">${esc(d.from())}</th>"
+            sb << "<td class=\"mono\">${esc(d.to())}</td>"
+            sb << "<td><span class=\"pill ${label}\">${label}</span></td></tr>\n"
+        }
+        sb << '  </tbody>\n  </table>\n'
+        sb << '</section>\n'
     }
 
     // ----------------------------------------------------------------- tasks

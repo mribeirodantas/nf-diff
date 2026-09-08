@@ -77,6 +77,14 @@ class DiffCommand {
     boolean diffLogs = false
 
     /**
+     * When true, reconstruct each run's process&#8594;process wiring from its
+     * task work-dir input symlinks and diff the two. Like {@link #diffOutputs}
+     * and {@link #diffLogs}, this needs the work directories to still exist
+     * locally.
+     */
+    boolean diffDag = false
+
+    /**
      * Maximum tail lines kept per log file when {@link #diffLogs} is set.
      * Defaults to {@link LogComparator#DEFAULT_MAX_LINES}.
      */
@@ -116,7 +124,7 @@ class DiffCommand {
         final filter = ProcessFilter.of(onlyGlobs, excludeGlobs)
         final diff = new RunComparator(verbose, filter, baseDir, perfThreshold,
                         diffOutputs, outputsMaxBytes, diffLogs, logsMaxLines, outputsMaxLines,
-                        dirA, dirB)
+                        dirA, dirB, diffDag)
                 .compare(snapA, snapB)
 
         final content = renderContent(diff)
@@ -302,6 +310,10 @@ nf-diff: comparison complete
                     diffLogs = boolFlag(inlineVal, args, i)
                     if( inlineVal == null && nextIsBool(args, i) ) i++
                     break
+                case '--diff-dag':
+                    diffDag = boolFlag(inlineVal, args, i)
+                    if( inlineVal == null && nextIsBool(args, i) ) i++
+                    break
                 case '--logs-max-lines':
                     final ml = requireValue(key, inlineVal, args, i)
                     if( inlineVal == null ) i++
@@ -464,6 +476,13 @@ Options:
                        --fail-on-change (the exit-code change already does).
   --logs-max-lines=<n> When --diff-logs is set, keep only the last <n> lines of
                        each log file before diffing (default: 200).
+  --diff-dag           Reconstruct each run's process->process wiring from its
+                       task work-dir input symlinks and diff the two, so a
+                       change like A->C becoming A->B->C is surfaced (the
+                       process layer only counts tasks per process). Needs the
+                       tasks' work directories to still exist locally. Best
+                       effort and informational only: incomplete when work dirs
+                       were cleaned up, so it never affects --fail-on-change.
   --dir=<dir>          Project directory containing .nextflow/ (default: .).
                        Used for both runs unless overridden per-run below.
   --dir-a=<dir>        Project directory for run A only (its .nextflow/ history,
@@ -494,6 +513,7 @@ Examples:
   nextflow plugin nf-diff:diff --last --only='ALIGN:*' --exclude='*:INDEX'
   nextflow plugin nf-diff:diff --last --diff-outputs --fail-on-change
   nextflow plugin nf-diff:diff --last --diff-logs
+  nextflow plugin nf-diff:diff --last --diff-dag
   nextflow plugin nf-diff:diff runA runB --format=json --output=diff.json
   nextflow plugin nf-diff:diff --last --format=json --output=- | jq .summary
 

@@ -35,6 +35,7 @@ class MarkdownReportRenderer {
         renderTasks(sb, diff)
         renderOutputs(sb, diff)
         renderLogs(sb, diff)
+        renderDag(sb, diff)
         return sb.toString()
     }
 
@@ -300,6 +301,27 @@ class MarkdownReportRenderer {
                 fencedDiff(sb, f.ops)
             }
         }
+    }
+
+    private void renderDag(StringBuilder sb, DiffResult diff) {
+        if( !diff.diffDag )
+            return
+        sb << '## Process wiring (DAG)\n\n'
+        if( diff.dagNote )
+            sb << "> ${cell(diff.dagNote)}\n\n"
+
+        final changed = diff.dag.findAll { DiffResult.DagEdgeDiff d -> d.isAdded() || d.isRemoved() }
+        if( changed.isEmpty() ) {
+            sb << '_No process→process wiring differences detected._\n\n'
+            return
+        }
+        sb << '| Edge | Status |\n'
+        sb << '|---|:---:|\n'
+        changed.each { DiffResult.DagEdgeDiff d ->
+            final arrow = d.isAdded() ? '➕' : '➖'
+            sb << "| ${cell("${d.from()} → ${d.to()}".toString())} | ${arrow} ${d.isAdded() ? 'added' : 'removed'} |\n"
+        }
+        sb << '\n'
     }
 
     /** Emit a fenced unified-diff block (' ' context, '+' add, '-' del). */

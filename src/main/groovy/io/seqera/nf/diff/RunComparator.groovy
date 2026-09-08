@@ -129,12 +129,15 @@ class RunComparator {
      */
     private final int logsMaxLines
 
+    /** When true, reconstruct and diff each run's process&#8594;process wiring. */
+    private final boolean diffDag
+
     RunComparator(boolean showObvious = false, ProcessFilter filter = null, Path baseDir = null,
                   double perfThreshold = DEFAULT_PERF_THRESHOLD,
                   boolean diffOutputs = false, long outputsMaxBytes = 0L,
                   boolean diffLogs = false, int logsMaxLines = LogComparator.DEFAULT_MAX_LINES,
                   int outputsMaxLines = OutputComparator.DEFAULT_MAX_LINES,
-                  Path baseDirA = null, Path baseDirB = null) {
+                  Path baseDirA = null, Path baseDirB = null, boolean diffDag = false) {
         this.showObvious = showObvious
         this.filter = filter ?: ProcessFilter.of([], [])
         this.baseDir = baseDir
@@ -147,6 +150,7 @@ class RunComparator {
         this.diffLogs = diffLogs
         this.logsMaxLines = logsMaxLines
         this.outputsMaxLines = outputsMaxLines
+        this.diffDag = diffDag
     }
 
     /** Absolute, normalised form of a directory for equality comparison; null-safe. */
@@ -178,7 +182,72 @@ class RunComparator {
         computeFailures(result, a, b)
         computeOutputs(result)
         computeLogs(result)
+        computeDag(result, a, b)
         return result
+    }
+
+    /**
+     * Populate the wiring layer: reconstruct each run's process&#8594;process
+     * edges from its task work-dir input symlinks (via {@link DagComparator})
+     * and diff the two edge sets. Skipped unless {@code --diff-dag} was
+     * requested. Edges are kept when the {@link #filter} accepts either
+     * endpoint. This layer is informational only — the wiring is a best-effort
+     * reconstruction bounded by which work directories still exist locally, so
+     * it never affects {@link DiffResult#isIdentical()} or {@code --fail-on-change}.
+     */
+    private void computeDag(DiffResult result, RunSnapshot a, RunSnapshot b) {
+        if( !diffDag )
+            return
+        result.diffDag = true
+
+        final comparator = new DagComparator()
+        final graphA = comparator.graphOf(a)
+        final graphB = comparator.graphOf(b)
+
+        final all = new TreeSet<DiffResult.DagEdge>({ DiffResult.DagEdge x, DiffResult.DagEdge y ->
+            final byTo = (x.to ?: '') <=> (y.to ?: '')
+            byTo != 0 ? byTo : ((x.from ?: '') <=> (y.from ?: ''))
+        } as Comparator<DiffResult.DagEdge>)
+        all.addAll(graphA.edges)
+        all.addAll(graphB.edges)
+
+        final diffs = new ArrayList<DiffResult.DagEdgeDiff>()
+        all.each { DiffResult.DagEdge e ->
+            if( !filter.accepts(e.from) && !filter.accepts(e.to) )
+                return
+            final inA = graphA.edges.contains(e)
+            final inB = graphB.edges.contains(e)
+            final kind = inA && inB ? Kind.UNCHANGED : (inB ? Kind.ADDED : Kind.REMOVED)
+            diffs << new DiffResult.DagEdgeDiff(edge: e, kind: kind)
+        }
+        // Changed edges first (added, then removed), unchanged last.
+        diffs.sort { DiffResult.DagEdgeDiff d -> dagRank(d.kind) }
+        result.dag = diffs
+
+        result.dagNote = dagNote(graphA, graphB)
+    }
+
+    /** Sort rank so added edges lead, then removed, then unchanged. */
+    private static int dagRank(Kind kind) {
+        switch( kind ) {
+            case Kind.ADDED:   return 0
+            case Kind.REMOVED: return 1
+            default:           return 2
+        }
+    }
+
+    /** Build the human-readable note for the wiring layer. */
+    private static String dagNote(DagComparator.RunGraph graphA, DagComparator.RunGraph graphB) {
+        if( !graphA.anyWorkdir && !graphB.anyWorkdir )
+            return 'No work directories were available locally, so process wiring could not be reconstructed. ' +
+                    'DAG diffing needs the tasks\' work directories to still exist on this machine.'
+        final missing = graphA.missingWorkdirs + graphB.missingWorkdirs
+        final base = 'Process wiring reconstructed from each task\'s staged input symlinks (a link into another ' +
+                'task\'s work directory is a producer→consumer edge). This is a best-effort reconstruction and ' +
+                'is informational only — it never affects the "identical" verdict or --fail-on-change.'
+        if( missing > 0 )
+            return (base + " ${missing} task(s) had a missing work directory; recovered wiring may be incomplete.").toString()
+        return base
     }
 
     /**

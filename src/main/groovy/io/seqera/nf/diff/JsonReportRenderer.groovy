@@ -50,6 +50,8 @@ class JsonReportRenderer {
                         failedB         : diff.failedCountB(),
                         newFailures     : diff.newFailureCount(),
                         resolvedFailures: diff.resolvedFailureCount(),
+                        dagEdgesAdded   : diff.dagEdgesAdded(),
+                        dagEdgesRemoved : diff.dagEdgesRemoved(),
                 ],
                 metadata   : diff.metadata.collect { fieldModel(it, diff.showObvious) },
                 params     : diff.params.collect { fieldModel(it, diff.showObvious) },
@@ -75,6 +77,9 @@ class JsonReportRenderer {
                 diffLogs   : diff.diffLogs,
                 logsNote   : diff.logsNote,
                 logs       : diff.logs.collect { logModel(it) },
+                diffDag    : diff.diffDag,
+                dagNote    : diff.dagNote,
+                dag        : diff.dag.collect { dagEdgeModel(it) },
         ] as Map<String,Object>
     }
 
@@ -255,6 +260,14 @@ class JsonReportRenderer {
                 memEfficiencyB : e.memEffB(),
                 memClassA      : e.memClassA(),
                 memClassB      : e.memClassB(),
+        ] as Map<String,Object>
+    }
+
+    private Map<String,Object> dagEdgeModel(DiffResult.DagEdgeDiff d) {
+        return [
+                from  : d.from(),
+                to    : d.to(),
+                status: d.isAdded() ? 'added' : (d.isRemoved() ? 'removed' : 'unchanged'),
         ] as Map<String,Object>
     }
 
