@@ -7,7 +7,7 @@ version = '0.2.0'
 nextflowPlugin {
     nextflowVersion = '25.04.0'
 
-    provider = 'seqera'
+    provider = 'nextflow'
     className = 'io.seqera.nf.diff.DiffPlugin'
     // nf-diff exposes a CLI verb (`nextflow plugin nf-diff:diff`) rather than
     // pipeline extension points, so no extensionPoints are declared here.
