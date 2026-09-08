@@ -30,6 +30,7 @@ class MarkdownReportRenderer {
         renderProcesses(sb, diff)
         renderSoftware(sb, diff)
         renderRegressions(sb, diff)
+        renderEfficiency(sb, diff)
         renderTasks(sb, diff)
         renderOutputs(sb, diff)
         renderLogs(sb, diff)
@@ -187,6 +188,26 @@ class MarkdownReportRenderer {
         diff.regressions.each { RegressionDiff r ->
             final arrow = r.regression ? '🔺' : '🔻'
             sb << "| ${cell(r.taskKey)} | ${cell(r.label)} | ${cell(r.displayA)} | ${cell(r.displayB)} | ${arrow} ${Format.signedPct(r.pctDelta)} | ${r.sameHash ? '✓' : ''} |\n"
+        }
+        sb << '\n'
+    }
+
+    private void renderEfficiency(StringBuilder sb, DiffResult diff) {
+        sb << '## Resource efficiency\n\n'
+        if( diff.efficiency.isEmpty() ) {
+            sb << '_No CPU/memory usage metrics recorded in the run cache._\n\n'
+            return
+        }
+        sb << '> Peak usage vs. what each process requested. '
+        sb << '"over-provisioned" = using a small fraction of the reservation (wasted allocation); '
+        sb << '"tight" = using nearly all of it (risk of OOM / CPU starvation).\n\n'
+        sb << '| Process | CPU eff. A | CPU eff. B | CPU class | Mem eff. A | Mem eff. B | Mem class |\n'
+        sb << '|---|---:|---:|:---:|---:|---:|:---:|\n'
+        diff.efficiency.each { DiffResult.ProcessEfficiency e ->
+            final cpuClass = e.cpuClassB() ?: e.cpuClassA()
+            final memClass = e.memClassB() ?: e.memClassA()
+            sb << "| ${cell(e.process)} | ${Format.pct(e.cpuEffA())} | ${Format.pct(e.cpuEffB())} | ${cell(cpuClass ?: '—')}"
+            sb << " | ${Format.pct(e.memEffA())} | ${Format.pct(e.memEffB())} | ${cell(memClass ?: '—')} |\n"
         }
         sb << '\n'
     }

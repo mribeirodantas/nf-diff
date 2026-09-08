@@ -161,6 +161,7 @@ class RunComparator {
         computeConfig(result, a, b)
         result.processes = compareProcesses(a, b).findAll { ProcessDiff pd -> filter.accepts(pd.process) }
         result.software = compareSoftware(a, b).findAll { DiffResult.SoftwareDiff sd -> filter.accepts(sd.process) }
+        result.efficiency = computeEfficiency(a, b).findAll { DiffResult.ProcessEfficiency pe -> filter.accepts(pe.process) }
         result.tasks = compareTasks(a, b).findAll { TaskDiff td -> filter.accepts(td.process()) }
 
         result.tasks.each { TaskDiff td ->
@@ -523,6 +524,71 @@ class RunComparator {
             return null
         final v = value.trim()
         return (v.isEmpty() || v == '-') ? null : v
+    }
+
+    /**
+     * Compute per-process resource-provisioning efficiency for both runs: the
+     * requested {@code cpus}/{@code memory} versus the measured peak
+     * {@code %cpu}/{@code peak_rss}, aggregated per process. All values come
+     * from the cached trace records, so no work directories are needed. Peaks
+     * are taken as the max across the process's tasks (a retried task that used
+     * more is the honest worst case); requested values are likewise the max
+     * (a task retried with a bumped request represents the allocation that
+     * mattered). Processes with neither a CPU nor a memory figure on either
+     * side are dropped so the layer stays quiet when the trace lacks metrics.
+     */
+    private List<DiffResult.ProcessEfficiency> computeEfficiency(RunSnapshot a, RunSnapshot b) {
+        final map = new TreeMap<String,DiffResult.ProcessEfficiency>()
+        accumulateEfficiency(map, a, true)
+        accumulateEfficiency(map, b, false)
+        return new ArrayList<DiffResult.ProcessEfficiency>(map.values()).findAll { DiffResult.ProcessEfficiency e ->
+            e.cpuEffA() != null || e.cpuEffB() != null || e.memEffA() != null || e.memEffB() != null
+        }
+    }
+
+    private static void accumulateEfficiency(Map<String,DiffResult.ProcessEfficiency> map, RunSnapshot snap, boolean sideA) {
+        snap.tasks.each { TaskInfo t ->
+            final p = t.process ?: '(unknown)'
+            DiffResult.ProcessEfficiency e = map.get(p)
+            if( e == null ) {
+                e = new DiffResult.ProcessEfficiency(process: p)
+                map.put(p, e)
+            }
+            final Integer cpus = t.numeric('cpus')?.intValue()
+            final Long mem = t.numeric('memory')
+            final Double pcpu = t.numericDouble('%cpu')
+            final Long rss = t.numeric('peak_rss')
+            if( sideA ) {
+                e.cpusReqA = maxInt(e.cpusReqA, cpus)
+                e.memReqBytesA = maxLong(e.memReqBytesA, mem)
+                e.peakCpuPctA = maxDouble(e.peakCpuPctA, pcpu)
+                e.peakRssBytesA = maxLong(e.peakRssBytesA, rss)
+            }
+            else {
+                e.cpusReqB = maxInt(e.cpusReqB, cpus)
+                e.memReqBytesB = maxLong(e.memReqBytesB, mem)
+                e.peakCpuPctB = maxDouble(e.peakCpuPctB, pcpu)
+                e.peakRssBytesB = maxLong(e.peakRssBytesB, rss)
+            }
+        }
+    }
+
+    private static Integer maxInt(Integer cur, Integer val) {
+        if( val == null ) return cur
+        if( cur == null ) return val
+        return Math.max(cur, val)
+    }
+
+    private static Long maxLong(Long cur, Long val) {
+        if( val == null ) return cur
+        if( cur == null ) return val
+        return Math.max(cur, val)
+    }
+
+    private static Double maxDouble(Double cur, Double val) {
+        if( val == null ) return cur
+        if( cur == null ) return val
+        return Math.max(cur, val)
     }
 
     private List<TaskDiff> compareTasks(RunSnapshot a, RunSnapshot b) {

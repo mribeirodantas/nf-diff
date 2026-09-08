@@ -46,6 +46,7 @@ class HtmlReportRenderer {
         renderProcesses(sb, diff)
         renderSoftware(sb, diff)
         renderRegressions(sb, diff)
+        renderEfficiency(sb, diff)
         renderTasks(sb, diff)
         renderOutputs(sb, diff)
         renderLogs(sb, diff)
@@ -106,6 +107,8 @@ class HtmlReportRenderer {
         sb << '  <a href="#processes">Processes</a>\n'
         sb << '  <a href="#software">Software</a>\n'
         sb << '  <a href="#regressions">Regressions</a>\n'
+        if( diff.hasEfficiency() )
+            sb << '  <a href="#efficiency">Efficiency</a>\n'
         sb << '  <a href="#tasks">Tasks</a>\n'
         if( diff.diffOutputs )
             sb << '  <a href="#outputs">Outputs</a>\n'
@@ -127,6 +130,8 @@ class HtmlReportRenderer {
         sb << statCard('Recomputed', diff.tasksRecomputed, 'changed')
         sb << statCard('Software changed', diff.software.count { it.changed } as int, 'changed')
         sb << statCard('Regressions', diff.regressions.count { it.regression } as int, 'removed')
+        if( diff.hasEfficiency() )
+            sb << statCard('Over-provisioned (B)', diff.overProvisionedB(), 'removed')
         if( diff.diffOutputs )
             sb << statCard('Outputs changed', diff.outputs.count { it.hasChanges() } as int, 'changed')
         if( diff.diffLogs )
@@ -323,6 +328,44 @@ class HtmlReportRenderer {
     /** Trim a whole-number threshold to an integer string (25.0 -> "25"). */
     private static String trim(double value) {
         return value == Math.floor(value) ? String.valueOf((long) value) : String.valueOf(value)
+    }
+
+    // ------------------------------------------------------------ efficiency
+
+    private void renderEfficiency(StringBuilder sb, DiffResult diff) {
+        sb << '<section id="efficiency" class="section">\n'
+        sb << '  <h2>Resource efficiency</h2>\n'
+        sb << '  <p class="mode-note">Peak measured CPU / memory versus what each process <em>requested</em>, read from the run cache. '
+        sb << '<span class="pill removed">over</span> = used under 50% of the reservation (wasted allocation); '
+        sb << '<span class="pill added">tight</span> = used 90%+ of it (risk of OOM kills or CPU throttling). '
+        sb << 'Informational only — this never affects the identical verdict.</p>\n'
+        if( !diff.hasEfficiency() ) {
+            sb << '  <p class="mode-note">No CPU/memory usage metrics were recorded in either run cache.</p>\n'
+            sb << '</section>\n'
+            return
+        }
+        sb << '  <table class="proc">\n'
+        sb << '    <thead><tr><th>Process</th><th>CPU eff. A</th><th>CPU eff. B</th><th>CPU</th>'
+        sb << '<th>Mem eff. A</th><th>Mem eff. B</th><th>Mem</th></tr></thead>\n  <tbody>\n'
+        diff.efficiency.each { DiffResult.ProcessEfficiency e ->
+            sb << "    <tr><th class=\"mono\">${esc(e.process)}</th>"
+            sb << "<td class=\"mono\">${esc(Format.pct(e.cpuEffA()))}</td>"
+            sb << "<td class=\"mono\">${esc(Format.pct(e.cpuEffB()))}</td>"
+            sb << "<td>${effPill(e.cpuClassB() ?: e.cpuClassA())}</td>"
+            sb << "<td class=\"mono\">${esc(Format.pct(e.memEffA()))}</td>"
+            sb << "<td class=\"mono\">${esc(Format.pct(e.memEffB()))}</td>"
+            sb << "<td>${effPill(e.memClassB() ?: e.memClassA())}</td></tr>\n"
+        }
+        sb << '  </tbody>\n  </table>\n'
+        sb << '</section>\n'
+    }
+
+    /** Efficiency class pill: over-provisioned (removed/red), tight (added/green), ok (unchanged). */
+    private static String effPill(String cls) {
+        if( cls == null )
+            return '<span class="mono">—</span>'
+        final kind = cls == 'over' ? 'removed' : (cls == 'tight' ? 'added' : 'unchanged')
+        return "<span class=\"pill ${kind}\">${esc(cls)}</span>".toString()
     }
 
     // ------------------------------------------------------------- outputs

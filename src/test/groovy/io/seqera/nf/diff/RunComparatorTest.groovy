@@ -674,6 +674,51 @@ class RunComparatorTest extends Specification {
         !diff.configProvenance.hasWarning()
     }
 
+    def 'computes per-process resource efficiency and classifies over/tight'() {
+        given: 'a process that requested 8 cores / 32 GB but peaked at ~1 core / 4 GB'
+        def a = snap('runA', [task(process: 'ALIGN', name: 'ALIGN (1)',
+                display: [status: 'COMPLETED'],
+                raw: [cpus: 8, memory: 32L * 1024 * 1024 * 1024, '%cpu': 105.0, peak_rss: 4L * 1024 * 1024 * 1024])])
+        // run B still requests 32 GB but now peaks at ~30 GB — tight against the request
+        def b = snap('runB', [task(process: 'ALIGN', name: 'ALIGN (1)',
+                display: [status: 'COMPLETED'],
+                raw: [cpus: 8, memory: 32L * 1024 * 1024 * 1024, '%cpu': 780.0, peak_rss: 30L * 1024 * 1024 * 1024])])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then: 'the efficiency layer surfaces the process with computable ratios'
+        diff.hasEfficiency()
+        def e = diff.efficiency.find { it.process == 'ALIGN' }
+        e != null
+
+        and: 'run A is over-provisioned on both CPU and memory'
+        e.cpuClassA() == 'over'   // 105% of 800% requested ~ 13%
+        e.memClassA() == 'over'   // 4 GB of 32 GB = 12.5%
+        Math.round(e.memEffA() * 100) == 13
+
+        and: 'run B runs tight on both'
+        e.cpuClassB() == 'tight'  // 780% of 800% requested ~ 98%
+        e.memClassB() == 'tight'  // 30 GB of 32 GB ~ 94%
+
+        and: 'the summary counts reflect the shift and the layer is informational only'
+        diff.overProvisionedA() == 1
+        diff.tightB() == 1
+    }
+
+    def 'efficiency layer stays quiet when the cache has no usage metrics'() {
+        given:
+        def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED'])])
+        def b = snap('runB', [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED'])])
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then:
+        diff.efficiency.isEmpty()
+        !diff.hasEfficiency()
+    }
+
     def 'renderer escapes HTML in task values'() {
         given:
         def a = snap('runA', [task(process: '<b>', name: 'X (1)', display: [status: 'COMPLETED', script: 'a'])])

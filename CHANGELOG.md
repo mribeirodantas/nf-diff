@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Resource-efficiency layer (requested vs. measured-peak provisioning)** — a
+  new always-on layer that, per process, compares what each run *requested*
+  (`cpus`, `memory`) against what it actually *peaked* at (`%cpu`, `peak_rss`).
+  Both requested and peak values are read straight from the run cache trace and
+  taken as the max across a process's tasks (a retried task that used more, or
+  was bumped a higher request, is the honest worst case), so the layer needs no
+  work directories and is always computed. The efficiency ratio is
+  measured-peak / requested; each process is classified per run as **over**
+  (below 50% — wasted allocation, e.g. "requested 32 GB, peaked at 4 GB"),
+  **tight** (90%+ — risk of OOM kills or CPU throttling), or **ok** in between.
+  Surfaced in all three report formats (HTML section + an "Over-provisioned (B)"
+  summary card, Markdown table, and an `efficiency` array plus
+  `overProvisionedA`/`overProvisionedB` and `tightA`/`tightB` summary counts in
+  JSON). Because provisioning is a tuning signal rather than a correctness
+  change, this layer is informational only — it never affects `isIdentical()` /
+  `--fail-on-change`.
 - **Cross-project comparison (`--dir-a` / `--dir-b`)** — the two runs no longer
   have to live in the same project. Previously a single `--dir` resolved both
   runs' `.nextflow/` history, cache, config and params, so you could not compare

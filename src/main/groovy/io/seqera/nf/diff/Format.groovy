@@ -25,6 +25,20 @@ class Format {
         return (value != null && !value.isEmpty()) ? value : NA
     }
 
+    /** Human-friendly byte size using Nextflow's MemoryUnit, e.g. "4 GB". */
+    static String bytes(Long value) {
+        if( value == null )
+            return NA
+        return new nextflow.util.MemoryUnit(value).toString()
+    }
+
+    /** Format an efficiency fraction (0..1+) as a rounded percentage, e.g. "13%". */
+    static String pct(Double fraction) {
+        if( fraction == null )
+            return NA
+        return "${Math.round(fraction * 100.0d)}%".toString()
+    }
+
     /** Signed percentage delta of b relative to a, or null when not computable. */
     static Double pctDelta(Long a, Long b) {
         if( a == null || b == null || a == 0L )

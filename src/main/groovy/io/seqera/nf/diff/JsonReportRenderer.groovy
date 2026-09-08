@@ -42,6 +42,10 @@ class JsonReportRenderer {
                         softwareChanged : diff.software.count { it.changed },
                         outputsChanged : diff.outputs.count { it.hasChanges() },
                         logsChanged    : diff.logs.count { it.hasChanges() },
+                        overProvisionedA: diff.overProvisionedA(),
+                        overProvisionedB: diff.overProvisionedB(),
+                        tightA          : diff.tightA(),
+                        tightB          : diff.tightB(),
                 ],
                 metadata   : diff.metadata.collect { fieldModel(it, diff.showObvious) },
                 params     : diff.params.collect { fieldModel(it, diff.showObvious) },
@@ -50,6 +54,7 @@ class JsonReportRenderer {
                 configProvenance: configProvenanceModel(diff.configProvenance),
                 processes  : diff.processes.collect { processModel(it) },
                 software   : diff.software.collect { softwareModel(it) },
+                efficiency : diff.efficiency.collect { efficiencyModel(it) },
                 tasks      : diff.tasks.collect { taskModel(it, diff.showObvious) },
                 perfThreshold: diff.perfThreshold,
                 regressions: diff.regressions.collect { regressionModel(it) },
@@ -217,6 +222,28 @@ class JsonReportRenderer {
                 containersB     : sd.containersB,
                 condaA          : sd.condaA,
                 condaB          : sd.condaB,
+        ] as Map<String,Object>
+    }
+
+    private Map<String,Object> efficiencyModel(DiffResult.ProcessEfficiency e) {
+        return [
+                process        : e.process,
+                cpusRequestedA : e.cpusReqA,
+                cpusRequestedB : e.cpusReqB,
+                peakCpuPctA    : e.peakCpuPctA,
+                peakCpuPctB    : e.peakCpuPctB,
+                cpuEfficiencyA : e.cpuEffA(),
+                cpuEfficiencyB : e.cpuEffB(),
+                cpuClassA      : e.cpuClassA(),
+                cpuClassB      : e.cpuClassB(),
+                memRequestedBytesA: e.memReqBytesA,
+                memRequestedBytesB: e.memReqBytesB,
+                peakRssBytesA  : e.peakRssBytesA,
+                peakRssBytesB  : e.peakRssBytesB,
+                memEfficiencyA : e.memEffA(),
+                memEfficiencyB : e.memEffB(),
+                memClassA      : e.memClassA(),
+                memClassB      : e.memClassB(),
         ] as Map<String,Object>
     }
 

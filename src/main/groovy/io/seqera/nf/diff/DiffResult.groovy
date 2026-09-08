@@ -84,6 +84,87 @@ class DiffResult {
     }
 
     /**
+     * Ratio (measured peak / requested) at or above which a resource is
+     * considered to have run "tight" against its request — a risk of OOM kills
+     * (memory) or CPU throttling. Used to classify {@link ProcessEfficiency}.
+     */
+    static final double TIGHT_THRESHOLD = 0.9d
+
+    /**
+     * Ratio (measured peak / requested) below which a resource is considered
+     * over-provisioned — much more was requested than the task ever used, so
+     * the allocation (and, on many schedulers, the cost) was wasted.
+     */
+    static final double OVER_THRESHOLD = 0.5d
+
+    /** Classification of a single resource's efficiency ratio. */
+    static String classifyEfficiency(Double ratio) {
+        if( ratio == null )
+            return null
+        if( ratio >= TIGHT_THRESHOLD )
+            return 'tight'
+        if( ratio < OVER_THRESHOLD )
+            return 'over'
+        return 'ok'
+    }
+
+    /**
+     * Per-process resource-provisioning efficiency for both runs: how much of
+     * the requested CPU / memory the process's tasks actually used at peak.
+     *
+     * <p>Computed entirely from the run cache trace — requested {@code cpus} /
+     * {@code memory} versus measured {@code %cpu} / {@code peak_rss} — so no
+     * work directories are required and it is always populated. The efficiency
+     * ratio is measured-peak / requested: a low ratio means the process was
+     * over-provisioned (wasted allocation, e.g. "requested 32 GB, peaked at
+     * 4 GB"); a ratio near or above 1 means it ran tight against its request.
+     *
+     * <p>This layer is informational only — provisioning is a tuning signal,
+     * not a correctness change, so it never affects {@link #isIdentical()} or
+     * {@code --fail-on-change}.
+     */
+    @CompileStatic
+    static class ProcessEfficiency {
+        String process
+        /** Requested cores ({@code cpus}), representative across the process's tasks. */
+        Integer cpusReqA
+        Integer cpusReqB
+        /** Peak measured CPU percent ({@code %cpu}; 100 == one core), max across tasks. */
+        Double peakCpuPctA
+        Double peakCpuPctB
+        /** Requested memory in bytes ({@code memory}), representative across tasks. */
+        Long memReqBytesA
+        Long memReqBytesB
+        /** Peak measured resident memory in bytes ({@code peak_rss}), max across tasks. */
+        Long peakRssBytesA
+        Long peakRssBytesB
+
+        /** CPU efficiency fraction: peak %cpu / (requested cores * 100), or null when unknown. */
+        Double cpuEffA() { cpuEff(cpusReqA, peakCpuPctA) }
+        Double cpuEffB() { cpuEff(cpusReqB, peakCpuPctB) }
+        /** Memory efficiency fraction: peak RSS / requested memory, or null when unknown. */
+        Double memEffA() { memEff(memReqBytesA, peakRssBytesA) }
+        Double memEffB() { memEff(memReqBytesB, peakRssBytesB) }
+
+        String cpuClassA() { classifyEfficiency(cpuEffA()) }
+        String cpuClassB() { classifyEfficiency(cpuEffB()) }
+        String memClassA() { classifyEfficiency(memEffA()) }
+        String memClassB() { classifyEfficiency(memEffB()) }
+
+        private static Double cpuEff(Integer cpusReq, Double peakCpuPct) {
+            if( cpusReq == null || cpusReq <= 0 || peakCpuPct == null )
+                return null
+            return peakCpuPct / (cpusReq * 100.0d)
+        }
+
+        private static Double memEff(Long memReq, Long peakRss) {
+            if( memReq == null || memReq <= 0L || peakRss == null )
+                return null
+            return peakRss / (memReq as double)
+        }
+    }
+
+    /**
      * A single task metric whose value changed enough between the two runs to
      * be worth surfacing (e.g. realtime, peak_rss). Larger values are "worse",
      * so a positive {@link #pctDelta} means Run B regressed relative to Run A.
@@ -439,6 +520,28 @@ class DiffResult {
     /** True when any process's container or conda environment changed between runs. */
     boolean hasSoftwareChanges() {
         return software.any { it.kind == Kind.CHANGED }
+    }
+
+    /**
+     * Per-process resource-provisioning efficiency for both runs (requested vs
+     * measured-peak CPU and memory). Read from the run cache, so it is always
+     * populated. Informational only — never affects {@link #isIdentical()}.
+     */
+    List<ProcessEfficiency> efficiency = []
+
+    /** Processes over-provisioned on CPU or memory in run A / run B. */
+    int overProvisionedA() { efficiency.findAll { ProcessEfficiency e -> e.cpuClassA() == 'over' || e.memClassA() == 'over' }.size() }
+    int overProvisionedB() { efficiency.findAll { ProcessEfficiency e -> e.cpuClassB() == 'over' || e.memClassB() == 'over' }.size() }
+
+    /** Processes running tight against their CPU or memory request in run A / run B. */
+    int tightA() { efficiency.findAll { ProcessEfficiency e -> e.cpuClassA() == 'tight' || e.memClassA() == 'tight' }.size() }
+    int tightB() { efficiency.findAll { ProcessEfficiency e -> e.cpuClassB() == 'tight' || e.memClassB() == 'tight' }.size() }
+
+    /** True when any process has a computable efficiency figure worth showing. */
+    boolean hasEfficiency() {
+        return efficiency.any { ProcessEfficiency e ->
+            e.cpuEffA() != null || e.cpuEffB() != null || e.memEffA() != null || e.memEffB() != null
+        }
     }
 
     /**
