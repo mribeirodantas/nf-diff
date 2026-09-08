@@ -110,8 +110,14 @@ Options:
   -h, --help           Show this help
 
 Examples:
-  nextflow plugin nf-diff:diff tender_euler happy_curie
-  nextflow plugin nf-diff:diff 3a8c1f2e 9f2b7d10 -o compare.html
+  nextflow plugin nf-diff@0.1.0:diff tender_euler happy_curie
+  nextflow plugin nf-diff@0.1.0:diff 3a8c1f2e 9f2b7d10 -o compare.html
+
+Note:
+  A locally installed plugin must be invoked with a pinned version,
+  e.g. nf-diff@<version>:diff. Without the version, Nextflow tries to
+  resolve the latest release from the plugin registry and fails with
+  "Cannot find latest version of nf-diff plugin".
 '''
     }
 }
