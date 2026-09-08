@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Lineage-backed DAG reconstruction (`--diff-dag`)** — when a run's project
+  directory has a Nextflow data-lineage store (`.lineage/`, produced with
+  `lineage.enabled = true` on Nextflow 25.04+), the process wiring is now read
+  from the **authoritative** provenance Nextflow persisted instead of being
+  inferred from work-dir symlinks. A new `LineageStore` reads each `.data.json`
+  record directly off disk (no compile-time dependency on the `nf-lineage`
+  module), indexes the run's `TaskRun` records by their session id, and
+  reconstructs producer→consumer edges from each task's recorded `input` LID
+  references (`lid://<producerTaskHash>/…`). Because it reads what Nextflow
+  recorded, this needs **no work directories** and is unaffected by cleanup.
+  `DagComparator.graphOf` now takes the run's project directory and prefers the
+  lineage store, falling back to the existing best-effort symlink
+  reconstruction (`symlinkGraphOf`) when no lineage store recorded the run. Each
+  run's `RunGraph` carries a `source` (`LINEAGE` / `SYMLINK` / `NONE`), and the
+  wiring layer's note now states whether the graph is authoritative (lineage) or
+  best-effort (symlinks), including the mixed case. The layer remains
+  informational only — it never affects the "identical" verdict or
+  `--fail-on-change`. Only the default `<projectDir>/.lineage` store location is
+  auto-detected; a custom `lineage.store.location` still falls back to symlinks.
+
+### Changed
+
+- **`--diff-dag` no longer requires work directories when lineage is enabled.**
+  Previously the wiring layer always needed the tasks' work directories to still
+  exist locally; with a lineage store present it is reconstructed from persisted
+  provenance instead.
+
 - **Continuous integration & tag-based releases** — a GitHub Actions CI
   workflow (`.github/workflows/ci.yml`) now runs the full verification suite
   (`make check`) on every push and pull request to `main`, across JDK 17 and 21,

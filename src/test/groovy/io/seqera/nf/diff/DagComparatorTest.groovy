@@ -3,6 +3,7 @@ package io.seqera.nf.diff
 import java.nio.file.Files
 import java.nio.file.Path
 
+import groovy.json.JsonOutput
 import spock.lang.Specification
 import spock.lang.TempDir
 
@@ -14,6 +15,12 @@ class DagComparatorTest extends Specification {
     /** Create a task work dir under {@code tmp} and return it. */
     private Path workdir(String name) {
         return Files.createDirectories(tmp.resolve(name))
+    }
+
+    /** Write a lineage record as {@code <store>/<hash>/.data.json}. */
+    private void lineageRecord(Path store, String hash, Map record) {
+        def dir = Files.createDirectories(store.resolve(hash))
+        Files.write(dir.resolve('.data.json'), JsonOutput.toJson(record).bytes)
     }
 
     private TaskInfo task(String process, Path dir) {
@@ -36,9 +43,10 @@ class DagComparatorTest extends Specification {
         def run = new RunSnapshot(tasks: [task('A', dirA), task('B', dirB)])
 
         when:
-        def graph = new DagComparator().graphOf(run)
+        def graph = new DagComparator().symlinkGraphOf(run)
 
         then:
+        graph.source == DagComparator.Source.SYMLINK
         graph.anyWorkdir
         graph.missingWorkdirs == 0
         graph.edges.collect { "${it.from}->${it.to}" } == ['A->B']
@@ -53,7 +61,7 @@ class DagComparatorTest extends Specification {
         def run = new RunSnapshot(tasks: [task('A', dirA), task('B', dirB)])
 
         when:
-        def graph = new DagComparator().graphOf(run)
+        def graph = new DagComparator().symlinkGraphOf(run)
 
         then:
         graph.anyWorkdir
@@ -66,7 +74,7 @@ class DagComparatorTest extends Specification {
         def run = new RunSnapshot(tasks: [task('A', dirA), task('B', tmp.resolve('gone'))])
 
         when:
-        def graph = new DagComparator().graphOf(run)
+        def graph = new DagComparator().symlinkGraphOf(run)
 
         then:
         graph.anyWorkdir
@@ -83,9 +91,80 @@ class DagComparatorTest extends Specification {
         def run = new RunSnapshot(tasks: [task('A', dirA), task('B', dirB)])
 
         when:
-        def graph = new DagComparator().graphOf(run)
+        def graph = new DagComparator().symlinkGraphOf(run)
 
         then:
+        graph.edges.collect { "${it.from}->${it.to}" } == ['A->B']
+    }
+
+    // --- lineage-backed reconstruction (authoritative, no work dirs) ---
+
+    def 'reads an authoritative producer -> consumer edge from the lineage store'() {
+        given: 'a .lineage store recording A producing an output B consumed'
+        def sid = UUID.randomUUID()
+        def store = Files.createDirectories(tmp.resolve('.lineage'))
+        lineageRecord(store, 'wf000', [type: 'WorkflowRun', sessionId: sid.toString(), name: 'run'])
+        lineageRecord(store, 'hashA', [type: 'TaskRun', sessionId: sid.toString(), name: 'A', input: []])
+        lineageRecord(store, 'hashB', [type: 'TaskRun', sessionId: sid.toString(), name: 'B',
+                input: [[type: 'path', name: 'in', value: ['lid://hashA/out.txt']]]])
+        // No work directories set on the tasks — lineage must not need them.
+        def run = new RunSnapshot(sessionId: sid, tasks: [task('A', null), task('B', null)])
+
+        when:
+        def graph = new DagComparator().graphOf(run, tmp)
+
+        then:
+        graph.source == DagComparator.Source.LINEAGE
+        graph.edges.collect { "${it.from}->${it.to}" } == ['A->B']
+    }
+
+    def 'strips the task tag from a lineage name down to the process name'() {
+        given:
+        def sid = UUID.randomUUID()
+        def store = Files.createDirectories(tmp.resolve('.lineage'))
+        lineageRecord(store, 'hA', [type: 'TaskRun', sessionId: sid.toString(), name: 'ALIGN:BWA (sample1)', input: []])
+        lineageRecord(store, 'hB', [type: 'TaskRun', sessionId: sid.toString(), name: 'QC:SAMTOOLS (sample1)',
+                input: [[type: 'path', name: 'bam', value: 'lid://hA/aln.bam']]])
+        def run = new RunSnapshot(sessionId: sid, tasks: [])
+
+        when:
+        def graph = new DagComparator().graphOf(run, tmp)
+
+        then:
+        graph.source == DagComparator.Source.LINEAGE
+        graph.edges.collect { "${it.from}->${it.to}" } == ['ALIGN:BWA->QC:SAMTOOLS']
+    }
+
+    def 'ignores lineage records from other sessions'() {
+        given: 'the store holds a task from a different run'
+        def sid = UUID.randomUUID()
+        def store = Files.createDirectories(tmp.resolve('.lineage'))
+        lineageRecord(store, 'other', [type: 'TaskRun', sessionId: UUID.randomUUID().toString(), name: 'X', input: []])
+        def dirA = workdir('A')
+        def dirB = workdir('B')
+        stageInput(dirB, dirA)
+        def run = new RunSnapshot(sessionId: sid, tasks: [task('A', dirA), task('B', dirB)])
+
+        when: 'no lineage record matches this session, so it falls back to symlinks'
+        def graph = new DagComparator().graphOf(run, tmp)
+
+        then:
+        graph.source == DagComparator.Source.SYMLINK
+        graph.edges.collect { "${it.from}->${it.to}" } == ['A->B']
+    }
+
+    def 'falls back to symlink reconstruction when no lineage store exists'() {
+        given:
+        def dirA = workdir('A')
+        def dirB = workdir('B')
+        stageInput(dirB, dirA)
+        def run = new RunSnapshot(sessionId: UUID.randomUUID(), tasks: [task('A', dirA), task('B', dirB)])
+
+        when: 'projectDir has no .lineage directory'
+        def graph = new DagComparator().graphOf(run, tmp)
+
+        then:
+        graph.source == DagComparator.Source.SYMLINK
         graph.edges.collect { "${it.from}->${it.to}" } == ['A->B']
     }
 }

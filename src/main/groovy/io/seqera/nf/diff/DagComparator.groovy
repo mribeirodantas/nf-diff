@@ -7,29 +7,36 @@ import java.nio.file.Paths
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 
+import java.nio.file.Path
+
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import io.seqera.nf.diff.DiffResult.DagEdge
 
 /**
- * Reconstructs a run's process&#8594;process wiring from the input symlinks
- * Nextflow stages into each task's work directory, so two runs can be compared
+ * Reconstructs a run's process&#8594;process wiring so two runs can be compared
  * for topology changes that the task-count-per-process view cannot see (e.g. a
  * pipeline rewired from {@code A → C} to {@code A → B → C}).
  *
- * <p>Nextflow does not persist DAG edges in its history or cache, so there is
- * no authoritative edge list to read. What it <em>does</em> leave on disk is
- * every task's staged inputs, materialised as symbolic links inside the task's
- * work directory. A link that resolves <em>into another task's work directory</em>
- * means that task consumed the other's output — a producer&#8594;consumer edge.
- * Links that resolve elsewhere (a {@code stage-*} directory, or the original
- * input data) are external inputs and yield no edge.
- *
- * <p>Because it walks work directories, this layer needs them to still exist
- * locally (like {@code --diff-outputs} / {@code --diff-logs}) and is a
- * best-effort reconstruction: if some work dirs were cleaned up, the recovered
- * wiring is incomplete. For that reason the caller treats it as informational
- * only — it never breaks the "identical" verdict or {@code --fail-on-change}.
+ * <p>Two sources are used, in order of trust:
+ * <ol>
+ *   <li><b>Data lineage</b> — when the run's project directory has a Nextflow
+ *       lineage store ({@code .lineage/}, from {@code lineage.enabled}) that
+ *       recorded this session, edges are read from the persisted
+ *       {@code TaskRun} input references via {@link LineageStore}. This is
+ *       <em>authoritative</em>: it is exactly the provenance Nextflow recorded,
+ *       needs no work directories, and is unaffected by cleanup.</li>
+ *   <li><b>Work-dir symlinks</b> — otherwise the wiring is inferred from the
+ *       input symlinks Nextflow stages into each task's work directory: a link
+ *       that resolves <em>into another task's work directory</em> means that
+ *       task consumed the other's output — a producer&#8594;consumer edge; links
+ *       resolving elsewhere are external inputs and yield no edge. This needs the
+ *       work directories to still exist locally and is a <em>best-effort</em>
+ *       reconstruction — if some were cleaned up, the recovered wiring is
+ *       incomplete.</li>
+ * </ol>
+ * Either way this layer is informational only — the caller never lets it break
+ * the "identical" verdict or {@code --fail-on-change}.
  */
 @Slf4j
 @CompileStatic
@@ -38,14 +45,27 @@ class DagComparator {
     /** Everything is read-only local I/O; no task is ever re-executed. */
     DagComparator() {}
 
+    /** Where a run's reconstructed wiring came from. */
+    static enum Source {
+        /** Read from the authoritative {@code .lineage/} provenance store. */
+        LINEAGE,
+        /** Inferred (best-effort) from work-dir input symlinks. */
+        SYMLINK,
+        /** Nothing was available (no lineage store, no readable work dirs). */
+        NONE
+    }
+
     /**
-     * The reconstructed edge set for a run, plus whether any work directory was
-     * actually readable (so the caller can tell "no edges" from "nothing to
-     * read").
+     * The reconstructed edge set for a run, plus how it was obtained and (for
+     * the symlink source) whether any work directory was actually readable, so
+     * the caller can tell "no edges" from "nothing to read" and word its note
+     * as authoritative vs best-effort.
      */
     @CompileStatic
     static class RunGraph {
         Set<DagEdge> edges = new LinkedHashSet<>()
+        /** How the edges were obtained. */
+        Source source = Source.NONE
         /** True when at least one task work directory existed and was scanned. */
         boolean anyWorkdir = false
         /** Number of tasks whose work directory was missing/unreadable. */
@@ -53,12 +73,31 @@ class DagComparator {
     }
 
     /**
+     * Reconstruct the process&#8594;process edges for a single run, preferring
+     * the authoritative lineage store under {@code projectDir} and falling back
+     * to work-dir symlink inference when no lineage store recorded this run.
+     */
+    RunGraph graphOf(RunSnapshot run, Path projectDir) {
+        final store = LineageStore.locate(projectDir)
+        if( store != null ) {
+            final edges = store.edgesForSession(run.sessionId)
+            if( edges != null ) {
+                log.debug "nf-diff: reconstructed ${edges.size()} DAG edge(s) for '${run.runName}' from the lineage store"
+                return new RunGraph(edges: edges, source: Source.LINEAGE, anyWorkdir: true, missingWorkdirs: 0)
+            }
+            log.debug "nf-diff: lineage store present but held no wiring for '${run.runName}'; falling back to work-dir symlinks"
+        }
+        return symlinkGraphOf(run)
+    }
+
+    /**
      * Reconstruct the process&#8594;process edges for a single run by scanning
      * each task's work directory for input symlinks that resolve into another
-     * task's work directory.
+     * task's work directory. Retained as the fallback used when no lineage store
+     * recorded the run, and exposed for direct use in tests.
      */
-    RunGraph graphOf(RunSnapshot run) {
-        final graph = new RunGraph()
+    RunGraph symlinkGraphOf(RunSnapshot run) {
+        final graph = new RunGraph(source: Source.SYMLINK)
 
         // Map every task's normalised absolute work dir -> its process name, so
         // a resolved symlink target can be attributed back to its producer.

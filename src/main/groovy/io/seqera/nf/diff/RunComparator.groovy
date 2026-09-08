@@ -201,8 +201,8 @@ class RunComparator {
         result.diffDag = true
 
         final comparator = new DagComparator()
-        final graphA = comparator.graphOf(a)
-        final graphB = comparator.graphOf(b)
+        final graphA = comparator.graphOf(a, baseDirA)
+        final graphB = comparator.graphOf(b, baseDirB)
 
         final all = new TreeSet<DiffResult.DagEdge>({ DiffResult.DagEdge x, DiffResult.DagEdge y ->
             final byTo = (x.to ?: '') <=> (y.to ?: '')
@@ -236,15 +236,39 @@ class RunComparator {
         }
     }
 
-    /** Build the human-readable note for the wiring layer. */
+    /**
+     * Build the human-readable note for the wiring layer, tailored to how each
+     * run's graph was obtained: authoritative when read from the lineage store,
+     * best-effort when inferred from work-dir symlinks.
+     */
     private static String dagNote(DagComparator.RunGraph graphA, DagComparator.RunGraph graphB) {
-        if( !graphA.anyWorkdir && !graphB.anyWorkdir )
-            return 'No work directories were available locally, so process wiring could not be reconstructed. ' +
-                    'DAG diffing needs the tasks\' work directories to still exist on this machine.'
+        final bothLineage = graphA.source == DagComparator.Source.LINEAGE &&
+                graphB.source == DagComparator.Source.LINEAGE
+        if( bothLineage )
+            return 'Process wiring read from the Nextflow data-lineage store (each task\'s recorded input ' +
+                    'provenance), so it is authoritative and needs no work directories. Informational only — ' +
+                    'it never affects the "identical" verdict or --fail-on-change.'
+
+        final anyLineage = graphA.source == DagComparator.Source.LINEAGE ||
+                graphB.source == DagComparator.Source.LINEAGE
+        final anyWorkdir = graphA.anyWorkdir || graphB.anyWorkdir
+        if( !anyLineage && !anyWorkdir )
+            return 'No lineage store and no local work directories were available, so process wiring could not ' +
+                    'be reconstructed. DAG diffing reads the .lineage/ store when present, otherwise it needs the ' +
+                    'tasks\' work directories to still exist on this machine.'
+
         final missing = graphA.missingWorkdirs + graphB.missingWorkdirs
-        final base = 'Process wiring reconstructed from each task\'s staged input symlinks (a link into another ' +
-                'task\'s work directory is a producer→consumer edge). This is a best-effort reconstruction and ' +
-                'is informational only — it never affects the "identical" verdict or --fail-on-change.'
+        String base
+        if( anyLineage )
+            // One side is authoritative (lineage), the other inferred from symlinks.
+            base = 'One run\'s wiring was read from the data-lineage store (authoritative); the other was ' +
+                    'inferred from work-dir input symlinks (best-effort). Informational only — it never affects ' +
+                    'the "identical" verdict or --fail-on-change.'
+        else
+            base = 'Process wiring inferred from each task\'s staged input symlinks (a link into another task\'s ' +
+                    'work directory is a producer→consumer edge). This is a best-effort reconstruction — enable ' +
+                    'lineage (lineage.enabled) for an authoritative graph. Informational only — it never affects ' +
+                    'the "identical" verdict or --fail-on-change.'
         if( missing > 0 )
             return (base + " ${missing} task(s) had a missing work directory; recovered wiring may be incomplete.").toString()
         return base
