@@ -69,7 +69,7 @@ class DiffCommand {
         final snapB = loader.load(runB)
 
         final filter = ProcessFilter.of(onlyGlobs, excludeGlobs)
-        final diff = new RunComparator(verbose, filter).compare(snapA, snapB)
+        final diff = new RunComparator(verbose, filter, baseDir).compare(snapA, snapB)
 
         final content = renderContent(diff)
 

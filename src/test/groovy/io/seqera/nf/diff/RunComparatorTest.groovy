@@ -1,8 +1,15 @@
 package io.seqera.nf.diff
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 import spock.lang.Specification
+import spock.lang.TempDir
 
 class RunComparatorTest extends Specification {
+
+    @TempDir
+    Path projectDir
 
     private TaskInfo task(Map args) {
         def t = new TaskInfo(
@@ -240,6 +247,70 @@ class RunComparatorTest extends Specification {
         html.contains('<style>')
         html.contains('code-diff')      // script diff rendered
         !html.contains('<script src')   // no external scripts
+    }
+
+    // -- configuration layer ------------------------------------------------
+
+    private void writeConfig(String content) {
+        Files.write(projectDir.resolve('nextflow.config'), content.getBytes('UTF-8'))
+    }
+
+    def 'configuration layer diffs the resolved config between two profiles'() {
+        given:
+        writeConfig('''
+            process.cpus = 1
+            docker.enabled = false
+            profiles {
+                docker { docker.enabled = true; process.cpus = 8 }
+            }
+        '''.stripIndent())
+        def tasks = [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED'])]
+        def a = snap('runA', tasks.collect { it }, 'nextflow run main.nf')
+        def b = snap('runB', tasks.collect { it }, 'nextflow run main.nf -profile docker')
+
+        when:
+        def diff = new RunComparator(false, null, projectDir).compare(a, b)
+
+        then: 'process.cpus and docker.enabled show up as config changes'
+        def cpus = diff.config.find { it.field == 'process.cpus' }
+        cpus.valueA == '1' && cpus.valueB == '8' && cpus.changed
+        def docker = diff.config.find { it.field == 'docker.enabled' }
+        docker.valueA == 'false' && docker.valueB == 'true' && docker.changed
+        and: 'the note explains this is resolved from current on-disk config'
+        diff.configNote?.contains('on-disk config')
+    }
+
+    def 'configuration layer is skipped when no project directory is given'() {
+        given:
+        def tasks = [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED'])]
+        def a = snap('runA', tasks.collect { it }, 'nextflow run main.nf')
+        def b = snap('runB', tasks.collect { it }, 'nextflow run main.nf -profile docker')
+
+        when:
+        def diff = new RunComparator().compare(a, b)
+
+        then:
+        diff.config == null || diff.config.isEmpty()
+        diff.configNote?.contains('skipped')
+    }
+
+    def 'parameter field diffs carry the CLI-vs-file source of each value'() {
+        given:
+        Files.write(projectDir.resolve('p.json'),
+                '{"input":"from-file.csv"}'.getBytes('UTF-8'))
+        def tasks = [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED'])]
+        def a = snap('runA', tasks.collect { it }, 'nextflow run main.nf -params-file p.json')
+        def b = snap('runB', tasks.collect { it }, 'nextflow run main.nf --input from-cli.csv')
+
+        when:
+        def diff = new RunComparator(false, null, projectDir).compare(a, b)
+
+        then:
+        def input = diff.params.find { it.field == '--input' }
+        input.valueA == 'from-file.csv'
+        input.valueB == 'from-cli.csv'
+        input.sourceA == CommandParams.SRC_FILE
+        input.sourceB == CommandParams.SRC_CLI
     }
 
     def 'renderer escapes HTML in task values'() {

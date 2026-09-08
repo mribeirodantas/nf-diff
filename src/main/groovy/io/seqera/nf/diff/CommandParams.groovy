@@ -1,6 +1,13 @@
 package io.seqera.nf.diff
 
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+
+import groovy.json.JsonSlurper
 import groovy.transform.CompileStatic
+import groovy.util.logging.Slf4j
+import org.yaml.snakeyaml.Yaml
 
 /**
  * Parses a Nextflow launch command string (as recorded in {@code .nextflow/history})
@@ -13,8 +20,134 @@ import groovy.transform.CompileStatic
  * or {@code -params-file}, because Nextflow does not persist those in the
  * history/cache that nf-diff reads.
  */
+@Slf4j
 @CompileStatic
 class CommandParams {
+
+    /** Source of a resolved parameter value. */
+    static final String SRC_CLI = 'CLI'
+    /** From a {@code -params-file} (JSON/YAML). */
+    static final String SRC_FILE = 'file'
+    /** Defined in both a params-file and on the command line; the CLI value wins. */
+    static final String SRC_BOTH = 'CLI+file'
+
+    /**
+     * A resolved view of a run's parameters: the merged flag/value map plus,
+     * for each flag, where its value came from. This closes the blind spot of
+     * {@link #parse} — which only sees literal command-line flags — by folding
+     * in the contents of any {@code -params-file} the command referenced.
+     */
+    @CompileStatic
+    static class Resolved {
+        /** Ordered {@code flag -> value}: params-file entries first, then CLI. */
+        Map<String,String> values = new LinkedHashMap<String,String>()
+        /** {@code flag -> } one of {@link #SRC_CLI}, {@link #SRC_FILE}, {@link #SRC_BOTH}. */
+        Map<String,String> sources = new LinkedHashMap<String,String>()
+    }
+
+    /**
+     * Resolve the effective parameters of a launch command, merging any
+     * {@code -params-file} contents with the literal command-line flags.
+     *
+     * <p>Nextflow's precedence applies: a value given on the command line
+     * overrides the same key in the params-file, so CLI flags are layered on
+     * top and win. Each entry is tagged with its {@link Resolved#sources source}
+     * so the report can show whether a value came from the command line, a
+     * params-file, or both.
+     *
+     * <p>The params-file is read from disk <em>now</em>, resolved relative to
+     * {@code baseDir} when the recorded path is relative. Nextflow does not
+     * persist params-file contents in its run history, so this reflects the
+     * file's current state — if it has changed or moved since the run, the
+     * values shown are best-effort. An unreadable or unparseable file is
+     * skipped rather than treated as an error.
+     *
+     * @param command the recorded launch command
+     * @param baseDir project directory used to resolve a relative params-file
+     *                path (may be {@code null}, in which case only absolute
+     *                paths are read)
+     */
+    static Resolved resolve(String command, Path baseDir = null) {
+        final result = new Resolved()
+        final cli = parse(command)
+
+        // 1) params-file first, so CLI flags below can override its values.
+        final pfPath = cli.get('-params-file')
+        if( pfPath != null && pfPath != 'true' ) {
+            loadParamsFile(pfPath, baseDir).each { String k, String v ->
+                result.values[k] = v
+                result.sources[k] = SRC_FILE
+            }
+        }
+
+        // 2) literal command-line flags (options + params); these win on conflict.
+        cli.each { String k, String v ->
+            result.sources[k] = result.values.containsKey(k) ? SRC_BOTH : SRC_CLI
+            result.values[k] = v
+        }
+        return result
+    }
+
+    /**
+     * Read a {@code -params-file} and flatten it into {@code --flag -> value}
+     * entries (nested maps become dotted keys, e.g. {@code --genome.build}).
+     * Returns an empty map when the file is missing, unreadable or unparseable.
+     */
+    private static Map<String,String> loadParamsFile(String path, Path baseDir) {
+        final out = new LinkedHashMap<String,String>()
+        final file = resolveParamsPath(path, baseDir)
+        if( file == null || !Files.isReadable(file) ) {
+            log.debug "nf-diff: params-file '${path}' not readable (resolved: ${file}); skipping"
+            return out
+        }
+        try {
+            final text = new String(Files.readAllBytes(file), 'UTF-8')
+            flatten('', parseStructured(text, file.toString()), out)
+        }
+        catch( Exception e ) {
+            log.warn "nf-diff: could not parse params-file '${file}': ${e.message}"
+        }
+        return out
+    }
+
+    /** Resolve a params-file path against {@code baseDir} when it is relative. */
+    private static Path resolveParamsPath(String path, Path baseDir) {
+        final p = Paths.get(path)
+        if( p.isAbsolute() || baseDir == null )
+            return p
+        return baseDir.resolve(p)
+    }
+
+    /** Parse params-file text as YAML or JSON, guided by extension then content. */
+    private static Object parseStructured(String text, String name) {
+        final lower = name.toLowerCase()
+        if( lower.endsWith('.yml') || lower.endsWith('.yaml') )
+            return new Yaml().load(text)
+        if( lower.endsWith('.json') )
+            return new JsonSlurper().parseText(text)
+        // unknown extension: sniff the content (JSON is a strict subset of YAML,
+        // but JsonSlurper gives cleaner types for the common JSON case).
+        final trimmed = text.trim()
+        if( trimmed.startsWith('{') || trimmed.startsWith('[') )
+            return new JsonSlurper().parseText(text)
+        return new Yaml().load(text)
+    }
+
+    /**
+     * Recursively flatten a parsed params structure into {@code --dotted.key}
+     * entries. Maps recurse; scalars and lists are leaves rendered as strings.
+     */
+    private static void flatten(String prefix, Object node, Map<String,String> out) {
+        if( node instanceof Map ) {
+            ((Map) node).each { Object k, Object v ->
+                final key = prefix ? "${prefix}.${k}".toString() : k.toString()
+                flatten(key, v, out)
+            }
+        }
+        else if( prefix ) {
+            out["--${prefix}".toString()] = (node == null) ? 'null' : node.toString()
+        }
+    }
 
     /**
      * Parse the flags out of a launch command. Keys retain their leading dashes

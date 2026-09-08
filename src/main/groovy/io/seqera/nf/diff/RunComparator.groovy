@@ -1,6 +1,9 @@
 package io.seqera.nf.diff
 
+import java.nio.file.Path
+
 import groovy.transform.CompileStatic
+import groovy.util.logging.Slf4j
 import io.seqera.nf.diff.DiffResult.FieldDiff
 import io.seqera.nf.diff.DiffResult.Kind
 import io.seqera.nf.diff.DiffResult.ProcessDiff
@@ -8,8 +11,10 @@ import io.seqera.nf.diff.DiffResult.TaskDiff
 
 /**
  * Computes a {@link DiffResult} between two {@link RunSnapshot} instances across
- * three layers: run metadata, process topology, and per-task detail.
+ * these layers: run metadata, parameters, resolved configuration, process
+ * topology, and per-task detail.
  */
+@Slf4j
 @CompileStatic
 class RunComparator {
 
@@ -62,15 +67,24 @@ class RunComparator {
     /** Restricts which processes/tasks are compared (defaults to all). */
     private final ProcessFilter filter
 
-    RunComparator(boolean showObvious = false, ProcessFilter filter = null) {
+    /**
+     * Project directory used to resolve each run's {@code -params-file} and
+     * {@code nextflow.config}. When null, the parameters layer sees only literal
+     * command-line flags and the configuration layer is skipped.
+     */
+    private final Path baseDir
+
+    RunComparator(boolean showObvious = false, ProcessFilter filter = null, Path baseDir = null) {
         this.showObvious = showObvious
         this.filter = filter ?: ProcessFilter.of([], [])
+        this.baseDir = baseDir
     }
 
     DiffResult compare(RunSnapshot a, RunSnapshot b) {
         final result = new DiffResult(runA: a, runB: b, showObvious: showObvious)
         result.metadata = compareMetadata(a, b)
         result.params = compareParams(a, b)
+        computeConfig(result, a, b)
         result.processes = compareProcesses(a, b).findAll { ProcessDiff pd -> filter.accepts(pd.process) }
         result.tasks = compareTasks(a, b).findAll { TaskDiff td -> filter.accepts(td.process()) }
 
@@ -109,8 +123,10 @@ class RunComparator {
      * missing value on the other side.
      */
     private List<FieldDiff> compareParams(RunSnapshot a, RunSnapshot b) {
-        final pa = CommandParams.parse(a.command)
-        final pb = CommandParams.parse(b.command)
+        final ra = CommandParams.resolve(a.command, baseDir)
+        final rb = CommandParams.resolve(b.command, baseDir)
+        final pa = ra.values
+        final pb = rb.values
         final keys = new TreeSet<String>()
         keys.addAll(pa.keySet())
         keys.addAll(pb.keySet())
@@ -120,8 +136,48 @@ class RunComparator {
         ordered.addAll(keys.findAll { String k -> CommandParams.isPipelineParam(k) })
 
         return ordered.collect { String k ->
-            field(k, pa.get(k), pb.get(k), OBVIOUS_PARAM_KEYS.contains(k))
+            final fd = field(k, pa.get(k), pb.get(k), OBVIOUS_PARAM_KEYS.contains(k))
+            fd.sourceA = ra.sources.get(k)
+            fd.sourceB = rb.sources.get(k)
+            return fd
         }
+    }
+
+    /**
+     * Populate the configuration layer: resolve each run's effective Nextflow
+     * config (see {@link ConfigLoader}) and diff the flattened key/value maps.
+     * Config resolution reads the current on-disk config files, so failures
+     * (missing project dir, unparseable config, unknown profile) are recorded
+     * as a note rather than allowed to break the whole comparison.
+     */
+    private void computeConfig(DiffResult result, RunSnapshot a, RunSnapshot b) {
+        if( baseDir == null ) {
+            result.configNote = 'Configuration diff skipped: no project directory available.'
+            return
+        }
+        Map<String,String> ca
+        Map<String,String> cb
+        try {
+            final loader = new ConfigLoader()
+            ca = loader.resolve(a.command, baseDir)
+            cb = loader.resolve(b.command, baseDir)
+        }
+        catch( Exception e ) {
+            log.warn "nf-diff: could not resolve configuration: ${e.message}"
+            result.configNote = "Configuration could not be resolved from ${baseDir}: ${e.message}"
+            return
+        }
+
+        final keys = new TreeSet<String>()
+        keys.addAll(ca.keySet())
+        keys.addAll(cb.keySet())
+        result.config = keys.collect { String k -> field(k, ca.get(k), cb.get(k)) }
+
+        result.configNote = keys.isEmpty()
+                ? "No Nextflow configuration was resolved from ${baseDir} for either run."
+                : ('Resolved from the current on-disk config files under ' +
+                   "${baseDir}, applying each run's -profile/-c options — not a " +
+                   'snapshot of the config at launch time.')
     }
 
     private List<ProcessDiff> compareProcesses(RunSnapshot a, RunSnapshot b) {

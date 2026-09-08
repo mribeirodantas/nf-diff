@@ -39,6 +39,8 @@ class JsonReportRenderer {
                 ],
                 metadata   : diff.metadata.collect { fieldModel(it, diff.showObvious) },
                 params     : diff.params.collect { fieldModel(it, diff.showObvious) },
+                config     : diff.config.collect { fieldModel(it, diff.showObvious) },
+                configNote : diff.configNote,
                 processes  : diff.processes.collect { processModel(it) },
                 tasks      : diff.tasks.collect { taskModel(it, diff.showObvious) },
         ] as Map<String,Object>
@@ -59,7 +61,7 @@ class JsonReportRenderer {
     }
 
     private Map<String,Object> fieldModel(FieldDiff fd, boolean showObvious) {
-        return [
+        final model = [
                 field      : fd.field,
                 valueA     : fd.valueA,
                 valueB     : fd.valueB,
@@ -67,6 +69,12 @@ class JsonReportRenderer {
                 obvious    : fd.obvious,
                 highlighted: fd.isHighlighted(showObvious),
         ] as Map<String,Object>
+        // Provenance only applies to the parameters layer; omit it elsewhere.
+        if( fd.sourceA != null )
+            model.sourceA = fd.sourceA
+        if( fd.sourceB != null )
+            model.sourceB = fd.sourceB
+        return model
     }
 
     private Map<String,Object> processModel(ProcessDiff pd) {

@@ -22,6 +22,15 @@ class DiffResult {
          */
         boolean obvious = false
 
+        /**
+         * For the parameters layer: where each side's value came from — one of
+         * {@link CommandParams#SRC_CLI}, {@link CommandParams#SRC_FILE} or
+         * {@link CommandParams#SRC_BOTH}. Null for layers where provenance does
+         * not apply (metadata, config, tasks).
+         */
+        String sourceA
+        String sourceB
+
         boolean isChanged() {
             return (valueA ?: '') != (valueB ?: '')
         }
@@ -71,6 +80,17 @@ class DiffResult {
     List<FieldDiff> metadata = []
     /** Launch-command parameters and Nextflow options, keyed by flag. */
     List<FieldDiff> params = []
+    /**
+     * Resolved Nextflow configuration, flattened to dotted keys
+     * (e.g. {@code process.cpus}, {@code docker.enabled}). Empty when config
+     * could not be resolved; see {@link #configNote} for why.
+     */
+    List<FieldDiff> config = []
+    /**
+     * Human-readable note about the configuration layer: how it was resolved
+     * (or why it is empty). Surfaced by the renderers as context.
+     */
+    String configNote
     List<ProcessDiff> processes = []
     List<TaskDiff> tasks = []
 
@@ -96,6 +116,7 @@ class DiffResult {
         return tasksAdded == 0 && tasksRemoved == 0 && tasksChanged == 0 &&
                 metadata.every { !it.isHighlighted(showObvious) } &&
                 params.every { !it.isHighlighted(showObvious) } &&
+                config.every { !it.isHighlighted(showObvious) } &&
                 processes.every { it.unchanged }
     }
 }

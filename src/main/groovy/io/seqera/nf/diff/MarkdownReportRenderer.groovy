@@ -25,6 +25,7 @@ class MarkdownReportRenderer {
         renderRuns(sb, diff)
         renderMetadata(sb, diff)
         renderParams(sb, diff)
+        renderConfig(sb, diff)
         renderProcesses(sb, diff)
         renderTasks(sb, diff)
         return sb.toString()
@@ -89,7 +90,34 @@ class MarkdownReportRenderer {
             sb << '_No parameter changes._\n\n'
             return
         }
-        sb << '| Flag | Run A | Run B |\n'
+        sb << '| Flag | Run A | Run B | Source |\n'
+        sb << '|---|---|---|---|\n'
+        highlighted.each { FieldDiff fd ->
+            sb << "| ${cell(fd.field)} | ${cell(fd.valueA)} | ${cell(fd.valueB)} | ${cell(sourceLabel(fd))} |\n"
+        }
+        sb << '\n'
+    }
+
+    /** Compact provenance label for a param row (e.g. `CLI`, `file`, `A:file B:CLI`). */
+    private static String sourceLabel(FieldDiff fd) {
+        if( fd.sourceA == fd.sourceB )
+            return fd.sourceA ?: ''
+        return "A:${fd.sourceA ?: '—'} B:${fd.sourceB ?: '—'}".toString()
+    }
+
+    private void renderConfig(StringBuilder sb, DiffResult diff) {
+        sb << '## Resolved configuration\n\n'
+        final highlighted = diff.config.findAll { FieldDiff fd -> fd.isHighlighted(diff.showObvious) }
+        if( diff.configNote )
+            sb << "> ${cell(diff.configNote)}\n\n"
+        if( diff.config.isEmpty() ) {
+            return
+        }
+        if( highlighted.isEmpty() ) {
+            sb << '_No configuration changes._\n\n'
+            return
+        }
+        sb << '| Key | Run A | Run B |\n'
         sb << '|---|---|---|\n'
         highlighted.each { FieldDiff fd -> row(sb, fd.field, fd.valueA, fd.valueB) }
         sb << '\n'

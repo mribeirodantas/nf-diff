@@ -41,6 +41,7 @@ class HtmlReportRenderer {
         renderSummary(sb, diff)
         renderMetadata(sb, diff)
         renderParams(sb, diff)
+        renderConfig(sb, diff)
         renderProcesses(sb, diff)
         renderTasks(sb, diff)
         sb << '</main>\n'
@@ -96,6 +97,7 @@ class HtmlReportRenderer {
         sb << '  <a href="#summary" class="active">Summary</a>\n'
         sb << '  <a href="#metadata">Metadata</a>\n'
         sb << '  <a href="#params">Parameters</a>\n'
+        sb << '  <a href="#config">Configuration</a>\n'
         sb << '  <a href="#processes">Processes</a>\n'
         sb << '  <a href="#tasks">Tasks</a>\n'
         sb << '</nav>\n'
@@ -161,10 +163,57 @@ class HtmlReportRenderer {
             sb << '</section>\n'
             return
         }
-        sb << '  <p class="mode-note">Pipeline params (<code>--foo</code>) and Nextflow options (<code>-profile</code>, <code>-r</code>) parsed from each run\'s launch command.</p>\n'
+        sb << '  <p class="mode-note">Pipeline params (<code>--foo</code>) and Nextflow options (<code>-profile</code>, <code>-r</code>) from each run\'s launch command, merged with any <code>-params-file</code> contents. The <em>Source</em> column shows whether a value came from the command line, a params-file, or both (the command line wins on conflict).</p>\n'
         sb << '  <table class="kv">\n'
-        sb << '    <thead><tr><th>Flag</th><th>Run A</th><th>Run B</th></tr></thead>\n  <tbody>\n'
+        sb << '    <thead><tr><th>Flag</th><th>Run A</th><th>Run B</th><th>Source</th></tr></thead>\n  <tbody>\n'
         diff.params.each { FieldDiff fd ->
+            sb << paramRow(fd, diff.showObvious)
+        }
+        sb << '  </tbody>\n  </table>\n'
+        sb << '</section>\n'
+    }
+
+    /** A parameters-table row: the standard field row plus a provenance cell. */
+    private static String paramRow(FieldDiff fd, boolean showObvious) {
+        final highlighted = fd.isHighlighted(showObvious)
+        final softChange = fd.changed && fd.obvious && !showObvious
+        final cls = highlighted ? ' class="row-changed"' : (softChange ? ' class="row-obvious"' : '')
+        final tag = softChange ? ' <span class="tag-auto" title="Always differs between runs">auto</span>' : ''
+        return "        <tr${cls}><th>${esc(fd.field)}${tag}</th>" +
+                "<td>${esc(Format.orNa(fd.valueA))}</td>" +
+                "<td>${esc(Format.orNa(fd.valueB))}</td>" +
+                "<td>${sourceCell(fd)}</td></tr>\n"
+    }
+
+    /** Render provenance as small source badges (A/B collapsed when equal). */
+    private static String sourceCell(FieldDiff fd) {
+        if( fd.sourceA == fd.sourceB )
+            return fd.sourceA ? sourceBadge(fd.sourceA) : '<span class="src-na">—</span>'
+        final a = fd.sourceA ? "A:${sourceBadge(fd.sourceA)}" : ''
+        final b = fd.sourceB ? "B:${sourceBadge(fd.sourceB)}" : ''
+        return "${a} ${b}".trim()
+    }
+
+    private static String sourceBadge(String source) {
+        final cls = source == CommandParams.SRC_FILE ? 'src-file'
+                : (source == CommandParams.SRC_BOTH ? 'src-both' : 'src-cli')
+        return "<span class=\"src ${cls}\">${esc(source)}</span>"
+    }
+
+    // --------------------------------------------------------------- config
+
+    private void renderConfig(StringBuilder sb, DiffResult diff) {
+        sb << '<section id="config" class="section">\n'
+        sb << '  <h2>Resolved configuration</h2>\n'
+        if( diff.configNote )
+            sb << "  <p class=\"mode-note\">${esc(diff.configNote)}</p>\n"
+        if( diff.config.isEmpty() ) {
+            sb << '</section>\n'
+            return
+        }
+        sb << '  <table class="kv">\n'
+        sb << '    <thead><tr><th>Key</th><th>Run A</th><th>Run B</th></tr></thead>\n  <tbody>\n'
+        diff.config.each { FieldDiff fd ->
             sb << fieldRow(fd, diff.showObvious)
         }
         sb << '  </tbody>\n  </table>\n'
@@ -470,6 +519,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 .row-changed th{color:var(--changed)}
 .row-obvious th{color:var(--muted)}
 .tag-auto{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);vertical-align:middle}
+.src{display:inline-block;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:700;letter-spacing:.3px;border:1px solid var(--line)}
+.src-cli{color:var(--b);background:rgba(79,140,255,.14)}
+.src-file{color:var(--brand);background:rgba(13,192,157,.14)}
+.src-both{color:var(--changed);background:rgba(251,191,36,.16)}
+.src-na{color:var(--muted)}
 .mode-note{color:var(--muted);font-size:13px;margin:0 0 14px;line-height:1.5}
 .mode-note code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px}
 .row-added{background:rgba(52,211,153,.08)} .row-removed{background:rgba(248,113,113,.08)}
