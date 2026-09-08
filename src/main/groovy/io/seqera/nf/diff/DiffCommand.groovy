@@ -28,12 +28,23 @@ class DiffCommand {
     Path baseDir = Paths.get('.')
     /** Include fields that always differ between runs (run name, work dir, timing, resources). */
     boolean verbose = false
-    /** Report format: {@code html} (default) or {@code json}. */
+    /** Report format: {@code html} (default), {@code json} or {@code md}. */
     String format = 'html'
     /** When true, return a non-zero exit code if the runs are not identical. */
     boolean failOnChange = false
-    /** When true, compare the two most recent runs from history (no positional args). */
+    /** When true, compare runs from history rather than explicit run identifiers. */
     boolean last = false
+    /**
+     * How many runs back from the latest to use as run A when {@link #last} is
+     * set: {@code 1} (the bare {@code --last}) compares the two most recent
+     * runs; {@code N} compares the N-th-most-recent-before-latest against the
+     * latest.
+     */
+    int lastBack = 1
+    /** Process-name globs to include; empty means include everything. */
+    List<String> onlyGlobs = []
+    /** Process-name globs to exclude; applied after {@link #onlyGlobs}. */
+    List<String> excludeGlobs = []
 
     /** Exit code returned when {@link #failOnChange} is set and runs differ. */
     static final int EXIT_CHANGED = 3
@@ -44,10 +55,10 @@ class DiffCommand {
         final loader = new RunLoader(baseDir)
 
         if( last ) {
-            final names = loader.lastRunNames(2)
+            final names = loader.lastPair(lastBack)
             runA = names[0]
             runB = names[1]
-            log.info "nf-diff: --last selected '${runA}' (A) and '${runB}' (B)"
+            log.info "nf-diff: --last=${lastBack} selected '${runA}' (A) and '${runB}' (B)"
         }
 
         log.info "nf-diff: comparing runs '${runA}' and '${runB}'"
@@ -57,11 +68,10 @@ class DiffCommand {
         final snapA = loader.load(runA)
         final snapB = loader.load(runB)
 
-        final diff = new RunComparator(verbose).compare(snapA, snapB)
+        final filter = ProcessFilter.of(onlyGlobs, excludeGlobs)
+        final diff = new RunComparator(verbose, filter).compare(snapA, snapB)
 
-        final content = (format == 'json')
-                ? new JsonReportRenderer().render(diff)
-                : new HtmlReportRenderer().render(diff)
+        final content = renderContent(diff)
 
         // When writing to stdout ("-"), the report is the only thing on stdout
         // so it can be piped (e.g. `--format=json --output=- | jq`). The human
@@ -93,6 +103,18 @@ nf-diff: comparison complete
             return EXIT_CHANGED
         }
         return 0
+    }
+
+    /** Render the diff into the requested output format. */
+    private String renderContent(DiffResult diff) {
+        switch( format ) {
+            case 'json':
+                return new JsonReportRenderer().render(diff)
+            case 'md':
+                return new MarkdownReportRenderer().render(diff)
+            default:
+                return new HtmlReportRenderer().render(diff)
+        }
     }
 
     /** True when the report should be written to stdout ({@code --output=-}). */
@@ -151,6 +173,24 @@ nf-diff: comparison complete
                 case '-l':
                 case '--last':
                     last = true
+                    if( inlineVal != null ) {
+                        try {
+                            lastBack = Integer.parseInt(inlineVal)
+                        }
+                        catch( NumberFormatException ignored ) {
+                            throw new UsageException("--last value must be an integer, got '${inlineVal}'")
+                        }
+                        if( lastBack < 1 )
+                            throw new UsageException("--last value must be >= 1, got ${lastBack}")
+                    }
+                    break
+                case '--only':
+                    onlyGlobs.addAll(splitGlobs(requireValue(key, inlineVal, args, i)))
+                    if( inlineVal == null ) i++
+                    break
+                case '--exclude':
+                    excludeGlobs.addAll(splitGlobs(requireValue(key, inlineVal, args, i)))
+                    if( inlineVal == null ) i++
                     break
                 case '-d':
                 case '--dir':
@@ -189,13 +229,34 @@ nf-diff: comparison complete
         }
 
         format = format.toLowerCase()
-        if( format != 'html' && format != 'json' )
-            throw new UsageException("unsupported format '${format}' (expected 'html' or 'json')")
+        if( format == 'markdown' )
+            format = 'md'
+        if( !FORMAT_EXTENSIONS.containsKey(format) )
+            throw new UsageException("unsupported format '${format}' (expected 'html', 'json' or 'md')")
 
-        // When the format is JSON and the user did not pick an output path,
-        // default to a .json file rather than the .html default.
-        if( format == 'json' && !outputExplicit )
-            outputFile = Paths.get('nf-diff-report.json')
+        // When the user did not pick an output path, default the file extension
+        // to match the chosen format rather than the .html default.
+        if( !outputExplicit )
+            outputFile = Paths.get("nf-diff-report.${FORMAT_EXTENSIONS[format]}")
+    }
+
+    /** Default output file extension per report format. */
+    private static final Map<String,String> FORMAT_EXTENSIONS = [
+            html: 'html', json: 'json', md: 'md',
+    ]
+
+    /** Resolve an option value from its inline (`--opt=val`) or next-arg form. */
+    private static String requireValue(String key, String inlineVal, List<String> args, int i) {
+        if( inlineVal != null )
+            return inlineVal
+        if( i + 1 >= args.size() )
+            throw new UsageException("missing value for ${key}")
+        return args[i + 1]
+    }
+
+    /** Split a comma-separated glob list into trimmed, non-empty entries. */
+    private static List<String> splitGlobs(String value) {
+        return value.split(',').collect { String g -> g.trim() }.findAll { String g -> g }
     }
 
     static String usage() {
@@ -210,15 +271,22 @@ Arguments:
                        Omit both when using --last.
 
 Options:
-  -l, --last           Compare the two most recent runs in history (A = the
-                       older of the two, B = the most recent). Cannot be
-                       combined with explicit run identifiers.
+  -l, --last[=N]       Compare recent runs from history. Bare --last compares
+                       the two most recent runs; --last=N compares the run N
+                       positions before the latest (A) against the latest (B).
+                       Cannot be combined with explicit run identifiers.
   --output=<file>      Output report path (default: nf-diff-report.<ext>,
                        where <ext> matches the chosen --format). Use "-" to
                        write the report to stdout (the summary then goes to
                        stderr), e.g. `--format=json --output=- | jq`.
-  --format=<fmt>       Report format: html (default) or json. JSON is
-                       machine-readable for CI, PR bots and dashboards.
+  --format=<fmt>       Report format: html (default), json, or md (markdown).
+                       JSON is machine-readable for CI/dashboards; Markdown
+                       is handy for pull-request comments.
+  --only=<globs>       Comma-separated process-name globs; only matching
+                       processes/tasks are compared. `*` (spans `:` scopes)
+                       and `?` are supported.
+  --exclude=<globs>    Comma-separated process-name globs to drop from the
+                       comparison; applied after --only.
   --dir=<dir>          Project directory containing .nextflow/ (default: .)
   -v, --verbose, --all Also diff fields that always change between runs
                        (run name, session id, launch time, work dir, wall/real
@@ -236,7 +304,10 @@ Examples:
   nextflow plugin nf-diff:diff tender_euler happy_curie
   nextflow plugin nf-diff:diff 3a8c1f2e 9f2b7d10 --output=compare.html
   nextflow plugin nf-diff:diff --last
+  nextflow plugin nf-diff:diff --last=2
   nextflow plugin nf-diff:diff --last --format=json --fail-on-change
+  nextflow plugin nf-diff:diff --last --format=md --output=diff.md
+  nextflow plugin nf-diff:diff --last --only='ALIGN:*' --exclude='*:INDEX'
   nextflow plugin nf-diff:diff runA runB --format=json --output=diff.json
   nextflow plugin nf-diff:diff --last --format=json --output=- | jq .summary
 

@@ -127,4 +127,74 @@ class DiffCommandTest extends Specification {
         !parse(['runA', 'runB']).toStdout()
         !parse(['runA', 'runB', '--output=report.html']).toStdout()
     }
+
+    def 'md format switches the default output extension'() {
+        when:
+        def cmd = parse(['runA', 'runB', '--format=md'])
+
+        then:
+        cmd.format == 'md'
+        cmd.outputFile.fileName.toString() == 'nf-diff-report.md'
+    }
+
+    def 'markdown is accepted as an alias for md'() {
+        expect:
+        parse(['a', 'b', '--format=markdown']).format == 'md'
+        parse(['a', 'b', '--format=Markdown']).format == 'md'
+    }
+
+    def '--last accepts an integer back-offset'() {
+        when:
+        def cmd = parse(['--last=3'])
+
+        then:
+        cmd.last
+        cmd.lastBack == 3
+    }
+
+    def 'bare --last defaults to a back-offset of one'() {
+        expect:
+        parse(['--last']).lastBack == 1
+    }
+
+    def '--last rejects a non-integer value'() {
+        when:
+        parse(['--last=x'])
+
+        then:
+        thrown(DiffCommand.UsageException)
+    }
+
+    def '--last rejects a non-positive value'() {
+        when:
+        parse(['--last=0'])
+
+        then:
+        thrown(DiffCommand.UsageException)
+    }
+
+    def '--only collects comma-separated globs'() {
+        when:
+        def cmd = parse(['runA', 'runB', '--only=FOO,BAR:*'])
+
+        then:
+        cmd.onlyGlobs == ['FOO', 'BAR:*']
+    }
+
+    def '--exclude collects globs and accepts the space-separated form'() {
+        when:
+        def cmd = parse(['runA', 'runB', '--exclude', 'QC*'])
+
+        then:
+        cmd.excludeGlobs == ['QC*']
+    }
+
+    def '--only and --exclude can be combined'() {
+        when:
+        def cmd = parse(['runA', 'runB', '--only=ALIGN:*', '--exclude=*:INDEX'])
+
+        then:
+        cmd.onlyGlobs == ['ALIGN:*']
+        cmd.excludeGlobs == ['*:INDEX']
+    }
 }

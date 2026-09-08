@@ -141,6 +141,46 @@ class RunComparatorTest extends Specification {
         foo.changed
     }
 
+    def '--only restricts the comparison to matching processes'() {
+        given:
+        def a = snap('runA', [
+                task(process: 'ALIGN:BWA', name: 'ALIGN:BWA (1)', display: [status: 'COMPLETED', script: 'x']),
+                task(process: 'QC:FASTQC', name: 'QC:FASTQC (1)', display: [status: 'COMPLETED', script: 'y']),
+        ])
+        def b = snap('runB', [
+                task(process: 'ALIGN:BWA', name: 'ALIGN:BWA (1)', display: [status: 'COMPLETED', script: 'x2']),
+                task(process: 'QC:FASTQC', name: 'QC:FASTQC (1)', display: [status: 'COMPLETED', script: 'y2']),
+        ])
+
+        when:
+        def diff = new RunComparator(false, ProcessFilter.of(['ALIGN:*'], [])).compare(a, b)
+
+        then: 'only the aligned process is present in both layers'
+        diff.processes*.process == ['ALIGN:BWA']
+        diff.tasks.every { it.process() == 'ALIGN:BWA' }
+        diff.tasksChanged == 1
+    }
+
+    def '--exclude drops matching processes from the comparison'() {
+        given:
+        def a = snap('runA', [
+                task(process: 'ALIGN:BWA', name: 'ALIGN:BWA (1)', display: [status: 'COMPLETED', script: 'x']),
+                task(process: 'QC:FASTQC', name: 'QC:FASTQC (1)', display: [status: 'COMPLETED', script: 'y']),
+        ])
+        def b = snap('runB', [
+                task(process: 'ALIGN:BWA', name: 'ALIGN:BWA (1)', display: [status: 'COMPLETED', script: 'x']),
+                task(process: 'QC:FASTQC', name: 'QC:FASTQC (1)', display: [status: 'COMPLETED', script: 'y2']),
+        ])
+
+        when: 'the only changing process is excluded'
+        def diff = new RunComparator(false, ProcessFilter.of([], ['QC:*'])).compare(a, b)
+
+        then: 'the remaining process is unchanged, so the filtered runs look identical'
+        diff.processes*.process == ['ALIGN:BWA']
+        diff.tasksChanged == 0
+        diff.identical
+    }
+
     def 'renderer produces a self-contained HTML document'() {
         given:
         def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'echo hi'])])

@@ -59,18 +59,25 @@ class RunLoader {
     }
 
     /**
-     * Resolve the run identifiers of the {@code n} most recent history entries,
-     * oldest-first (so the returned list reads chronologically: A then B for
-     * {@code n == 2}). Used by the {@code --last} shortcut.
+     * Resolve the run pair for {@code --last[=N]}: compare the run {@code back}
+     * positions before the most recent (A) against the most recent run (B).
+     * {@code back == 1} (the bare {@code --last}) therefore compares the two
+     * most recent runs, matching the original behaviour. The returned list is
+     * {@code [olderId, latestId]}.
      *
-     * @throws IllegalArgumentException if fewer than {@code n} runs exist.
+     * @throws IllegalArgumentException if {@code back < 1} or history has fewer
+     *         than {@code back + 1} runs.
      */
-    List<String> lastRunNames(int n) {
+    List<String> lastPair(int back) {
+        if( back < 1 )
+            throw new IllegalArgumentException("--last must be a positive number of runs back, got ${back}")
         final all = openHistory().findAll()
-        if( all.size() < n )
-            throw new IllegalArgumentException("--last needs at least ${n} run(s) in history, but only ${all.size()} found in ${historyPath()}")
-        final tail = all.subList(all.size() - n, all.size())
-        return tail.collect { HistoryFile.Record r -> runId(r) }
+        final needed = back + 1
+        if( all.size() < needed )
+            throw new IllegalArgumentException("--last=${back} needs at least ${needed} runs in history, but only ${all.size()} found in ${historyPath()}")
+        final latest = all.get(all.size() - 1)
+        final older = all.get(all.size() - 1 - back)
+        return [runId(older), runId(latest)]
     }
 
     /** Path to the {@code .nextflow/history} file. */

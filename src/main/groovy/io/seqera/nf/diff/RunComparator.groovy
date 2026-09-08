@@ -43,15 +43,19 @@ class RunComparator {
     /** When true, always-changing fields are treated as meaningful changes. */
     private final boolean showObvious
 
-    RunComparator(boolean showObvious = false) {
+    /** Restricts which processes/tasks are compared (defaults to all). */
+    private final ProcessFilter filter
+
+    RunComparator(boolean showObvious = false, ProcessFilter filter = null) {
         this.showObvious = showObvious
+        this.filter = filter ?: ProcessFilter.of([], [])
     }
 
     DiffResult compare(RunSnapshot a, RunSnapshot b) {
         final result = new DiffResult(runA: a, runB: b, showObvious: showObvious)
         result.metadata = compareMetadata(a, b)
-        result.processes = compareProcesses(a, b)
-        result.tasks = compareTasks(a, b)
+        result.processes = compareProcesses(a, b).findAll { ProcessDiff pd -> filter.accepts(pd.process) }
+        result.tasks = compareTasks(a, b).findAll { TaskDiff td -> filter.accepts(td.process()) }
 
         result.tasks.each { TaskDiff td ->
             switch( td.kind ) {

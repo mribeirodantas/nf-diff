@@ -4,7 +4,7 @@
 
 `nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history — or just say `--last` to grab the two most recent — and it produces a report that walks through their differences across three layers: **run metadata**, **process topology**, and **per-task detail** (resources, scripts, containers, exit codes).
 
-The default report is a single, standalone HTML document — no external assets, no network access — that you can open in a browser or email to a colleague. For scripting and CI, `--format=json` emits the same comparison as machine-readable JSON, and `--fail-on-change` turns a difference into a non-zero exit code.
+The default report is a single, standalone HTML document — no external assets, no network access — that you can open in a browser or email to a colleague. For scripting and CI, `--format=json` emits the same comparison as machine-readable JSON, `--format=md` produces Markdown you can drop straight into a pull-request comment, and `--fail-on-change` turns a difference into a non-zero exit code.
 
 It's the tool you reach for when you ask *"my pipeline behaved differently this time — what actually changed?"*
 
@@ -68,9 +68,11 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 
 | Option                 | Description                                                                                      |
 |------------------------|--------------------------------------------------------------------------------------------------|
-| `-l`, `--last`         | Compare the two most recent runs in history (A = the older, B = the most recent). Cannot be combined with explicit run identifiers. |
-| `--format=<fmt>`       | Report format: `html` (default) or `json`                                                        |
-| `--output=<file>`      | Output report path (default: `nf-diff-report.html`, or `nf-diff-report.json` when `--format=json`). Use `-` to write to stdout. |
+| `-l`, `--last[=N]`     | Compare recent runs from history. Bare `--last` compares the two most recent runs; `--last=N` compares the run *N* positions before the latest (A) against the latest (B). Cannot be combined with explicit run identifiers. |
+| `--format=<fmt>`       | Report format: `html` (default), `json`, or `md` (`markdown`)                                    |
+| `--output=<file>`      | Output report path (default: `nf-diff-report.<ext>`, where `<ext>` matches the chosen format). Use `-` to write to stdout. |
+| `--only=<globs>`       | Comma-separated process-name globs; only matching processes/tasks are compared (`*` and `?` supported, `*` spans `:` scopes) |
+| `--exclude=<globs>`    | Comma-separated process-name globs to drop from the comparison; applied after `--only`           |
 | `--fail-on-change`     | Exit with code `3` if the runs are not identical (useful in CI)                                  |
 | `--dir=<dir>`          | Project directory containing `.nextflow/` (default: `.`)                                         |
 | `-v`, `--verbose`, `--all` | Also diff fields that always change between runs (run name, session id, launch time, work dir, wall/real time, resource usage) |
@@ -87,8 +89,17 @@ nextflow plugin nf-diff:diff tender_euler happy_curie
 # Compare the two most recent runs — no need to look up names
 nextflow plugin nf-diff:diff --last
 
+# Compare the run two-before-latest against the latest
+nextflow plugin nf-diff:diff --last=2
+
 # Compare by session-id prefix and choose the output file
 nextflow plugin nf-diff:diff 3a8c1f2e 9f2b7d10 --output=compare.html
+
+# Emit a Markdown report for a pull-request comment
+nextflow plugin nf-diff:diff --last --format=md --output=diff.md
+
+# Focus on the alignment processes, ignoring QC noise
+nextflow plugin nf-diff:diff --last --only='ALIGN:*' --exclude='*:INDEX'
 
 # Inspect a project in another directory, with every field flagged
 nextflow plugin nf-diff:diff runA runB --dir=/path/to/project --verbose
@@ -144,7 +155,9 @@ The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark th
    - **Metadata** — run-level field diffs.
    - **Processes** — task counts per process, classified as added / removed / changed / unchanged.
    - **Tasks** — matched across runs by task name (falling back to process + tag), with per-field diffs. "Obvious" always-changing fields are shown for context but excluded from change detection unless `--verbose` is set.
-4. **Render** — `HtmlReportRenderer` emits the standalone HTML document, or `JsonReportRenderer` emits the structured JSON when `--format=json` is used.
+4. **Render** — `HtmlReportRenderer` emits the standalone HTML document, `JsonReportRenderer` the structured JSON (`--format=json`), or `MarkdownReportRenderer` the Markdown report (`--format=md`).
+
+`--only` / `--exclude` narrow the comparison via a `ProcessFilter` before rendering, so process- and task-level output is restricted to the processes you care about.
 
 ---
 
@@ -172,11 +185,13 @@ src/main/groovy/io/seqera/nf/diff/
   RunSnapshot.groovy        # run-level metadata + tasks
   TaskInfo.groovy           # per-task record (formatted + raw values)
   RunComparator.groovy      # three-layer comparison logic
+  ProcessFilter.groovy      # --only / --exclude process-name globbing
   DiffResult.groovy         # structured comparison outcome
   LineDiff.groovy           # line-level diff (e.g. task scripts)
   Format.groovy             # human-readable formatting helpers
   HtmlReportRenderer.groovy # self-contained HTML report
   JsonReportRenderer.groovy # machine-readable JSON report
+  MarkdownReportRenderer.groovy # Markdown report for PR comments
 ```
 
 Tests live under `src/test/groovy/...` and use [Spock](https://spockframework.org/).
