@@ -60,11 +60,16 @@ class RunLoader {
         return snapshot
     }
 
+    /** Max attempts to open a run's LevelDB cache when a lock is contended. */
+    private static final int LOCK_MAX_ATTEMPTS = 5
+    /** Base backoff (ms) between lock-acquisition retries; grows linearly. */
+    private static final long LOCK_BACKOFF_MS = 300L
+
     private List<TaskInfo> loadTasks(UUID sessionId, String runName) {
         final tasks = new ArrayList<TaskInfo>()
         CacheDB db = null
         try {
-            db = new CacheDB(new DefaultCacheStore(sessionId, runName, nextflowDir)).openForRead()
+            db = openForReadWithRetry(sessionId, runName)
             db.eachRecord { TraceRecord trace ->
                 tasks.add(toTaskInfo(trace))
             }
@@ -81,6 +86,43 @@ class RunLoader {
             byProc != 0 ? byProc : ((a.name ?: '') <=> (b.name ?: ''))
         }
         return tasks
+    }
+
+    /**
+     * Open a run's cache for reading, retrying on transient lock-acquisition
+     * failures. The local LevelDB cache holds an exclusive lock while open, so
+     * a concurrent reader (e.g. {@code nextflow log}, or an IDE/language-server
+     * indexing {@code .nextflow/cache}) can briefly block the open. These
+     * failures are transient, so we back off and retry a few times before
+     * giving up.
+     */
+    private CacheDB openForReadWithRetry(UUID sessionId, String runName) {
+        Exception last = null
+        for( int attempt = 1; attempt <= LOCK_MAX_ATTEMPTS; attempt++ ) {
+            try {
+                return new CacheDB(new DefaultCacheStore(sessionId, runName, nextflowDir)).openForRead()
+            }
+            catch( Exception e ) {
+                if( !isLockError(e) || attempt == LOCK_MAX_ATTEMPTS )
+                    throw e
+                last = e
+                final waitMs = LOCK_BACKOFF_MS * attempt
+                log.warn "nf-diff: cache for '${runName}' is locked (attempt ${attempt}/${LOCK_MAX_ATTEMPTS}); retrying in ${waitMs}ms"
+                sleep(waitMs)
+            }
+        }
+        // unreachable, but keeps the compiler happy about the return type
+        throw last
+    }
+
+    private static boolean isLockError(Throwable e) {
+        Throwable t = e
+        while( t != null ) {
+            if( t.message?.contains('Unable to acquire lock') )
+                return true
+            t = t.cause
+        }
+        return false
     }
 
     private static TaskInfo toTaskInfo(TraceRecord trace) {
