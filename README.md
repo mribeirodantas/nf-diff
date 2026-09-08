@@ -8,6 +8,8 @@ Opt into a sixth layer with `--diff-outputs`: for every task matched in both run
 
 And opt into a seventh with `--diff-logs`: for every matched task, it diffs the **standard log files** (`.command.out`, `.command.err`, `.command.log`) line by line and surfaces the exit-code/status change alongside them — so when a task goes from exit 0 to exit 1, you can read *what it printed* right before it failed. This layer is informational only; it never affects the "identical" verdict or `--fail-on-change`.
 
+An eighth layer, `--diff-dag`, reconstructs each run's **process wiring** and shows which producer→consumer edges were added or removed — so you catch a pipeline rewired from `A → C` to `A → B → C`, which the process-topology counts alone cannot see. Nextflow doesn't persist DAG edges, so this is inferred from the input symlinks each task staged into its work directory; it therefore needs the work directories to still exist locally and is a best-effort reconstruction (a note reports how many were missing). Like the logs layer, it is informational only.
+
 The default report is a single, standalone HTML document — no external assets, no network access — that you can open in a browser or email to a colleague. For scripting and CI, `--format=json` emits the same comparison as machine-readable JSON, `--format=md` produces Markdown you can drop straight into a pull-request comment, and `--fail-on-change` turns a difference into a non-zero exit code.
 
 It's the tool you reach for when you ask *"my pipeline behaved differently this time — what actually changed?"*
@@ -21,6 +23,7 @@ Nextflow already records everything about a run in `.nextflow/history` and the p
 - **Were the runs launched differently?** A structured, flag-by-flag diff of each run's launch command — Nextflow options (`-profile`, `-r`) and pipeline params (`--genome`, `--input`) side by side — instead of eyeballing two opaque command strings. Params passed via `-params-file` (JSON/YAML) are parsed and merged in too, tagged by source (`CLI`, `file`, or `CLI+file`) so you can see where each value came from.
 - **Did the configuration change?** A diff of the *resolved* `nextflow.config` — flattened to dotted keys like `process.cpus`, `executor.name`, `docker.enabled` — with each run's `-profile`/`-c` options applied. This is what catches the classic case where two identical commands still behave differently because `-profile docker` and `-profile test` resolve to different process resources, executors, or container settings.
 - **Did the topology change?** Which processes gained or lost tasks between the two runs.
+- **Did the wiring change?** With `--diff-dag`, the **process→process edges** each run actually ran are reconstructed and diffed, so a rewired pipeline (`A → C` becoming `A → B → C`) shows up as added/removed edges — something the per-process task counts cannot reveal. Since Nextflow persists no DAG, edges are inferred from the input symlinks each task staged into its work directory: a link resolving into another task's work dir is a producer→consumer edge. This needs the work directories to still exist locally, is best-effort (a note reports how many task work dirs were missing), and is informational only — it never affects the "identical" verdict or `--fail-on-change`.
 - **Did the tools change?** A per-process **software & versions** diff of the container image(s) and Conda package spec(s) each process ran with — read straight from the run cache, so no work directories are needed. This is the layer that catches `biocontainers/fastqc:0.11.9` → `biocontainers/fastqc:0.12.1` (or a bumped `bioconda::salmon=` pin) directly, rather than leaving it buried in per-task detail. A software change counts toward the "identical" verdict and `--fail-on-change`.
 - **Did a task change?** Per-task diffs of status, exit code, container, script, requested resources, and measured usage.
 - **What failed, and why?** A top-level **failure rollup** that gathers every failed task — detected from the cached `status`/`exit` fields (an explicit `FAILED`/`ABORTED` status or a non-zero exit code), so no work directories are needed — and rolls them up by `(process, status, exit)` signature, counted per run and sorted by biggest blast radius first. A signature seen only in Run B is flagged **new** (a regression), one in Run A but gone in Run B is **resolved**, and one in both is **persistent**, so you can tell at a glance whether a re-run introduced, fixed, or carried over a failure — e.g. a `CALL` process that started exiting `137` (OOM-killed) only in Run B. A run-level error state is surfaced too, even when no individual task failure was recorded. This is a summary of the per-task status/exit already shown in the task layer, so it is informational only and never separately affects the "identical" verdict or `--fail-on-change`.
@@ -91,6 +94,7 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 | `--outputs-max-lines=<n>` | With `--diff-outputs`, keep only the first `<n>` lines of each changed text file before line-diffing it. Default `1000`. |
 | `--diff-logs`          | Compare the standard log files (`.command.out`/`.command.err`/`.command.log`) each matched task wrote to its work directory, line by line. Ideal for inspecting why a task's exit code changed. Requires the tasks' work directories to still exist locally. Informational only: never affects `--fail-on-change`. |
 | `--logs-max-lines=<n>` | With `--diff-logs`, keep only the last `<n>` lines of each log file before diffing. Default `200`. |
+| `--diff-dag`           | Reconstruct each run's process→process wiring from the input symlinks staged into task work directories and diff the two edge sets, surfacing added/removed edges (a rewired pipeline). Requires the tasks' work directories to still exist locally; best-effort when some were cleaned up. Informational only: never affects `--fail-on-change`. |
 | `--fail-on-change`     | Exit with code `3` if the runs are not identical (useful in CI)                                  |
 | `--dir=<dir>`          | Project directory containing `.nextflow/` (default: `.`). Used for both runs unless overridden per-run below. |
 | `--dir-a=<dir>` / `--dir-b=<dir>` | Per-run project directory for run A / run B (its `.nextflow/` history, cache, config and params). Use these to compare a run from one project or checkout against a run from another ("same pipeline, two directories"). Each falls back to `--dir` when omitted. Cannot be combined with `--last`, which needs a single history. |
@@ -128,6 +132,9 @@ nextflow plugin nf-diff:diff --last --diff-outputs --fail-on-change
 
 # Inspect why a task's exit code changed by diffing its stdout/stderr
 nextflow plugin nf-diff:diff --last --diff-logs
+
+# See whether the process wiring changed (edges added/removed between runs)
+nextflow plugin nf-diff:diff --last --diff-dag
 
 # Inspect a project in another directory, with every field flagged
 nextflow plugin nf-diff:diff runA runB --dir=/path/to/project --verbose
@@ -192,6 +199,7 @@ The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark th
    - **Performance regressions** — derived from the matched tasks' numeric trace metrics (`realtime`, `peak_rss`, `peak_vmem`). For each metric that moved by at least `--perf-threshold` percent, a signed delta is recorded and the list is sorted worst-regression first; each entry notes whether both tasks shared a cache hash ("same work"). This layer is *always* computed from fields that change between runs, so it is informational only — it never affects the "identical" verdict or `--fail-on-change`.
    - **Outputs** (only with `--diff-outputs`) — `OutputComparator` walks each matched task's work directory, skipping staged inputs (symlinks) and Nextflow control files (`.command.*`, `.exitcode`), and compares the remaining real files by path. Files are matched by size first; same-size files are then compared by a streamed SHA-256 (capped by `--outputs-max-bytes`, which leaves oversized same-size files content-unverified). For a *changed* file that is text on both sides (no NUL byte in its head), it then computes a line-level diff via the shared `LineDiff` engine, bounded to the first `--outputs-max-lines` lines and a hard byte cap. Tasks that resolved to the same physical work directory (a cache resume) short-circuit as identical. Unlike performance regressions, an output-file change *does* count toward "identical" and `--fail-on-change`.
    - **Logs** (only with `--diff-logs`) — `LogComparator` reads the standard log files (`.command.out`, `.command.err`, `.command.log`) from each matched task's work directory and produces a line-level diff of each via `LineDiff`, alongside the task's exit code and status. Reads are bounded (only the tail up to `--logs-max-lines` and a hard byte cap are loaded) so large logs never exhaust memory, and tasks sharing a physical work directory short-circuit as identical. Like performance regressions, this layer is informational only — task stdout/stderr legitimately varies between runs, so it never affects "identical" or `--fail-on-change`.
+   - **DAG / wiring** (only with `--diff-dag`) — `DagComparator` reconstructs each run's process→process graph and diffs the two edge sets. Since Nextflow persists no DAG, edges are inferred from work directories: it walks each task's staged input symlinks and, for any that resolve into another task's work directory (walking the parent chain so a link into a nested output subdir still attributes to its producer), records a producer→consumer edge; links resolving outside every work dir are external inputs and yield no edge. It reports how many task work dirs were missing so a partial reconstruction isn't read as authoritative. Because the reconstruction is best-effort and needs the work directories to still exist locally, this layer is informational only — it never affects "identical" or `--fail-on-change`.
 4. **Render** — `HtmlReportRenderer` emits the standalone HTML document, `JsonReportRenderer` the structured JSON (`--format=json`), or `MarkdownReportRenderer` the Markdown report (`--format=md`).
 
 `--only` / `--exclude` narrow the comparison via a `ProcessFilter` before rendering, so process- and task-level output is restricted to the processes you care about.
@@ -221,12 +229,13 @@ src/main/groovy/io/seqera/nf/diff/
   RunLoader.groovy          # reads history + cache into a RunSnapshot
   RunSnapshot.groovy        # run-level metadata + tasks
   TaskInfo.groovy           # per-task record (formatted + raw values)
-  RunComparator.groovy      # six-layer comparison logic
+  RunComparator.groovy      # multi-layer comparison logic
   CommandParams.groovy      # resolves launch params (CLI + -params-file), tagged by source
   ConfigLoader.groovy       # resolves the effective nextflow.config (profiles + -c)
   GitProvenance.groovy      # inspects working-tree git HEAD + dirty state for the config caveat
   OutputComparator.groovy   # --diff-outputs: compares task work-dir output files
   LogComparator.groovy      # --diff-logs: diffs task .command.out/.err/.log files
+  DagComparator.groovy      # --diff-dag: reconstructs process wiring from work-dir input symlinks
   ProcessFilter.groovy      # --only / --exclude process-name globbing
   DiffResult.groovy         # structured comparison outcome
   LineDiff.groovy           # line-level diff (e.g. task scripts)

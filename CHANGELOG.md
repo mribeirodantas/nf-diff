@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DAG (process wiring) diff (`--diff-dag`)** — a new opt-in layer that
+  reconstructs each run's process;process wiring and diffs the two edge
+  sets, so nf-diff surfaces topology changes the task-count-per-process view
+  cannot see — e.g. a pipeline rewired from `A → C` to `A → B → C`. Nextflow
+  does not persist DAG edges in its history or cache, so there is no
+  authoritative edge list to read; what it *does* leave on disk is every task's
+  staged inputs, materialised as symbolic links inside the task's work
+  directory. `DagComparator` walks each task's work dir, resolves every input
+  symlink, and attributes any target that resolves into another task's work dir
+  (walking the parent chain so a link into a nested output subdir still
+  attributes to the producer) as a producer;consumer edge; links that
+  resolve outside every work dir are external inputs and yield no edge. Because
+  it walks work directories, this layer needs them to still exist locally (like
+  `--diff-outputs` / `--diff-logs`) and is a best-effort reconstruction: if some
+  work dirs were cleaned up, the recovered wiring is incomplete, and a note
+  reports how many task work dirs were missing so a partial diff is not read as
+  authoritative. Surfaced in all three report formats (HTML "Process wiring
+  (DAG)" section + nav link, Markdown section, and a `dag` block with
+  `dagEdgesAdded`/`dagEdgesRemoved` in JSON). Because the reconstruction is
+  best-effort, this layer is informational only and never affects the
+  "identical" verdict or `--fail-on-change`.
 - **Failure rollup (top-level "what failed and why")** — a new always-on layer
   that answers, at a glance, which tasks failed and why, instead of leaving that
   scattered across per-task detail. Failed tasks are detected from the cached
