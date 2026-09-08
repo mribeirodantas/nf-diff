@@ -32,6 +32,8 @@ class DiffCommand {
     String format = 'html'
     /** When true, return a non-zero exit code if the runs are not identical. */
     boolean failOnChange = false
+    /** When true, compare the two most recent runs from history (no positional args). */
+    boolean last = false
 
     /** Exit code returned when {@link #failOnChange} is set and runs differ. */
     static final int EXIT_CHANGED = 3
@@ -39,11 +41,19 @@ class DiffCommand {
     int run(List<String> args) {
         parse(args)
 
+        final loader = new RunLoader(baseDir)
+
+        if( last ) {
+            final names = loader.lastRunNames(2)
+            runA = names[0]
+            runB = names[1]
+            log.info "nf-diff: --last selected '${runA}' (A) and '${runB}' (B)"
+        }
+
         log.info "nf-diff: comparing runs '${runA}' and '${runB}'"
         log.debug "nf-diff: base directory = ${baseDir.toAbsolutePath()}"
         log.debug "nf-diff: report output  = ${outputFile.toAbsolutePath()}"
 
-        final loader = new RunLoader(baseDir)
         final snapA = loader.load(runA)
         final snapB = loader.load(runB)
 
@@ -120,6 +130,10 @@ nf-diff: comparison complete
                 case '--fail-on-change':
                     failOnChange = true
                     break
+                case '-l':
+                case '--last':
+                    last = true
+                    break
                 case '-d':
                 case '--dir':
                     if( inlineVal != null ) {
@@ -144,11 +158,17 @@ nf-diff: comparison complete
             i++
         }
 
-        if( positional.size() != 2 )
-            throw new UsageException("expected exactly two run identifiers, got ${positional.size()}")
-
-        runA = positional[0]
-        runB = positional[1]
+        if( last ) {
+            if( positional.size() != 0 )
+                throw new UsageException("--last cannot be combined with explicit run identifiers (got ${positional.size()})")
+            // runA/runB are resolved from history in run().
+        }
+        else {
+            if( positional.size() != 2 )
+                throw new UsageException("expected exactly two run identifiers, got ${positional.size()} (or use --last)")
+            runA = positional[0]
+            runB = positional[1]
+        }
 
         format = format.toLowerCase()
         if( format != 'html' && format != 'json' )
@@ -168,9 +188,13 @@ Usage: nextflow plugin nf-diff:diff <runA> <runB> [options]
   differences (metadata, processes, and per-task resources/scripts).
 
 Arguments:
-  <runA> <runB>        Run names or session UUIDs from .nextflow/history
+  <runA> <runB>        Run names or session UUIDs from .nextflow/history.
+                       Omit both when using --last.
 
 Options:
+  -l, --last           Compare the two most recent runs in history (A = the
+                       older of the two, B = the most recent). Cannot be
+                       combined with explicit run identifiers.
   --output=<file>      Output report path (default: nf-diff-report.<ext>,
                        where <ext> matches the chosen --format)
   --format=<fmt>       Report format: html (default) or json. JSON is
@@ -191,8 +215,9 @@ Options:
 Examples:
   nextflow plugin nf-diff:diff tender_euler happy_curie
   nextflow plugin nf-diff:diff 3a8c1f2e 9f2b7d10 --output=compare.html
+  nextflow plugin nf-diff:diff --last
+  nextflow plugin nf-diff:diff --last --format=json --fail-on-change
   nextflow plugin nf-diff:diff runA runB --format=json --output=diff.json
-  nextflow plugin nf-diff:diff runA runB --format=json --fail-on-change
 
 Note:
   Invoke the plugin verb with the BARE id (nf-diff:diff), not a pinned

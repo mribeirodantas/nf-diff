@@ -2,7 +2,9 @@
 
 > Compare two Nextflow runs and render a detailed, self-contained HTML report of what changed.
 
-`nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history and it produces a single, standalone HTML report — no external assets, no network access — that walks through their differences across three layers: **run metadata**, **process topology**, and **per-task detail** (resources, scripts, containers, exit codes).
+`nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history — or just say `--last` to grab the two most recent — and it produces a report that walks through their differences across three layers: **run metadata**, **process topology**, and **per-task detail** (resources, scripts, containers, exit codes).
+
+The default report is a single, standalone HTML document — no external assets, no network access — that you can open in a browser or email to a colleague. For scripting and CI, `--format=json` emits the same comparison as machine-readable JSON, and `--fail-on-change` turns a difference into a non-zero exit code.
 
 It's the tool you reach for when you ask *"my pipeline behaved differently this time — what actually changed?"*
 
@@ -60,13 +62,16 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 
 | Argument        | Description                                                         |
 |-----------------|---------------------------------------------------------------------|
-| `<runA> <runB>` | Run names or session UUID prefixes from `.nextflow/history`         |
+| `<runA> <runB>` | Run names or session UUID prefixes from `.nextflow/history`. Omit both when using `--last`. |
 
 ### Options
 
 | Option                 | Description                                                                                      |
 |------------------------|--------------------------------------------------------------------------------------------------|
-| `--output=<file>`      | Output HTML report path (default: `nf-diff-report.html`)                                         |
+| `-l`, `--last`         | Compare the two most recent runs in history (A = the older, B = the most recent). Cannot be combined with explicit run identifiers. |
+| `--format=<fmt>`       | Report format: `html` (default) or `json`                                                        |
+| `--output=<file>`      | Output report path (default: `nf-diff-report.html`, or `nf-diff-report.json` when `--format=json`) |
+| `--fail-on-change`     | Exit with code `3` if the runs are not identical (useful in CI)                                  |
 | `--dir=<dir>`          | Project directory containing `.nextflow/` (default: `.`)                                         |
 | `-v`, `--verbose`, `--all` | Also diff fields that always change between runs (run name, session id, launch time, work dir, wall/real time, resource usage) |
 | `-h`, `--help`         | Show help                                                                                        |
@@ -79,11 +84,17 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 # Compare two runs by name; report goes to nf-diff-report.html
 nextflow plugin nf-diff:diff tender_euler happy_curie
 
+# Compare the two most recent runs — no need to look up names
+nextflow plugin nf-diff:diff --last
+
 # Compare by session-id prefix and choose the output file
 nextflow plugin nf-diff:diff 3a8c1f2e 9f2b7d10 --output=compare.html
 
 # Inspect a project in another directory, with every field flagged
 nextflow plugin nf-diff:diff runA runB --dir=/path/to/project --verbose
+
+# CI-friendly: emit JSON and fail the step if anything changed
+nextflow plugin nf-diff:diff --last --format=json --fail-on-change
 ```
 
 Finding run names or session ids is as easy as:
@@ -102,10 +113,19 @@ nf-diff: comparison complete
   Run B : happy_curie (9f2b7d10)  (42 tasks)
   Diff  : 3 changed, 0 only-in-B, 0 only-in-A, 39 unchanged
   Mode  : meaningful changes only (use --verbose for all fields)
-  Report: /path/to/nf-diff-report.html
+  Report: /path/to/nf-diff-report.html (html)
 ```
 
-The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark theme toggle, so you can open it directly in a browser or email it to a colleague.
+The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark theme toggle, so you can open it directly in a browser or email it to a colleague. With `--format=json` the same three-layer comparison is written as structured JSON instead — convenient for diffing in scripts or asserting against in a pipeline.
+
+### Exit codes
+
+| Code | Meaning                                                             |
+|------|---------------------------------------------------------------------|
+| `0`  | Success (runs may still differ, unless `--fail-on-change` is set)   |
+| `1`  | Runtime error (e.g. run not found, ambiguous id, cache read failed) |
+| `2`  | Usage error (bad arguments, unknown option)                         |
+| `3`  | Runs differ **and** `--fail-on-change` was set                      |
 
 ---
 
@@ -119,7 +139,7 @@ The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark th
    - **Metadata** — run-level field diffs.
    - **Processes** — task counts per process, classified as added / removed / changed / unchanged.
    - **Tasks** — matched across runs by task name (falling back to process + tag), with per-field diffs. "Obvious" always-changing fields are shown for context but excluded from change detection unless `--verbose` is set.
-4. **Render** — `HtmlReportRenderer` emits the standalone HTML document.
+4. **Render** — `HtmlReportRenderer` emits the standalone HTML document, or `JsonReportRenderer` emits the structured JSON when `--format=json` is used.
 
 ---
 
@@ -151,6 +171,7 @@ src/main/groovy/io/seqera/nf/diff/
   LineDiff.groovy           # line-level diff (e.g. task scripts)
   Format.groovy             # human-readable formatting helpers
   HtmlReportRenderer.groovy # self-contained HTML report
+  JsonReportRenderer.groovy # machine-readable JSON report
 ```
 
 Tests live under `src/test/groovy/...` and use [Spock](https://spockframework.org/).

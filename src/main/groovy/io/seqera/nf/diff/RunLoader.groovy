@@ -32,16 +32,14 @@ class RunLoader {
      * @throws IllegalArgumentException if the run cannot be found.
      */
     RunSnapshot load(String idOrName) {
-        final historyPath = nextflowDir.resolve('history')
-        if( !historyPath.toFile().exists() )
-            throw new IllegalArgumentException("No Nextflow history found at ${historyPath} — run from a project directory or pass --dir")
-
-        final history = new HistoryFile(historyPath.toFile())
+        final history = openHistory()
         final matches = history.findByIdOrName(idOrName)
         if( !matches )
-            throw new IllegalArgumentException("Run '${idOrName}' not found in ${historyPath}")
-        if( matches.size() > 1 )
-            throw new IllegalArgumentException("Run '${idOrName}' is ambiguous — matched ${matches.size()} entries; use a longer session id")
+            throw new IllegalArgumentException("Run '${idOrName}' not found in ${historyPath()}. Recent runs: ${recentNamesHint(history)}")
+        if( matches.size() > 1 ) {
+            final labels = matches.collect { HistoryFile.Record r -> "${r.runName} (${shortId(r.sessionId)})" }.join(', ')
+            throw new IllegalArgumentException("Run '${idOrName}' is ambiguous — matched ${matches.size()} entries: ${labels}. Use a longer session id.")
+        }
 
         final record = matches.first()
 
@@ -58,6 +56,54 @@ class RunLoader {
         snapshot.tasks = loadTasks(record.sessionId, record.runName)
         log.debug "nf-diff: loaded ${snapshot.tasks.size()} task(s) for run '${record.runName}' (${record.sessionId})"
         return snapshot
+    }
+
+    /**
+     * Resolve the run identifiers of the {@code n} most recent history entries,
+     * oldest-first (so the returned list reads chronologically: A then B for
+     * {@code n == 2}). Used by the {@code --last} shortcut.
+     *
+     * @throws IllegalArgumentException if fewer than {@code n} runs exist.
+     */
+    List<String> lastRunNames(int n) {
+        final all = openHistory().findAll()
+        if( all.size() < n )
+            throw new IllegalArgumentException("--last needs at least ${n} run(s) in history, but only ${all.size()} found in ${historyPath()}")
+        final tail = all.subList(all.size() - n, all.size())
+        return tail.collect { HistoryFile.Record r -> runId(r) }
+    }
+
+    /** Path to the {@code .nextflow/history} file. */
+    private Path historyPath() {
+        return nextflowDir.resolve('history')
+    }
+
+    /** Open the history file, validating that it exists first. */
+    private HistoryFile openHistory() {
+        final path = historyPath()
+        if( !path.toFile().exists() )
+            throw new IllegalArgumentException("No Nextflow history found at ${path} — run from a project directory or pass --dir")
+        return new HistoryFile(path.toFile())
+    }
+
+    /** A short, human-friendly list of the most recent run names for error hints. */
+    private static String recentNamesHint(HistoryFile history, int max = 10) {
+        final all = history.findAll()
+        if( !all )
+            return '(none)'
+        final names = all.collect { HistoryFile.Record r -> runId(r) }
+        final tail = names.size() > max ? names.subList(names.size() - max, names.size()) : names
+        return tail.join(', ')
+    }
+
+    /** Prefer the run name, falling back to the session id, for identifying a record. */
+    private static String runId(HistoryFile.Record r) {
+        return r.runName ?: r.sessionId?.toString()
+    }
+
+    /** First 8 characters of a session id, for compact display. */
+    private static String shortId(UUID id) {
+        return id ? id.toString().substring(0, 8) : '????????'
     }
 
     /** Max attempts to open a run's LevelDB cache when a lock is contended. */

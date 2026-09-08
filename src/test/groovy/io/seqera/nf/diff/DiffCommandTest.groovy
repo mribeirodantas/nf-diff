@@ -65,4 +65,41 @@ class DiffCommandTest extends Specification {
         expect:
         parse(['runA', 'runB', '--format', 'json']).format == 'json'
     }
+
+    def '--last is parsed and needs no positional run identifiers'() {
+        when:
+        def cmd = parse(['--last'])
+
+        then:
+        cmd.last
+        cmd.runA == null
+        cmd.runB == null
+    }
+
+    def '--last combines with other options'() {
+        when:
+        def cmd = parse(['--last', '--format=json', '--fail-on-change'])
+
+        then:
+        cmd.last
+        cmd.format == 'json'
+        cmd.failOnChange
+        cmd.outputFile.fileName.toString() == 'nf-diff-report.json'
+    }
+
+    def '--last cannot be combined with explicit run identifiers'() {
+        when:
+        parse(['runA', 'runB', '--last'])
+
+        then:
+        thrown(DiffCommand.UsageException)
+    }
+
+    def 'two run identifiers are still required without --last'() {
+        when:
+        parse(['runA'])
+
+        then:
+        thrown(DiffCommand.UsageException)
+    }
 }
