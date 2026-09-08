@@ -28,6 +28,10 @@ class HtmlReportRenderer {
         sb << '<meta charset="utf-8">\n'
         sb << '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         sb << "<title>nf-diff · ${esc(diff.runA.label())} vs ${esc(diff.runB.label())}</title>\n"
+        // Set the theme before first paint to avoid a flash of the wrong palette.
+        sb << '<script>(function(){try{var k="nf-diff-theme",s=localStorage.getItem(k),' +
+                't=s||((window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark");' +
+                'document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>\n'
         sb << '<style>\n' << css() << '\n</style>\n'
         sb << '</head>\n<body>\n'
 
@@ -50,6 +54,8 @@ class HtmlReportRenderer {
 
     private void renderHeader(StringBuilder sb, DiffResult diff) {
         sb << '<header class="hero">\n'
+        sb << '  <button class="theme-toggle" id="theme-toggle" type="button" title="Toggle light/dark theme" aria-label="Toggle light/dark theme">'
+        sb << '<span class="ti-dark">🌙</span><span class="ti-light">☀️</span></button>\n'
         sb << '  <div class="hero-inner">\n'
         sb << '    <div class="brand"><span class="logo">±</span><span>nf-diff</span></div>\n'
         sb << '    <h1>Run comparison</h1>\n'
@@ -339,17 +345,47 @@ class HtmlReportRenderer {
   --txt:#e6ecff; --muted:#8b97b5; --line:#273250;
   --a:#22d3ee; --b:#c084fc;
   --added:#34d399; --removed:#f87171; --changed:#fbbf24; --unchanged:#64748b;
+  /* theme-dependent extras */
+  --chip-ink:#0b0f1a;
+  --tabs-bg:rgba(11,15,26,.85);
+  --gap-stripe:rgba(255,255,255,.03);
+  --body-glow:#1b2540;
+  --hero-glow-a:rgba(34,211,238,.22);
+  --hero-glow-b:rgba(192,132,252,.25);
+  --shadow:rgba(0,0,0,.35);
+}
+html[data-theme="light"]{
+  --bg:#f5f7fb; --bg2:#e8edf6; --panel:#ffffff; --panel2:#eef2fa;
+  --txt:#1a2236; --muted:#5a6785; --line:#d8e0ee;
+  --a:#0e7490; --b:#7c3aed;
+  --added:#059669; --removed:#dc2626; --changed:#b45309; --unchanged:#64748b;
+  --chip-ink:#ffffff;
+  --tabs-bg:rgba(245,247,251,.85);
+  --gap-stripe:rgba(0,0,0,.05);
+  --body-glow:#dbe4f5;
+  --hero-glow-a:rgba(14,116,144,.14);
+  --hero-glow-b:rgba(124,58,237,.14);
+  --shadow:rgba(30,50,90,.12);
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  background:radial-gradient(1200px 800px at 20% -10%,#1b2540 0,transparent 60%),linear-gradient(160deg,var(--bg),var(--bg2));
-  color:var(--txt);line-height:1.5}
+  background:radial-gradient(1200px 800px at 20% -10%,var(--body-glow) 0,transparent 60%),linear-gradient(160deg,var(--bg),var(--bg2));
+  background-attachment:fixed;
+  color:var(--txt);line-height:1.5;transition:background-color .2s ease,color .2s ease}
+.theme-toggle{position:absolute;top:18px;right:18px;z-index:20;display:inline-grid;place-items:center;
+  width:40px;height:40px;border-radius:11px;cursor:pointer;font-size:18px;line-height:1;
+  background:var(--panel);border:1px solid var(--line);color:var(--txt);
+  box-shadow:0 4px 14px var(--shadow);transition:transform .12s ease,background .2s ease}
+.theme-toggle:hover{transform:translateY(-1px);background:var(--panel2)}
+.theme-toggle .ti-light{display:none}
+html[data-theme="light"] .theme-toggle .ti-dark{display:none}
+html[data-theme="light"] .theme-toggle .ti-light{display:inline}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .wrap{max-width:1100px;margin:0 auto;padding:24px}
-.hero{padding:48px 24px 28px;background:radial-gradient(900px 500px at 80% -20%,rgba(192,132,252,.25),transparent 55%),radial-gradient(700px 500px at 0% -10%,rgba(34,211,238,.22),transparent 55%);border-bottom:1px solid var(--line)}
+.hero{position:relative;padding:48px 24px 28px;background:radial-gradient(900px 500px at 80% -20%,var(--hero-glow-b),transparent 55%),radial-gradient(700px 500px at 0% -10%,var(--hero-glow-a),transparent 55%);border-bottom:1px solid var(--line)}
 .hero-inner{max-width:1100px;margin:0 auto}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.5px;color:var(--muted)}
-.logo{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--a),var(--b));color:#0b0f1a;font-weight:900;font-size:18px}
+.logo{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--a),var(--b));color:var(--chip-ink);font-weight:900;font-size:18px}
 .hero h1{margin:14px 0 20px;font-size:34px;font-weight:800}
 .runs{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .run-chip{flex:1;min-width:260px;background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:16px;padding:16px 18px;position:relative;overflow:hidden}
@@ -363,7 +399,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Hel
 .verdict{display:inline-block;padding:8px 14px;border-radius:999px;font-weight:600;font-size:14px}
 .verdict.same{background:rgba(52,211,153,.15);color:var(--added);border:1px solid rgba(52,211,153,.4)}
 .verdict.diff{background:rgba(251,191,36,.15);color:var(--changed);border:1px solid rgba(251,191,36,.4)}
-.tabs{position:sticky;top:0;z-index:10;display:flex;gap:6px;padding:10px 24px;background:rgba(11,15,26,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.tabs{position:sticky;top:0;z-index:10;display:flex;gap:6px;padding:10px 24px;background:var(--tabs-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .tabs a{color:var(--muted);text-decoration:none;padding:8px 14px;border-radius:10px;font-weight:600;font-size:14px}
 .tabs a:hover{color:var(--txt);background:var(--panel)}
 .tabs a.active{color:var(--txt);background:var(--panel2)}
@@ -417,7 +453,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 .metric-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .bars{display:flex;flex-direction:column;gap:6px}
 .bar-row{display:flex;align-items:center;gap:8px}
-.bar-tag{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font-size:11px;font-weight:800;color:#0b0f1a}
+.bar-tag{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font-size:11px;font-weight:800;color:var(--chip-ink)}
 .bar-tag.a{background:var(--a)} .bar-tag.b{background:var(--b)}
 .bar-track{flex:1;height:12px;background:var(--bg2);border-radius:999px;overflow:hidden}
 .bar-fill{height:100%;border-radius:999px}
@@ -431,12 +467,23 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 .cl{display:block;padding:1px 12px;white-space:pre-wrap;word-break:break-word;border-left:3px solid transparent}
 .cl.del{background:rgba(248,113,113,.14);border-left-color:var(--removed)}
 .cl.ins{background:rgba(52,211,153,.14);border-left-color:var(--added)}
-.cl.gap{background:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(255,255,255,.03) 6px,rgba(255,255,255,.03) 12px);min-height:1.4em}
+.cl.gap{background:repeating-linear-gradient(45deg,transparent,transparent 6px,var(--gap-stripe) 6px,var(--gap-stripe) 12px);min-height:1.4em}
 .foot{text-align:center;color:var(--muted);padding:30px;border-top:1px solid var(--line);font-size:13px}
 '''
 
     private static final String JS = '''
 function toggleTask(hdr){ hdr.parentElement.classList.toggle('open'); }
+// theme toggle (initial theme already applied by the inline <head> script)
+(function(){
+  var root = document.documentElement, KEY = 'nf-diff-theme';
+  var btn = document.getElementById('theme-toggle');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    root.setAttribute('data-theme', next);
+    try{ localStorage.setItem(KEY, next); }catch(e){}
+  });
+})();
 (function(){
   var cb = document.getElementById('hide-unchanged');
   function apply(){
