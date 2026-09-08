@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-08
+
 ### Added
 
 - **Lineage-backed DAG reconstruction (`--diff-dag`)** — when a run's project
@@ -31,6 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Unknown plugin command now exits with the usage code (2), not 1.** An
+  unrecognized verb (anything other than `diff`) is a usage error, in the same
+  class as bad arguments, so it now returns `2` — matching the documented
+  exit-code table — instead of `1` (which is reserved for runtime errors). The
+  message also notes that only `diff` is supported.
+- **Help summary lists all current diff layers.** The one-line description shown
+  by `-h`/`--help` still read "metadata, processes, and per-task
+  resources/scripts" from the 0.1.0 days; it now enumerates the always-on layers
+  (parameters, configuration, software & versions, failure rollup, performance
+  regressions, resource-efficiency) and the three opt-in flags.
 - **`--diff-dag` no longer requires work directories when lineage is enabled.**
   Previously the wiring layer always needed the tasks' work directories to still
   exist locally; with a lineage store present it is reconstructed from persisted
@@ -121,6 +133,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Diff errors with no message printed a blank line.** `DiffPlugin.exec()`
+  reported a caught throwable via `e.message` only, so a message-less exception
+  (notably `NullPointerException`) produced a bare `nf-diff:` line with nothing
+  after it, while the stack trace went only to the debug-gated log. It now falls
+  back to the exception's simple class name, so both the stderr line and the log
+  always name the failure.
+- **Cache-lock retry backoff was not interruptible.** The backoff between
+  attempts to open a contended run cache used Groovy's `sleep()`, which swallows
+  `InterruptedException` and clears the interrupt flag, so a `Ctrl-C` during a
+  contended open was ignored and the loop kept retrying. It now uses
+  `Thread.sleep()`, restoring the interrupt flag and aborting the retry on
+  interruption.
 - **`GitProvenance` subprocess timeout was ineffective** — the git subprocess's
   stdout/stderr were read inline with `getText()` *before* the timed `waitFor`,
   which blocks until the process exits, so a hung `git` could never be timed out.
