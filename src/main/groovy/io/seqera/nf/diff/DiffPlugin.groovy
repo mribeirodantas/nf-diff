@@ -48,8 +48,13 @@ class DiffPlugin extends BasePlugin implements PluginAbstractExec {
             return 2
         }
         catch( Throwable e ) {
-            log.error("nf-diff: diff failed — ${e.message}", e)
-            System.err.println "nf-diff: ${e.message}"
+            // Some throwables (e.g. NullPointerException) carry no message, so
+            // fall back to the exception's simple class name — otherwise the
+            // user sees a bare "nf-diff:" with nothing after it, and the stack
+            // trace only goes to the debug-gated log.
+            final detail = e.message ?: e.class.simpleName
+            log.error("nf-diff: diff failed — ${detail}", e)
+            System.err.println "nf-diff: ${detail}"
             return 1
         }
     }
