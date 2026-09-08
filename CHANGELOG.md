@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The opt-in work-dir layers now compare tasks in parallel.** `--diff-outputs`
+  and `--diff-logs` previously walked matched task pairs one at a time, so a
+  pipeline with many tasks and large outputs paid for single-threaded
+  SHA-256/log I/O. Because each matched pair is independent, read-only work-dir
+  I/O, `RunComparator` now fans the comparisons out across a bounded pool (sized
+  to the smaller of the work size and the available processors) while still
+  returning results in `result.tasks` order, so the report is byte-for-byte
+  unchanged. `--diff-dag` likewise reconstructs both runs' graphs concurrently.
+  Failures propagate unchanged (the underlying exception is unwrapped from the
+  executor), and pool threads are daemon so a stuck read never keeps the JVM
+  alive.
 - **Command-line tokenisation now has a single source of truth.** `ConfigLoader`
   previously carried its own copy of the quote-aware command tokenizer that
   "mirrored" `CommandParams`'; the two could silently drift. `CommandParams.tokenize`

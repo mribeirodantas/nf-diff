@@ -1,6 +1,13 @@
 package io.seqera.nf.diff
 
 import java.nio.file.Path
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.ThreadFactory
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.function.Function
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
@@ -158,6 +165,94 @@ class RunComparator {
         return p?.toAbsolutePath()?.normalize()
     }
 
+    /**
+     * Daemon threads for the short-lived per-layer pools, so a stuck read never
+     * keeps the JVM alive and threads are clearly named in a stack dump.
+     */
+    private static final ThreadFactory IO_THREAD_FACTORY = new ThreadFactory() {
+        private final AtomicInteger seq = new AtomicInteger(1)
+        @Override
+        Thread newThread(Runnable r) {
+            final t = new Thread(r, "nf-diff-io-${seq.getAndIncrement()}")
+            t.setDaemon(true)
+            return t
+        }
+    }
+
+    /**
+     * Map every matched task pair ({@code a != null && b != null}) through
+     * {@code fn}, running the calls concurrently but returning results in the
+     * original {@code tasks} order. Task pairs are independent, read-only I/O,
+     * so this is a safe throughput win over a strictly sequential pass. The pool
+     * is bounded to the smaller of the work size and the available processors
+     * to avoid oversubscribing the disk. Falls back to a plain sequential pass
+     * when there is at most one pair to process.
+     */
+    private static <T> List<T> mapMatchedInParallel(List<TaskDiff> tasks, Function<TaskDiff, T> fn) {
+        final matched = new ArrayList<TaskDiff>()
+        tasks.each { TaskDiff td ->
+            if( td.a != null && td.b != null )
+                matched.add(td)
+        }
+        if( matched.size() <= 1 )
+            return matched.collect { TaskDiff td -> fn.apply(td) }
+
+        final poolSize = Math.min(matched.size(), Math.max(1, Runtime.runtime.availableProcessors()))
+        final pool = Executors.newFixedThreadPool(poolSize, IO_THREAD_FACTORY)
+        try {
+            final futures = new ArrayList<Future<T>>(matched.size())
+            matched.each { TaskDiff td ->
+                futures.add(pool.submit({ -> fn.apply(td) } as Callable<T>))
+            }
+            final out = new ArrayList<T>(matched.size())
+            futures.each { Future<T> f -> out.add(await(f)) }
+            return out
+        }
+        finally {
+            pool.shutdownNow()
+        }
+    }
+
+    /**
+     * Run two independent suppliers concurrently and return their results as
+     * {@code [first, second]}, preserving order. Used for the two per-run DAG
+     * reconstructions, which never share state.
+     */
+    private static <T> List<T> runInParallel(Callable<T> first, Callable<T> second) {
+        final pool = Executors.newFixedThreadPool(2, IO_THREAD_FACTORY)
+        try {
+            final f1 = pool.submit(first)
+            final f2 = pool.submit(second)
+            return [await(f1), await(f2)]
+        }
+        finally {
+            pool.shutdownNow()
+        }
+    }
+
+    /**
+     * Block on a future, unwrapping {@link ExecutionException} so the original
+     * failure propagates as it would have from the old sequential loop rather
+     * than being wrapped in a concurrency-specific exception.
+     */
+    private static <T> T await(Future<T> f) {
+        try {
+            return f.get()
+        }
+        catch( ExecutionException e ) {
+            final cause = e.cause
+            if( cause instanceof RuntimeException )
+                throw (RuntimeException) cause
+            if( cause instanceof Error )
+                throw (Error) cause
+            throw new RuntimeException(cause ?: e)
+        }
+        catch( InterruptedException e ) {
+            Thread.currentThread().interrupt()
+            throw new RuntimeException('nf-diff: interrupted while comparing task work directories', e)
+        }
+    }
+
     DiffResult compare(RunSnapshot a, RunSnapshot b) {
         final result = new DiffResult(runA: a, runB: b, showObvious: showObvious, perfThreshold: perfThreshold)
         result.metadata = compareMetadata(a, b)
@@ -200,9 +295,15 @@ class RunComparator {
             return
         result.diffDag = true
 
+        // graphOf has no mutable instance state, so one comparator can build
+        // both runs' graphs concurrently. The two reconstructions are fully
+        // independent (they may hit different lineage stores / work dirs).
         final comparator = new DagComparator()
-        final graphA = comparator.graphOf(a, baseDirA)
-        final graphB = comparator.graphOf(b, baseDirB)
+        final graphs = runInParallel(
+                { -> comparator.graphOf(a, baseDirA) } as Callable<DagComparator.RunGraph>,
+                { -> comparator.graphOf(b, baseDirB) } as Callable<DagComparator.RunGraph>)
+        final graphA = graphs[0]
+        final graphB = graphs[1]
 
         final all = new TreeSet<DiffResult.DagEdge>({ DiffResult.DagEdge x, DiffResult.DagEdge y ->
             final byTo = (x.to ?: '') <=> (y.to ?: '')
@@ -285,11 +386,13 @@ class RunComparator {
             return
         result.diffOutputs = true
 
+        // One comparator instance is shared across threads: compare() only
+        // reads final config and creates fresh locals per call, so it is safe
+        // to run matched task pairs concurrently (each pair streams SHA-256 over
+        // independent work dirs). Ordering follows result.tasks regardless.
         final comparator = new OutputComparator(outputsMaxBytes, outputsMaxLines)
-        result.tasks.each { TaskDiff td ->
-            if( td.a != null && td.b != null )
-                result.outputs << comparator.compare(td.a, td.b)
-        }
+        result.outputs = mapMatchedInParallel(result.tasks,
+                { TaskDiff td -> comparator.compare(td.a, td.b) } as Function<TaskDiff, DiffResult.OutputDiff>)
 
         final unavailable = result.outputs.count { DiffResult.OutputDiff od -> !od.availableA || !od.availableB }
         final capped = outputsMaxBytes > 0 ? " Same-size files larger than ${outputsMaxBytes} bytes are left content-unverified." : ''
@@ -317,11 +420,12 @@ class RunComparator {
             return
         result.diffLogs = true
 
+        // Shared, stateless comparator; matched task pairs are diffed in
+        // parallel (independent, read-only per-task log I/O) while the returned
+        // list preserves result.tasks order.
         final comparator = new LogComparator(logsMaxLines)
-        result.tasks.each { TaskDiff td ->
-            if( td.a != null && td.b != null )
-                result.logs << comparator.compare(td.a, td.b)
-        }
+        result.logs = mapMatchedInParallel(result.tasks,
+                { TaskDiff td -> comparator.compare(td.a, td.b) } as Function<TaskDiff, DiffResult.LogDiff>)
 
         final unavailable = result.logs.count { DiffResult.LogDiff ld -> !ld.availableA || !ld.availableB }
         if( result.logs.isEmpty() )
