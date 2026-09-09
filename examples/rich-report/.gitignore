@@ -1,0 +1,4 @@
+# Run state and regenerable artifacts produced by run-demo.sh.
+# (.nextflow*, work/ and results/ are already ignored at the repo root.)
+.lineage/
+report.json

@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nf-diff · hungry_rubens (c9f753a5) vs cranky_volta (7a26166b)</title>
+<script>(function(){try{var k="nf-diff-theme",s=localStorage.getItem(k),t=s||((window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark");document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<style>
+
+:root{
+  /* nf-docs dark palette: slate-900/800/700 surfaces with the shared primary
+     green (#0DC09D). A blue keeps Run A / Run B visually distinct. */
+  --bg:#0f172a; --bg2:#1e293b; --panel:#1e293b; --panel2:#334155;
+  --txt:#e2e8f0; --muted:#94a3b8; --line:#334155;
+  --brand:#0dc09d;
+  --a:#0dc09d; --a2:#0a9a7d; --b:#3b82f6; --b2:#2563eb;
+  --added:#22c55e; --removed:#ef4444; --changed:#eab308; --unchanged:#64748b;
+  /* theme-dependent extras */
+  --chip-ink:#ffffff;
+  --brand-soft:rgba(13,192,157,.18);
+  --tabs-bg:rgba(30,41,59,.85);
+  --gap-stripe:rgba(255,255,255,.04);
+  --shadow:rgba(0,0,0,.30);
+}
+html[data-theme="light"]{
+  /* nf-docs default palette: slate-50/100/200 with white cards. */
+  --bg:#f8fafc; --bg2:#f1f5f9; --panel:#ffffff; --panel2:#f8fafc;
+  --txt:#1e293b; --muted:#64748b; --line:#e2e8f0;
+  --brand:#0dc09d;
+  --a:#0dc09d; --a2:#0a9a7d; --b:#3b82f6; --b2:#2563eb;
+  --added:#16a34a; --removed:#dc2626; --changed:#a16207; --unchanged:#64748b;
+  --chip-ink:#ffffff;
+  --brand-soft:rgba(13,192,157,.12);
+  --tabs-bg:rgba(255,255,255,.85);
+  --gap-stripe:rgba(15,23,42,.05);
+  --shadow:rgba(15,23,42,.08);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg);color:var(--txt);line-height:1.625;
+  transition:background-color .2s ease,color .2s ease}
+.theme-toggle{position:absolute;top:16px;right:16px;z-index:20;display:inline-grid;place-items:center;
+  width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:17px;line-height:1;
+  background:var(--panel);border:1px solid var(--line);color:var(--txt);
+  transition:background .2s ease}
+.theme-toggle:hover{background:var(--panel2)}
+.theme-toggle .ti-light{display:none}
+html[data-theme="light"] .theme-toggle .ti-dark{display:none}
+html[data-theme="light"] .theme-toggle .ti-light{display:inline}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.wrap{max-width:1100px;margin:0 auto;padding:24px}
+.hero{position:relative;padding:36px 24px 28px;background:var(--panel);border-bottom:1px solid var(--line)}
+.hero-inner{max-width:1100px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px;color:var(--muted)}
+.logo{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--brand);color:#fff;font-weight:900;font-size:18px}
+.hero h1{margin:14px 0 20px;font-size:30px;font-weight:700;color:var(--brand)}
+.runs{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.run-chip{flex:1;min-width:260px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;position:relative;overflow:hidden;box-shadow:0 1px 2px var(--shadow)}
+.run-chip::before{content:"";position:absolute;inset:0 auto 0 0;width:4px}
+.run-a::before{background:var(--a)} .run-b::before{background:var(--b)}
+.run-name{font-size:18px;font-weight:700}
+.run-meta{display:flex;align-items:center;gap:10px;margin:6px 0}
+.run-sub{color:var(--muted);font-size:13px}
+.vs{font-weight:700;color:var(--muted);font-size:15px}
+.verdict-wrap{margin-top:18px}
+.verdict{display:inline-block;padding:8px 14px;border-radius:8px;font-weight:600;font-size:14px}
+.verdict.same{background:var(--brand-soft);color:var(--brand);border:1px solid rgba(13,192,157,.4)}
+.verdict.diff{background:rgba(234,179,8,.12);color:var(--changed);border:1px solid rgba(234,179,8,.4)}
+.tabs{position:sticky;top:0;z-index:10;display:flex;gap:4px;padding:8px 24px;background:var(--tabs-bg);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.tabs a{color:var(--muted);text-decoration:none;padding:8px 14px;border-radius:6px;font-weight:600;font-size:14px}
+.tabs a:hover{color:var(--txt);background:var(--panel2)}
+.tabs a.active{color:var(--brand);background:var(--brand-soft)}
+.section{margin:34px 0}
+.section h2{font-size:22px;font-weight:600;margin:0 0 16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;box-shadow:0 1px 2px var(--shadow)}
+.card.wide{margin-top:16px}
+.card-title{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px}
+.stat{text-align:center;position:relative;overflow:hidden}
+.stat .stat-num{font-size:36px;font-weight:800}
+.stat .stat-label{color:var(--muted);font-size:13px;margin-top:4px}
+.stat.changed{box-shadow:inset 0 -3px 0 var(--changed)} .stat.changed .stat-num{color:var(--changed)}
+.stat.added{box-shadow:inset 0 -3px 0 var(--added)} .stat.added .stat-num{color:var(--added)}
+.stat.removed{box-shadow:inset 0 -3px 0 var(--removed)} .stat.removed .stat-num{color:var(--removed)}
+.stat.unchanged{box-shadow:inset 0 -3px 0 var(--unchanged)} .stat.unchanged .stat-num{color:var(--muted)}
+.delta{margin-top:10px;color:var(--muted);font-size:14px}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
+thead th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;background:var(--panel2)}
+tbody tr:hover{background:var(--panel2)}
+tbody tr:last-child th,tbody tr:last-child td{border-bottom:none}
+table.kv th{width:180px;color:var(--muted);font-weight:600}
+.row-changed{background:rgba(234,179,8,.10)}
+.row-changed th{color:var(--changed)}
+.row-obvious th{color:var(--muted)}
+.tag-auto{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);vertical-align:middle}
+.src{display:inline-block;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:700;letter-spacing:.3px;border:1px solid var(--line)}
+.src-cli{color:var(--b);background:rgba(59,130,246,.14)}
+.src-file{color:var(--brand);background:rgba(13,192,157,.14)}
+.src-both{color:var(--changed);background:rgba(234,179,8,.16)}
+.src-na{color:var(--muted)}
+.mode-note{color:var(--muted);font-size:13px;margin:0 0 14px;line-height:1.6}
+.mode-note code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px}
+.warn-note{color:var(--changed);font-size:13px;margin:0 0 14px;line-height:1.6;background:rgba(234,179,8,.10);border-left:4px solid var(--changed);border-radius:6px;padding:10px 14px}
+.warn-note strong{color:var(--changed)}
+.row-added{background:rgba(34,197,94,.08)} .row-removed{background:rgba(239,68,68,.08)}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.pill.added{background:rgba(34,197,94,.15);color:var(--added)}
+.pill.removed{background:rgba(239,68,68,.15);color:var(--removed)}
+.pill.changed{background:rgba(234,179,8,.18);color:var(--changed)}
+.pill.unchanged{background:rgba(100,116,139,.2);color:var(--muted)}
+.pill.status-ok{background:rgba(34,197,94,.15);color:var(--added)}
+.pill.status-err{background:rgba(239,68,68,.15);color:var(--removed)}
+.pill.status-unknown{background:rgba(100,116,139,.2);color:var(--muted)}
+.tasks-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+.filters label{color:var(--muted);font-size:14px;cursor:pointer;user-select:none}
+.task{border:1px solid var(--line);border-radius:10px;margin:10px 0;overflow:hidden;background:var(--panel)}
+.task.changed{border-left:4px solid var(--changed)}
+.task.added{border-left:4px solid var(--added)}
+.task.removed{border-left:4px solid var(--removed)}
+.task.unchanged{border-left:4px solid var(--unchanged)}
+.task-hdr{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;user-select:none}
+.task-hdr:hover{background:var(--panel2)}
+.task-key{font-weight:600}
+.task-proc{color:var(--muted);font-size:13px;margin-left:auto}
+.chev{transition:transform .15s ease;color:var(--muted)}
+.task.open .chev{transform:rotate(90deg)}
+.task-body{display:none;padding:8px 16px 18px;border-top:1px solid var(--line)}
+.task.open .task-body{display:block}
+.solo-note{color:var(--muted)}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:6px 0 18px}
+.metric-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.bars{display:flex;flex-direction:column;gap:6px}
+.bar-row{display:flex;align-items:center;gap:8px}
+.bar-tag{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font-size:11px;font-weight:800;color:var(--chip-ink)}
+.bar-tag.a{background:var(--a)} .bar-tag.b{background:var(--b)}
+.bar-track{flex:1;height:12px;background:var(--bg2);border-radius:999px;overflow:hidden}
+.bar-fill{height:100%;border-radius:999px}
+.bar-fill.a{background:var(--a)}
+.bar-fill.b{background:var(--b)}
+.bar-val{min-width:80px;text-align:right;font-size:12px;color:var(--muted);font-family:ui-monospace,monospace}
+.code-diff{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.code-col{background:var(--bg2);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.code-col-hdr{padding:6px 12px;font-size:12px;color:var(--muted);background:var(--panel2);border-bottom:1px solid var(--line)}
+.code-col pre{margin:0;padding:0;overflow:auto;font-family:ui-monospace,monospace;font-size:12.5px}
+.cl{display:block;padding:1px 12px;white-space:pre-wrap;word-break:break-word;border-left:3px solid transparent}
+.cl.del{background:rgba(239,68,68,.14);border-left-color:var(--removed)}
+.cl.ins{background:rgba(34,197,94,.14);border-left-color:var(--added)}
+.cl.gap{background:repeating-linear-gradient(45deg,transparent,transparent 6px,var(--gap-stripe) 6px,var(--gap-stripe) 12px);min-height:1.4em}
+.foot{text-align:center;color:var(--muted);padding:30px;border-top:1px solid var(--line);font-size:13px}
+.foot-sub{margin-top:6px;font-size:12px;color:var(--muted);opacity:.85}
+.foot-sub strong{color:var(--brand)}
+.foot-sub a{color:var(--brand);text-decoration:none}
+.foot-sub a:hover{text-decoration:underline}
+
+</style>
+</head>
+<body>
+<header class="hero">
+  <button class="theme-toggle" id="theme-toggle" type="button" title="Toggle light/dark theme" aria-label="Toggle light/dark theme"><span class="ti-dark">🌙</span><span class="ti-light">☀️</span></button>
+  <div class="hero-inner">
+    <div class="brand"><span class="logo">±</span><span>nf-diff</span></div>
+    <h1>Run comparison</h1>
+    <div class="runs">
+      <div class="run-chip run-a">
+        <div class="run-name">hungry_rubens</div>
+        <div class="run-meta">
+          <span class="pill status-ok">OK</span>
+          <span class="mono">c9f753a5</span>
+        </div>
+        <div class="run-sub">8 tasks · 13.4s</div>
+      </div>
+      <div class="vs">vs</div>
+      <div class="run-chip run-b">
+        <div class="run-name">cranky_volta</div>
+        <div class="run-meta">
+          <span class="pill status-ok">OK</span>
+          <span class="mono">7a26166b</span>
+        </div>
+        <div class="run-sub">11 tasks · 26.8s</div>
+      </div>
+    </div>
+    <div class="verdict-wrap"><span class="verdict diff">11 task-level difference(s) detected</span></div>
+  </div>
+</header>
+<nav class="tabs" id="nav">
+  <a href="#summary" class="active">Summary</a>
+  <a href="#failures">Failures</a>
+  <a href="#metadata">Metadata</a>
+  <a href="#params">Parameters</a>
+  <a href="#config">Configuration</a>
+  <a href="#processes">Processes</a>
+  <a href="#software">Software</a>
+  <a href="#regressions">Regressions</a>
+  <a href="#tasks">Tasks</a>
+  <a href="#outputs">Outputs</a>
+  <a href="#logs">Logs</a>
+  <a href="#dag">Wiring</a>
+</nav>
+<main class="wrap">
+<section id="summary" class="section">
+  <h2>Summary</h2>
+  <div class="cards">
+    <div class="card stat changed">
+      <div class="stat-num">8</div>
+      <div class="stat-label">Tasks changed</div>
+    </div>
+    <div class="card stat removed">
+      <div class="stat-num">0</div>
+      <div class="stat-label">Only in A</div>
+    </div>
+    <div class="card stat added">
+      <div class="stat-num">3</div>
+      <div class="stat-label">Only in B</div>
+    </div>
+    <div class="card stat unchanged">
+      <div class="stat-num">0</div>
+      <div class="stat-label">Unchanged</div>
+    </div>
+    <div class="card stat changed">
+      <div class="stat-num">8</div>
+      <div class="stat-label">Recomputed</div>
+    </div>
+    <div class="card stat removed">
+      <div class="stat-num">0</div>
+      <div class="stat-label">Failed (A)</div>
+    </div>
+    <div class="card stat removed">
+      <div class="stat-num">1</div>
+      <div class="stat-label">Failed (B)</div>
+    </div>
+    <div class="card stat removed">
+      <div class="stat-num">1</div>
+      <div class="stat-label">New failures</div>
+    </div>
+    <div class="card stat changed">
+      <div class="stat-num">2</div>
+      <div class="stat-label">Software changed</div>
+    </div>
+    <div class="card stat removed">
+      <div class="stat-num">7</div>
+      <div class="stat-label">Regressions</div>
+    </div>
+    <div class="card stat changed">
+      <div class="stat-num">8</div>
+      <div class="stat-label">Outputs changed</div>
+    </div>
+    <div class="card stat changed">
+      <div class="stat-num">1</div>
+      <div class="stat-label">Logs changed</div>
+    </div>
+    <div class="card stat changed">
+      <div class="stat-num">3</div>
+      <div class="stat-label">Wiring edges changed</div>
+    </div>
+  </div>
+  <div class="card wide">
+    <div class="card-title">Wall-clock duration</div>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:50.00%"></div></div><span class="bar-val">13.4s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">26.8s</span></div>
+        </div>
+    <div class="delta">B vs A: <strong>+100.0%</strong></div>
+  </div>
+</section>
+<section id="failures" class="section">
+  <h2>Failure rollup</h2>
+  <p class="mode-note">What failed and why, rolled up by process, status and exit code, read from the run cache (no work directories needed). <span class="pill removed">new</span> = a failure signature seen only in Run B; <span class="pill added">resolved</span> = one that was in Run A but is gone in Run B. This is a summary of the per-task status/exit already shown in Tasks, so it is informational and does not by itself affect the identical verdict.</p>
+  <table class="proc">
+    <thead><tr><th>Process</th><th>Status</th><th>Exit</th><th>Run A</th><th>Run B</th><th></th></tr></thead>
+  <tbody>
+    <tr class="row-removed"><th class="mono">QC</th><td>FAILED</td><td class="mono">1</td><td>0</td><td>1</td><td><span class="pill removed">new</span></td></tr>
+  </tbody>
+  </table>
+</section>
+<section id="metadata" class="section">
+  <h2>Run metadata</h2>
+  <table class="kv">
+    <thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead>
+  <tbody>
+        <tr class="row-obvious"><th>Run name <span class="tag-auto" title="Always differs between runs">auto</span></th><td>hungry_rubens</td><td>cranky_volta</td></tr>
+        <tr class="row-obvious"><th>Session ID <span class="tag-auto" title="Always differs between runs">auto</span></th><td>c9f753a5-3e06-46e7-8993-4eb056299bce</td><td>7a26166b-b46f-4f09-b23f-0b2ff80ac4bf</td></tr>
+        <tr><th>Status</th><td>OK</td><td>OK</td></tr>
+        <tr><th>Revision</th><td>47e64accfc3825bf03ccb5e6f5c996d5</td><td>47e64accfc3825bf03ccb5e6f5c996d5</td></tr>
+        <tr class="row-obvious"><th>Command <span class="tag-auto" title="Always differs between runs">auto</span></th><td>nextflow run main.nf -profile baseline</td><td>nextflow run main.nf -profile changed</td></tr>
+        <tr class="row-obvious"><th>Launched <span class="tag-auto" title="Always differs between runs">auto</span></th><td>Tue Sep 08 23:17:52 GMT-03:00 2026</td><td>Tue Sep 08 23:18:48 GMT-03:00 2026</td></tr>
+        <tr class="row-obvious"><th>Wall duration <span class="tag-auto" title="Always differs between runs">auto</span></th><td>13.4s</td><td>26.8s</td></tr>
+        <tr class="row-obvious"><th>Total task realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>20.8s</td><td>40.4s</td></tr>
+        <tr class="row-changed"><th>Task count</th><td>8</td><td>11</td></tr>
+        <tr><th>Cached tasks</th><td>0</td><td>0</td></tr>
+        <tr class="row-changed"><th>Distinct processes</th><td>4</td><td>5</td></tr>
+  </tbody>
+  </table>
+</section>
+<section id="params" class="section">
+  <h2>Parameters &amp; options</h2>
+  <p class="mode-note">Pipeline params (<code>--foo</code>) and Nextflow options (<code>-profile</code>, <code>-r</code>) from each run's launch command, merged with any <code>-params-file</code> contents. The <em>Source</em> column shows whether a value came from the command line, a params-file, or both (the command line wins on conflict).</p>
+  <table class="kv">
+    <thead><tr><th>Flag</th><th>Run A</th><th>Run B</th><th>Source</th></tr></thead>
+  <tbody>
+        <tr class="row-changed"><th>-profile</th><td>baseline</td><td>changed</td><td><span class="src src-cli">CLI</span></td></tr>
+  </tbody>
+  </table>
+</section>
+<section id="config" class="section">
+  <h2>Resolved configuration</h2>
+  <p class="mode-note">Resolved from the current on-disk config files under ., applying each run&#39;s -profile/-c options — not a snapshot of the config at launch time.</p>
+  <p class="warn-note"><strong>⚠ Config provenance:</strong> The resolved configuration was rebuilt from the working tree at b2a0534b73, but both runs were launched at a different git revision (A: 47e64accfc, B: 47e64accfc). Any config difference driven by code changes between those revisions is NOT visible here — both sides were resolved against the current checkout.</p>
+  <table class="kv">
+    <thead><tr><th>Key</th><th>Run A</th><th>Run B</th></tr></thead>
+  <tbody>
+        <tr><th>docker.enabled</th><td>true</td><td>true</td></tr>
+        <tr><th>lineage.enabled</th><td>true</td><td>true</td></tr>
+        <tr class="row-changed"><th>process.withName:ALIGN.container</th><td>community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6</td><td>community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9</td></tr>
+        <tr><th>process.withName:INDEX_REF.container</th><td>community.wave.seqera.io/library/htslib_samtools:1.24--d697cfb9dce007cd</td><td>community.wave.seqera.io/library/htslib_samtools:1.24--d697cfb9dce007cd</td></tr>
+        <tr class="row-changed"><th>process.withName:MARKDUP.container</th><td>—</td><td>quay.io/biocontainers/prinseq-plus-plus:1.2.3--hc90279e_1</td></tr>
+        <tr><th>process.withName:MULTIQC.container</th><td>community.wave.seqera.io/library/seqkit:2.13.0--05c0a96bf9fb2751</td><td>community.wave.seqera.io/library/seqkit:2.13.0--05c0a96bf9fb2751</td></tr>
+        <tr class="row-changed"><th>process.withName:QC.container</th><td>quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0</td><td>community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde</td></tr>
+  </tbody>
+  </table>
+</section>
+<section id="processes" class="section">
+  <h2>Processes</h2>
+  <table class="proc">
+    <thead><tr><th>Process</th><th>Run A</th><th>Run B</th><th>Δ</th><th></th></tr></thead>
+  <tbody>
+    <tr class="row-unchanged"><th class="mono">ALIGN</th><td>3</td><td>3</td><td>0</td><td><span class="pill unchanged">unchanged</span></td></tr>
+    <tr class="row-unchanged"><th class="mono">INDEX_REF</th><td>1</td><td>1</td><td>0</td><td><span class="pill unchanged">unchanged</span></td></tr>
+    <tr class="row-added"><th class="mono">MARKDUP</th><td>0</td><td>3</td><td>+3</td><td><span class="pill added">added</span></td></tr>
+    <tr class="row-unchanged"><th class="mono">MULTIQC</th><td>1</td><td>1</td><td>0</td><td><span class="pill unchanged">unchanged</span></td></tr>
+    <tr class="row-unchanged"><th class="mono">QC</th><td>3</td><td>3</td><td>0</td><td><span class="pill unchanged">unchanged</span></td></tr>
+  </tbody>
+  </table>
+</section>
+<section id="software" class="section">
+  <h2>Software &amp; versions</h2>
+  <p class="mode-note">The container image and Conda package spec each process ran with, read from the run cache. A change here means the tools (and their versions) differed between the two runs.</p>
+  <table class="proc">
+    <thead><tr><th>Process</th><th>Container</th><th>Conda</th><th></th></tr></thead>
+  <tbody>
+    <tr class="row-changed"><th class="mono">ALIGN</th><td><span class="mono">community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6</span> &rarr; <span class="mono">community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9</span></td><td><span class="mono">—</span></td><td><span class="pill changed">changed</span></td></tr>
+    <tr class="row-unchanged"><th class="mono">INDEX_REF</th><td><span class="mono">community.wave.seqera.io/library/htslib_samtools:1.24--d697cfb9dce007cd</span></td><td><span class="mono">—</span></td><td><span class="pill unchanged">unchanged</span></td></tr>
+    <tr class="row-added"><th class="mono">MARKDUP</th><td><span class="mono">—</span> &rarr; <span class="mono">quay.io/biocontainers/prinseq-plus-plus:1.2.3--hc90279e_1</span></td><td><span class="mono">—</span></td><td><span class="pill added">added</span></td></tr>
+    <tr class="row-unchanged"><th class="mono">MULTIQC</th><td><span class="mono">community.wave.seqera.io/library/seqkit:2.13.0--05c0a96bf9fb2751</span></td><td><span class="mono">—</span></td><td><span class="pill unchanged">unchanged</span></td></tr>
+    <tr class="row-changed"><th class="mono">QC</th><td><span class="mono">quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0</span> &rarr; <span class="mono">community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde</span></td><td><span class="mono">—</span></td><td><span class="pill changed">changed</span></td></tr>
+  </tbody>
+  </table>
+</section>
+<section id="regressions" class="section">
+  <h2>Performance regressions</h2>
+  <p class="mode-note">Task metrics that changed by &ge; 25% (positive = Run B slower/heavier), worst first. <em>Same work</em> marks tasks whose cache hash is identical, so the cost change is environmental rather than a different computation.</p>
+  <table class="proc">
+    <thead><tr><th>Task</th><th>Metric</th><th>Run A</th><th>Run B</th><th>Δ</th><th>Same work</th></tr></thead>
+  <tbody>
+    <tr class="row-removed"><th class="mono">QC (sampleA)</th><td>Realtime</td><td>971ms</td><td>2.4s</td><td class="mono">+145.2%</td><td></td></tr>
+    <tr class="row-removed"><th class="mono">ALIGN (sampleB)</th><td>Realtime</td><td>4.1s</td><td>8.9s</td><td class="mono">+119.3%</td><td></td></tr>
+    <tr class="row-removed"><th class="mono">ALIGN (sampleC)</th><td>Realtime</td><td>4.2s</td><td>8s</td><td class="mono">+92.7%</td><td></td></tr>
+    <tr class="row-removed"><th class="mono">QC (sampleC)</th><td>Realtime</td><td>1.2s</td><td>2.3s</td><td class="mono">+92.7%</td><td></td></tr>
+    <tr class="row-removed"><th class="mono">ALIGN (sampleA)</th><td>Realtime</td><td>4.4s</td><td>8.1s</td><td class="mono">+84.6%</td><td></td></tr>
+    <tr class="row-removed"><th class="mono">MULTIQC (aggregate)</th><td>Realtime</td><td>1.3s</td><td>2.3s</td><td class="mono">+83.4%</td><td></td></tr>
+    <tr class="row-removed"><th class="mono">QC (sampleB)</th><td>Realtime</td><td>1.2s</td><td>2s</td><td class="mono">+62.6%</td><td></td></tr>
+    <tr class="row-added"><th class="mono">INDEX_REF (GRCh38)</th><td>Realtime</td><td>3.6s</td><td>1.7s</td><td class="mono">-52.6%</td><td></td></tr>
+  </tbody>
+  </table>
+</section>
+<section id="efficiency" class="section">
+  <h2>Resource efficiency</h2>
+  <p class="mode-note">Peak measured CPU / memory versus what each process <em>requested</em>, read from the run cache. <span class="pill removed">over</span> = used under 50% of the reservation (wasted allocation); <span class="pill added">tight</span> = used 90%+ of it (risk of OOM kills or CPU throttling). Informational only — this never affects the identical verdict.</p>
+  <p class="mode-note">No CPU/memory usage metrics were recorded in either run cache.</p>
+</section>
+<section id="tasks" class="section">
+  <div class="tasks-head">
+    <h2>Tasks</h2>
+    <div class="filters">
+      <label><input type="checkbox" id="hide-unchanged" checked> Hide unchanged</label>
+    </div>
+  </div>
+  <p class="mode-note">Showing meaningful differences only. Fields that always change between runs — run name, session id, work dir, timing and resource usage — are shown for context but not flagged. Re-run with <code>--verbose</code> to diff them too.</p>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">changed</span>
+      <span class="task-key mono">ALIGN (sampleA)</span>
+      <span class="task-proc">ALIGN</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Realtime</div>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:54.16%"></div></div><span class="bar-val">4.4s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">8.1s</span></div>
+        </div>
+        </div>
+      </div>
+      <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th>hash</th><td>bd/6e66c7</td><td>88/0a10e7</td></tr>
+        <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
+        <tr><th>exit</th><td>0</td><td>0</td></tr>
+        <tr class="row-changed"><th>container</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl del">community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6</span>
+<span class="cl gap"></span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl gap"></span>
+<span class="cl ins">community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9</span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr class="row-changed"><th>script</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl eq"></span>
+<span class="cl eq">    # Stand-in for alignment; sleep models a runtime difference between runs.</span>
+<span class="cl del">    sleep 1</span>
+<span class="cl gap"></span>
+<span class="cl eq">    echo &quot;sample=sampleA&quot; &gt; sampleA.bam</span>
+<span class="cl del">    echo &quot;aligner=bwa:0.7.17&quot; &gt;&gt; sampleA.bam</span>
+<span class="cl del">    echo &quot;reads_mapped=9310&quot; &gt;&gt; sampleA.bam</span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl eq">    cat reference.idx &gt;&gt; sampleA.bam</span>
+<span class="cl eq">    </span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl eq"></span>
+<span class="cl eq">    # Stand-in for alignment; sleep models a runtime difference between runs.</span>
+<span class="cl gap"></span>
+<span class="cl ins">    sleep 6</span>
+<span class="cl eq">    echo &quot;sample=sampleA&quot; &gt; sampleA.bam</span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl ins">    echo &quot;aligner=bwa-mem2:2.2.1&quot; &gt;&gt; sampleA.bam</span>
+<span class="cl ins">    echo &quot;reads_mapped=9421&quot; &gt;&gt; sampleA.bam</span>
+<span class="cl eq">    cat reference.idx &gt;&gt; sampleA.bam</span>
+<span class="cl eq">    </span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr class="row-changed"><th>cpus</th><td>2</td><td>4</td></tr>
+        <tr class="row-changed"><th>memory</th><td>4 GB</td><td>8 GB</td></tr>
+        <tr><th>time</th><td>-</td><td>-</td></tr>
+        <tr><th>disk</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>4.4s</td><td>8.1s</td></tr>
+        <tr><th>%cpu</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
+        <tr><th>rchar</th><td>-</td><td>-</td></tr>
+        <tr><th>wchar</th><td>-</td><td>-</td></tr>
+        <tr><th>attempt</th><td>1</td><td>1</td></tr>
+        <tr><th>queue</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/bd/6e66c70e78b37653804db911a4d206</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/88/0a10e7a5966b7dec0ff5ad948eea71</td></tr>
+        <tr><th>tag</th><td>sampleA</td><td>sampleA</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">changed</span>
+      <span class="task-key mono">ALIGN (sampleB)</span>
+      <span class="task-proc">ALIGN</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Realtime</div>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:45.60%"></div></div><span class="bar-val">4.1s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">8.9s</span></div>
+        </div>
+        </div>
+      </div>
+      <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th>hash</th><td>04/d7a49f</td><td>5f/3e9d2f</td></tr>
+        <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
+        <tr><th>exit</th><td>0</td><td>0</td></tr>
+        <tr class="row-changed"><th>container</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl del">community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6</span>
+<span class="cl gap"></span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl gap"></span>
+<span class="cl ins">community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9</span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr class="row-changed"><th>script</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl eq"></span>
+<span class="cl eq">    # Stand-in for alignment; sleep models a runtime difference between runs.</span>
+<span class="cl del">    sleep 1</span>
+<span class="cl gap"></span>
+<span class="cl eq">    echo &quot;sample=sampleB&quot; &gt; sampleB.bam</span>
+<span class="cl del">    echo &quot;aligner=bwa:0.7.17&quot; &gt;&gt; sampleB.bam</span>
+<span class="cl del">    echo &quot;reads_mapped=9310&quot; &gt;&gt; sampleB.bam</span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl eq">    cat reference.idx &gt;&gt; sampleB.bam</span>
+<span class="cl eq">    </span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl eq"></span>
+<span class="cl eq">    # Stand-in for alignment; sleep models a runtime difference between runs.</span>
+<span class="cl gap"></span>
+<span class="cl ins">    sleep 6</span>
+<span class="cl eq">    echo &quot;sample=sampleB&quot; &gt; sampleB.bam</span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl ins">    echo &quot;aligner=bwa-mem2:2.2.1&quot; &gt;&gt; sampleB.bam</span>
+<span class="cl ins">    echo &quot;reads_mapped=9421&quot; &gt;&gt; sampleB.bam</span>
+<span class="cl eq">    cat reference.idx &gt;&gt; sampleB.bam</span>
+<span class="cl eq">    </span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr class="row-changed"><th>cpus</th><td>2</td><td>4</td></tr>
+        <tr class="row-changed"><th>memory</th><td>4 GB</td><td>8 GB</td></tr>
+        <tr><th>time</th><td>-</td><td>-</td></tr>
+        <tr><th>disk</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>4.1s</td><td>8.9s</td></tr>
+        <tr><th>%cpu</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
+        <tr><th>rchar</th><td>-</td><td>-</td></tr>
+        <tr><th>wchar</th><td>-</td><td>-</td></tr>
+        <tr><th>attempt</th><td>1</td><td>1</td></tr>
+        <tr><th>queue</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/04/d7a49fa775ab8bf4caf82d3b2f75d2</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/5f/3e9d2f5ba19ac51b3a1fc51b801a5e</td></tr>
+        <tr><th>tag</th><td>sampleB</td><td>sampleB</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">changed</span>
+      <span class="task-key mono">ALIGN (sampleC)</span>
+      <span class="task-proc">ALIGN</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Realtime</div>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:51.90%"></div></div><span class="bar-val">4.2s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">8s</span></div>
+        </div>
+        </div>
+      </div>
+      <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th>hash</th><td>75/77fc8a</td><td>23/6f79d3</td></tr>
+        <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
+        <tr><th>exit</th><td>0</td><td>0</td></tr>
+        <tr class="row-changed"><th>container</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl del">community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6</span>
+<span class="cl gap"></span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl gap"></span>
+<span class="cl ins">community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9</span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr class="row-changed"><th>script</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl eq"></span>
+<span class="cl eq">    # Stand-in for alignment; sleep models a runtime difference between runs.</span>
+<span class="cl del">    sleep 1</span>
+<span class="cl gap"></span>
+<span class="cl eq">    echo &quot;sample=sampleC&quot; &gt; sampleC.bam</span>
+<span class="cl del">    echo &quot;aligner=bwa:0.7.17&quot; &gt;&gt; sampleC.bam</span>
+<span class="cl del">    echo &quot;reads_mapped=9310&quot; &gt;&gt; sampleC.bam</span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl eq">    cat reference.idx &gt;&gt; sampleC.bam</span>
+<span class="cl eq">    </span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl eq"></span>
+<span class="cl eq">    # Stand-in for alignment; sleep models a runtime difference between runs.</span>
+<span class="cl gap"></span>
+<span class="cl ins">    sleep 6</span>
+<span class="cl eq">    echo &quot;sample=sampleC&quot; &gt; sampleC.bam</span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl ins">    echo &quot;aligner=bwa-mem2:2.2.1&quot; &gt;&gt; sampleC.bam</span>
+<span class="cl ins">    echo &quot;reads_mapped=9421&quot; &gt;&gt; sampleC.bam</span>
+<span class="cl eq">    cat reference.idx &gt;&gt; sampleC.bam</span>
+<span class="cl eq">    </span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr class="row-changed"><th>cpus</th><td>2</td><td>4</td></tr>
+        <tr class="row-changed"><th>memory</th><td>4 GB</td><td>8 GB</td></tr>
+        <tr><th>time</th><td>-</td><td>-</td></tr>
+        <tr><th>disk</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>4.2s</td><td>8s</td></tr>
+        <tr><th>%cpu</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
+        <tr><th>rchar</th><td>-</td><td>-</td></tr>
+        <tr><th>wchar</th><td>-</td><td>-</td></tr>
+        <tr><th>attempt</th><td>1</td><td>1</td></tr>
+        <tr><th>queue</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/75/77fc8a3f71773687986540652c97a0</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/23/6f79d3b12313ceab5c7202992b5aac</td></tr>
+        <tr><th>tag</th><td>sampleC</td><td>sampleC</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">changed</span>
+      <span class="task-key mono">INDEX_REF (GRCh38)</span>
+      <span class="task-proc">INDEX_REF</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Realtime</div>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">3.6s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:47.44%"></div></div><span class="bar-val">1.7s</span></div>
+        </div>
+        </div>
+      </div>
+      <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th>hash</th><td>53/24547b</td><td>a2/5bc964</td></tr>
+        <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
+        <tr><th>exit</th><td>0</td><td>0</td></tr>
+        <tr class="row-changed"><th>script</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl eq"></span>
+<span class="cl del">    echo &quot;index for GRCh38 built with samtools 1.15&quot; &gt; reference.idx</span>
+<span class="cl gap"></span>
+<span class="cl eq">    </span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl eq"></span>
+<span class="cl gap"></span>
+<span class="cl ins">    echo &quot;index for GRCh38 built with samtools 1.19&quot; &gt; reference.idx</span>
+<span class="cl eq">    </span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr><th>cpus</th><td>1</td><td>1</td></tr>
+        <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
+        <tr><th>time</th><td>-</td><td>-</td></tr>
+        <tr><th>disk</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>3.6s</td><td>1.7s</td></tr>
+        <tr><th>%cpu</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
+        <tr><th>rchar</th><td>-</td><td>-</td></tr>
+        <tr><th>wchar</th><td>-</td><td>-</td></tr>
+        <tr><th>attempt</th><td>1</td><td>1</td></tr>
+        <tr><th>queue</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/53/24547be8b9da9d1608e70c1e162b7d</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/a2/5bc9640a3544ad155d55cf5a750c8b</td></tr>
+        <tr><th>tag</th><td>GRCh38</td><td>GRCh38</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">changed</span>
+      <span class="task-key mono">MULTIQC (aggregate)</span>
+      <span class="task-proc">MULTIQC</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Realtime</div>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:54.52%"></div></div><span class="bar-val">1.3s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">2.3s</span></div>
+        </div>
+        </div>
+      </div>
+      <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th>hash</th><td>f6/167e35</td><td>9a/9a7f8d</td></tr>
+        <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
+        <tr><th>exit</th><td>0</td><td>0</td></tr>
+        <tr class="row-changed"><th>script</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl eq"></span>
+<span class="cl del">    echo &quot;MultiQC 1.13&quot; &gt; multiqc_report.txt</span>
+<span class="cl gap"></span>
+<span class="cl eq">    echo &quot;samples_reported=$(ls qc | wc -l)&quot; &gt;&gt; multiqc_report.txt</span>
+<span class="cl eq">    cat qc/* &gt;&gt; multiqc_report.txt</span>
+<span class="cl eq">    </span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl eq"></span>
+<span class="cl gap"></span>
+<span class="cl ins">    echo &quot;MultiQC 1.21&quot; &gt; multiqc_report.txt</span>
+<span class="cl eq">    echo &quot;samples_reported=$(ls qc | wc -l)&quot; &gt;&gt; multiqc_report.txt</span>
+<span class="cl eq">    cat qc/* &gt;&gt; multiqc_report.txt</span>
+<span class="cl eq">    </span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr><th>cpus</th><td>1</td><td>1</td></tr>
+        <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
+        <tr><th>time</th><td>-</td><td>-</td></tr>
+        <tr><th>disk</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>1.3s</td><td>2.3s</td></tr>
+        <tr><th>%cpu</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
+        <tr><th>rchar</th><td>-</td><td>-</td></tr>
+        <tr><th>wchar</th><td>-</td><td>-</td></tr>
+        <tr><th>attempt</th><td>1</td><td>1</td></tr>
+        <tr><th>queue</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/f6/167e35533164f12672eb1e918c0b3c</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/9a/9a7f8d44d8a0390f4df8ab23d8c6e7</td></tr>
+        <tr><th>tag</th><td>aggregate</td><td>aggregate</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">changed</span>
+      <span class="task-key mono">QC (sampleA)</span>
+      <span class="task-proc">QC</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Realtime</div>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:40.78%"></div></div><span class="bar-val">971ms</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">2.4s</span></div>
+        </div>
+        </div>
+      </div>
+      <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th>hash</th><td>ac/7cfc1b</td><td>65/3060b2</td></tr>
+        <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
+        <tr><th>exit</th><td>0</td><td>0</td></tr>
+        <tr class="row-changed"><th>container</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl del">quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0</span>
+<span class="cl gap"></span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl gap"></span>
+<span class="cl ins">community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde</span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr class="row-changed"><th>script</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl eq"></span>
+<span class="cl eq">    echo &quot;sample=sampleA&quot; &gt; sampleA.qc.txt</span>
+<span class="cl del">    echo &quot;fastqc=0.11.9&quot; &gt;&gt; sampleA.qc.txt</span>
+<span class="cl del">    echo &quot;gc_content=43&quot; &gt;&gt; sampleA.qc.txt</span>
+<span class="cl del">    grep &#39;^aligner&#39; sampleA.bam &gt;&gt; sampleA.qc.txt</span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl eq"></span>
+<span class="cl eq">    if [ &quot;false&quot; = &quot;true&quot; ]; then</span>
+<span class="cl eq">        echo &quot;ERROR: adapter contamination above threshold for sampleA&quot; &gt;&amp;2</span>
+<span class="cl eq">        echo &quot;QC gate failed&quot; &gt;&amp;2</span>
+<span class="cl eq">        exit 1</span>
+<span class="cl eq">    fi</span>
+<span class="cl eq">    </span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl eq"></span>
+<span class="cl eq">    echo &quot;sample=sampleA&quot; &gt; sampleA.qc.txt</span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl ins">    echo &quot;fastqc=0.12.1&quot; &gt;&gt; sampleA.qc.txt</span>
+<span class="cl ins">    echo &quot;gc_content=41&quot; &gt;&gt; sampleA.qc.txt</span>
+<span class="cl ins">    grep &#39;^aligner&#39; sampleA.dedup.bam &gt;&gt; sampleA.qc.txt</span>
+<span class="cl eq"></span>
+<span class="cl eq">    if [ &quot;false&quot; = &quot;true&quot; ]; then</span>
+<span class="cl eq">        echo &quot;ERROR: adapter contamination above threshold for sampleA&quot; &gt;&amp;2</span>
+<span class="cl eq">        echo &quot;QC gate failed&quot; &gt;&amp;2</span>
+<span class="cl eq">        exit 1</span>
+<span class="cl eq">    fi</span>
+<span class="cl eq">    </span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr><th>cpus</th><td>1</td><td>1</td></tr>
+        <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
+        <tr><th>time</th><td>-</td><td>-</td></tr>
+        <tr><th>disk</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>971ms</td><td>2.4s</td></tr>
+        <tr><th>%cpu</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
+        <tr><th>rchar</th><td>-</td><td>-</td></tr>
+        <tr><th>wchar</th><td>-</td><td>-</td></tr>
+        <tr><th>attempt</th><td>1</td><td>1</td></tr>
+        <tr><th>queue</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/ac/7cfc1b916aa95e638cd9b579673303</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/65/3060b2611ed97a61b2b1fe43de04ca</td></tr>
+        <tr><th>tag</th><td>sampleA</td><td>sampleA</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">changed</span>
+      <span class="task-key mono">QC (sampleB)</span>
+      <span class="task-proc">QC</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Realtime</div>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:61.51%"></div></div><span class="bar-val">1.2s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">2s</span></div>
+        </div>
+        </div>
+      </div>
+      <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th>hash</th><td>db/9e10d8</td><td>2c/ad9331</td></tr>
+        <tr class="row-changed"><th>status</th><td>COMPLETED</td><td>FAILED</td></tr>
+        <tr class="row-changed"><th>exit</th><td>0</td><td>1</td></tr>
+        <tr class="row-changed"><th>container</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl del">quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0</span>
+<span class="cl gap"></span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl gap"></span>
+<span class="cl ins">community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde</span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr class="row-changed"><th>script</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl eq"></span>
+<span class="cl eq">    echo &quot;sample=sampleB&quot; &gt; sampleB.qc.txt</span>
+<span class="cl del">    echo &quot;fastqc=0.11.9&quot; &gt;&gt; sampleB.qc.txt</span>
+<span class="cl del">    echo &quot;gc_content=43&quot; &gt;&gt; sampleB.qc.txt</span>
+<span class="cl del">    grep &#39;^aligner&#39; sampleB.bam &gt;&gt; sampleB.qc.txt</span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl eq"></span>
+<span class="cl del">    if [ &quot;false&quot; = &quot;true&quot; ]; then</span>
+<span class="cl gap"></span>
+<span class="cl eq">        echo &quot;ERROR: adapter contamination above threshold for sampleB&quot; &gt;&amp;2</span>
+<span class="cl eq">        echo &quot;QC gate failed&quot; &gt;&amp;2</span>
+<span class="cl eq">        exit 1</span>
+<span class="cl eq">    fi</span>
+<span class="cl eq">    </span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl eq"></span>
+<span class="cl eq">    echo &quot;sample=sampleB&quot; &gt; sampleB.qc.txt</span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl ins">    echo &quot;fastqc=0.12.1&quot; &gt;&gt; sampleB.qc.txt</span>
+<span class="cl ins">    echo &quot;gc_content=41&quot; &gt;&gt; sampleB.qc.txt</span>
+<span class="cl ins">    grep &#39;^aligner&#39; sampleB.dedup.bam &gt;&gt; sampleB.qc.txt</span>
+<span class="cl eq"></span>
+<span class="cl gap"></span>
+<span class="cl ins">    if [ &quot;true&quot; = &quot;true&quot; ]; then</span>
+<span class="cl eq">        echo &quot;ERROR: adapter contamination above threshold for sampleB&quot; &gt;&amp;2</span>
+<span class="cl eq">        echo &quot;QC gate failed&quot; &gt;&amp;2</span>
+<span class="cl eq">        exit 1</span>
+<span class="cl eq">    fi</span>
+<span class="cl eq">    </span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr><th>cpus</th><td>1</td><td>1</td></tr>
+        <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
+        <tr><th>time</th><td>-</td><td>-</td></tr>
+        <tr><th>disk</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>1.2s</td><td>2s</td></tr>
+        <tr><th>%cpu</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
+        <tr><th>rchar</th><td>-</td><td>-</td></tr>
+        <tr><th>wchar</th><td>-</td><td>-</td></tr>
+        <tr><th>attempt</th><td>1</td><td>1</td></tr>
+        <tr><th>queue</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/db/9e10d8c41f8480b013047318ef94ce</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/2c/ad9331e2446aa377f3a303b57e4fcc</td></tr>
+        <tr><th>tag</th><td>sampleB</td><td>sampleB</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">changed</span>
+      <span class="task-key mono">QC (sampleC)</span>
+      <span class="task-proc">QC</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Realtime</div>
+        <div class="bars">
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:51.90%"></div></div><span class="bar-val">1.2s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">2.3s</span></div>
+        </div>
+        </div>
+      </div>
+      <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th>hash</th><td>5a/f720b0</td><td>5e/d3c00d</td></tr>
+        <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
+        <tr><th>exit</th><td>0</td><td>0</td></tr>
+        <tr class="row-changed"><th>container</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl del">quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0</span>
+<span class="cl gap"></span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl gap"></span>
+<span class="cl ins">community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde</span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr class="row-changed"><th>script</th><td colspan="2">
+          <div class="code-diff">
+            <div class="code-col"><div class="code-col-hdr">Run A</div><pre><span class="cl eq"></span>
+<span class="cl eq">    echo &quot;sample=sampleC&quot; &gt; sampleC.qc.txt</span>
+<span class="cl del">    echo &quot;fastqc=0.11.9&quot; &gt;&gt; sampleC.qc.txt</span>
+<span class="cl del">    echo &quot;gc_content=43&quot; &gt;&gt; sampleC.qc.txt</span>
+<span class="cl del">    grep &#39;^aligner&#39; sampleC.bam &gt;&gt; sampleC.qc.txt</span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl eq"></span>
+<span class="cl eq">    if [ &quot;false&quot; = &quot;true&quot; ]; then</span>
+<span class="cl eq">        echo &quot;ERROR: adapter contamination above threshold for sampleC&quot; &gt;&amp;2</span>
+<span class="cl eq">        echo &quot;QC gate failed&quot; &gt;&amp;2</span>
+<span class="cl eq">        exit 1</span>
+<span class="cl eq">    fi</span>
+<span class="cl eq">    </span>
+</pre></div>
+            <div class="code-col"><div class="code-col-hdr">Run B</div><pre><span class="cl eq"></span>
+<span class="cl eq">    echo &quot;sample=sampleC&quot; &gt; sampleC.qc.txt</span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl gap"></span>
+<span class="cl ins">    echo &quot;fastqc=0.12.1&quot; &gt;&gt; sampleC.qc.txt</span>
+<span class="cl ins">    echo &quot;gc_content=41&quot; &gt;&gt; sampleC.qc.txt</span>
+<span class="cl ins">    grep &#39;^aligner&#39; sampleC.dedup.bam &gt;&gt; sampleC.qc.txt</span>
+<span class="cl eq"></span>
+<span class="cl eq">    if [ &quot;false&quot; = &quot;true&quot; ]; then</span>
+<span class="cl eq">        echo &quot;ERROR: adapter contamination above threshold for sampleC&quot; &gt;&amp;2</span>
+<span class="cl eq">        echo &quot;QC gate failed&quot; &gt;&amp;2</span>
+<span class="cl eq">        exit 1</span>
+<span class="cl eq">    fi</span>
+<span class="cl eq">    </span>
+</pre></div>
+          </div>
+        </td></tr>
+        <tr><th>cpus</th><td>1</td><td>1</td></tr>
+        <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
+        <tr><th>time</th><td>-</td><td>-</td></tr>
+        <tr><th>disk</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>1.2s</td><td>2.3s</td></tr>
+        <tr><th>%cpu</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
+        <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
+        <tr><th>rchar</th><td>-</td><td>-</td></tr>
+        <tr><th>wchar</th><td>-</td><td>-</td></tr>
+        <tr><th>attempt</th><td>1</td><td>1</td></tr>
+        <tr><th>queue</th><td>-</td><td>-</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/5a/f720b034c92ff6a71720a45181fc73</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/5e/d3c00db05bd0ccfa89d99607f9cc55</td></tr>
+        <tr><th>tag</th><td>sampleC</td><td>sampleC</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="task added">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill added">added</span>
+      <span class="task-key mono">MARKDUP (sampleA)</span>
+      <span class="task-proc">MARKDUP</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <p class="solo-note">Only present in Run B</p>
+      <table class="kv"><tbody>
+        <tr><th>hash</th><td colspan="2">18/328ba6</td></tr>
+        <tr><th>status</th><td colspan="2">COMPLETED</td></tr>
+        <tr><th>exit</th><td colspan="2">0</td></tr>
+        <tr><th>container</th><td colspan="2">quay.io/biocontainers/prinseq-plus-plus:1.2.3--hc90279e_1</td></tr>
+        <tr><th>script</th><td colspan="2">
+    grep -v &#39;^duplicates&#39; sampleA.bam &gt; sampleA.dedup.bam
+    echo &quot;duplicates_removed=312&quot; &gt;&gt; sampleA.dedup.bam
+    </td></tr>
+        <tr><th>cpus</th><td colspan="2">1</td></tr>
+        <tr><th>memory</th><td colspan="2">2 GB</td></tr>
+        <tr><th>time</th><td colspan="2">-</td></tr>
+        <tr><th>disk</th><td colspan="2">-</td></tr>
+        <tr><th>realtime</th><td colspan="2">2s</td></tr>
+        <tr><th>%cpu</th><td colspan="2">-</td></tr>
+        <tr><th>peak_rss</th><td colspan="2">-</td></tr>
+        <tr><th>peak_vmem</th><td colspan="2">-</td></tr>
+        <tr><th>rchar</th><td colspan="2">-</td></tr>
+        <tr><th>wchar</th><td colspan="2">-</td></tr>
+        <tr><th>attempt</th><td colspan="2">1</td></tr>
+        <tr><th>queue</th><td colspan="2">-</td></tr>
+        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/18/328ba62ee87cdda9d4eb9224a929be</td></tr>
+        <tr><th>tag</th><td colspan="2">sampleA</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="task added">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill added">added</span>
+      <span class="task-key mono">MARKDUP (sampleB)</span>
+      <span class="task-proc">MARKDUP</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <p class="solo-note">Only present in Run B</p>
+      <table class="kv"><tbody>
+        <tr><th>hash</th><td colspan="2">e6/b6b915</td></tr>
+        <tr><th>status</th><td colspan="2">COMPLETED</td></tr>
+        <tr><th>exit</th><td colspan="2">0</td></tr>
+        <tr><th>container</th><td colspan="2">quay.io/biocontainers/prinseq-plus-plus:1.2.3--hc90279e_1</td></tr>
+        <tr><th>script</th><td colspan="2">
+    grep -v &#39;^duplicates&#39; sampleB.bam &gt; sampleB.dedup.bam
+    echo &quot;duplicates_removed=312&quot; &gt;&gt; sampleB.dedup.bam
+    </td></tr>
+        <tr><th>cpus</th><td colspan="2">1</td></tr>
+        <tr><th>memory</th><td colspan="2">2 GB</td></tr>
+        <tr><th>time</th><td colspan="2">-</td></tr>
+        <tr><th>disk</th><td colspan="2">-</td></tr>
+        <tr><th>realtime</th><td colspan="2">841ms</td></tr>
+        <tr><th>%cpu</th><td colspan="2">-</td></tr>
+        <tr><th>peak_rss</th><td colspan="2">-</td></tr>
+        <tr><th>peak_vmem</th><td colspan="2">-</td></tr>
+        <tr><th>rchar</th><td colspan="2">-</td></tr>
+        <tr><th>wchar</th><td colspan="2">-</td></tr>
+        <tr><th>attempt</th><td colspan="2">1</td></tr>
+        <tr><th>queue</th><td colspan="2">-</td></tr>
+        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/e6/b6b9153c45ace7054c7f36d83f917b</td></tr>
+        <tr><th>tag</th><td colspan="2">sampleB</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="task added">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill added">added</span>
+      <span class="task-key mono">MARKDUP (sampleC)</span>
+      <span class="task-proc">MARKDUP</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <p class="solo-note">Only present in Run B</p>
+      <table class="kv"><tbody>
+        <tr><th>hash</th><td colspan="2">7e/d2324b</td></tr>
+        <tr><th>status</th><td colspan="2">COMPLETED</td></tr>
+        <tr><th>exit</th><td colspan="2">0</td></tr>
+        <tr><th>container</th><td colspan="2">quay.io/biocontainers/prinseq-plus-plus:1.2.3--hc90279e_1</td></tr>
+        <tr><th>script</th><td colspan="2">
+    grep -v &#39;^duplicates&#39; sampleC.bam &gt; sampleC.dedup.bam
+    echo &quot;duplicates_removed=312&quot; &gt;&gt; sampleC.dedup.bam
+    </td></tr>
+        <tr><th>cpus</th><td colspan="2">1</td></tr>
+        <tr><th>memory</th><td colspan="2">2 GB</td></tr>
+        <tr><th>time</th><td colspan="2">-</td></tr>
+        <tr><th>disk</th><td colspan="2">-</td></tr>
+        <tr><th>realtime</th><td colspan="2">2s</td></tr>
+        <tr><th>%cpu</th><td colspan="2">-</td></tr>
+        <tr><th>peak_rss</th><td colspan="2">-</td></tr>
+        <tr><th>peak_vmem</th><td colspan="2">-</td></tr>
+        <tr><th>rchar</th><td colspan="2">-</td></tr>
+        <tr><th>wchar</th><td colspan="2">-</td></tr>
+        <tr><th>attempt</th><td colspan="2">1</td></tr>
+        <tr><th>queue</th><td colspan="2">-</td></tr>
+        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/7e/d2324bb5cd4f0b868e436f80c420e1</td></tr>
+        <tr><th>tag</th><td colspan="2">sampleC</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+<section id="outputs" class="section">
+  <h2>Output files</h2>
+  <p class="mode-note">Output files compared by size, then SHA-256 for same-size files, from each task&#39;s work directory as it exists now. Changed text files are additionally diffed line by line (first 1000 lines per file; binary files show a size/hash change only).</p>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">outputs</span>
+      <span class="task-key mono">ALIGN (sampleA)</span>
+      <span class="task-proc">ALIGN</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <table class="kv diff-table"><thead><tr><th>File</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th class="mono">sampleA.bam <span class="pill changed">changed</span></th><td>94 B</td><td>98 B</td></tr>
+      </tbody></table>
+      <div class="log-file"><span class="mono">sampleA.bam</span> <span class="pill changed">+3 −3</span></div>
+      <div class="code-diff"><div class="code-col wide"><pre><span class="cl eq">sample=sampleA</span>
+<span class="cl del">aligner=bwa:0.7.17</span>
+<span class="cl del">reads_mapped=9310</span>
+<span class="cl del">index for GRCh38 built with samtools 1.15</span>
+<span class="cl ins">aligner=bwa-mem2:2.2.1</span>
+<span class="cl ins">reads_mapped=9421</span>
+<span class="cl ins">index for GRCh38 built with samtools 1.19</span>
+</pre></div></div>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">outputs</span>
+      <span class="task-key mono">ALIGN (sampleB)</span>
+      <span class="task-proc">ALIGN</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <table class="kv diff-table"><thead><tr><th>File</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th class="mono">sampleB.bam <span class="pill changed">changed</span></th><td>94 B</td><td>98 B</td></tr>
+      </tbody></table>
+      <div class="log-file"><span class="mono">sampleB.bam</span> <span class="pill changed">+3 −3</span></div>
+      <div class="code-diff"><div class="code-col wide"><pre><span class="cl eq">sample=sampleB</span>
+<span class="cl del">aligner=bwa:0.7.17</span>
+<span class="cl del">reads_mapped=9310</span>
+<span class="cl del">index for GRCh38 built with samtools 1.15</span>
+<span class="cl ins">aligner=bwa-mem2:2.2.1</span>
+<span class="cl ins">reads_mapped=9421</span>
+<span class="cl ins">index for GRCh38 built with samtools 1.19</span>
+</pre></div></div>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">outputs</span>
+      <span class="task-key mono">ALIGN (sampleC)</span>
+      <span class="task-proc">ALIGN</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <table class="kv diff-table"><thead><tr><th>File</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th class="mono">sampleC.bam <span class="pill changed">changed</span></th><td>94 B</td><td>98 B</td></tr>
+      </tbody></table>
+      <div class="log-file"><span class="mono">sampleC.bam</span> <span class="pill changed">+3 −3</span></div>
+      <div class="code-diff"><div class="code-col wide"><pre><span class="cl eq">sample=sampleC</span>
+<span class="cl del">aligner=bwa:0.7.17</span>
+<span class="cl del">reads_mapped=9310</span>
+<span class="cl del">index for GRCh38 built with samtools 1.15</span>
+<span class="cl ins">aligner=bwa-mem2:2.2.1</span>
+<span class="cl ins">reads_mapped=9421</span>
+<span class="cl ins">index for GRCh38 built with samtools 1.19</span>
+</pre></div></div>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">outputs</span>
+      <span class="task-key mono">INDEX_REF (GRCh38)</span>
+      <span class="task-proc">INDEX_REF</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <table class="kv diff-table"><thead><tr><th>File</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th class="mono">reference.idx <span class="pill changed">changed</span></th><td>42 B · e6ddf15cbfed</td><td>42 B · 83e8707579f0</td></tr>
+      </tbody></table>
+      <div class="log-file"><span class="mono">reference.idx</span> <span class="pill changed">+1 −1</span></div>
+      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">index for GRCh38 built with samtools 1.15</span>
+<span class="cl ins">index for GRCh38 built with samtools 1.19</span>
+</pre></div></div>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">outputs</span>
+      <span class="task-key mono">MULTIQC (aggregate)</span>
+      <span class="task-proc">MULTIQC</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <table class="kv diff-table"><thead><tr><th>File</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th class="mono">multiqc_report.txt <span class="pill changed">changed</span></th><td>218 B</td><td>164 B</td></tr>
+      </tbody></table>
+      <div class="log-file"><span class="mono">multiqc_report.txt</span> <span class="pill changed">+8 −12</span></div>
+      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">MultiQC 1.13</span>
+<span class="cl del">samples_reported=3</span>
+<span class="cl ins">MultiQC 1.21</span>
+<span class="cl ins">samples_reported=2</span>
+<span class="cl eq">sample=sampleA</span>
+<span class="cl del">fastqc=0.11.9</span>
+<span class="cl del">gc_content=43</span>
+<span class="cl del">aligner=bwa:0.7.17</span>
+<span class="cl del">sample=sampleB</span>
+<span class="cl del">fastqc=0.11.9</span>
+<span class="cl del">gc_content=43</span>
+<span class="cl del">aligner=bwa:0.7.17</span>
+<span class="cl ins">fastqc=0.12.1</span>
+<span class="cl ins">gc_content=41</span>
+<span class="cl ins">aligner=bwa-mem2:2.2.1</span>
+<span class="cl eq">sample=sampleC</span>
+<span class="cl del">fastqc=0.11.9</span>
+<span class="cl del">gc_content=43</span>
+<span class="cl del">aligner=bwa:0.7.17</span>
+<span class="cl ins">fastqc=0.12.1</span>
+<span class="cl ins">gc_content=41</span>
+<span class="cl ins">aligner=bwa-mem2:2.2.1</span>
+</pre></div></div>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">outputs</span>
+      <span class="task-key mono">QC (sampleA)</span>
+      <span class="task-proc">QC</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <table class="kv diff-table"><thead><tr><th>File</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th class="mono">sampleA.qc.txt <span class="pill changed">changed</span></th><td>62 B</td><td>66 B</td></tr>
+      </tbody></table>
+      <div class="log-file"><span class="mono">sampleA.qc.txt</span> <span class="pill changed">+3 −3</span></div>
+      <div class="code-diff"><div class="code-col wide"><pre><span class="cl eq">sample=sampleA</span>
+<span class="cl del">fastqc=0.11.9</span>
+<span class="cl del">gc_content=43</span>
+<span class="cl del">aligner=bwa:0.7.17</span>
+<span class="cl ins">fastqc=0.12.1</span>
+<span class="cl ins">gc_content=41</span>
+<span class="cl ins">aligner=bwa-mem2:2.2.1</span>
+</pre></div></div>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">outputs</span>
+      <span class="task-key mono">QC (sampleB)</span>
+      <span class="task-proc">QC</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <table class="kv diff-table"><thead><tr><th>File</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th class="mono">sampleB.qc.txt <span class="pill changed">changed</span></th><td>62 B</td><td>66 B</td></tr>
+      </tbody></table>
+      <div class="log-file"><span class="mono">sampleB.qc.txt</span> <span class="pill changed">+3 −3</span></div>
+      <div class="code-diff"><div class="code-col wide"><pre><span class="cl eq">sample=sampleB</span>
+<span class="cl del">fastqc=0.11.9</span>
+<span class="cl del">gc_content=43</span>
+<span class="cl del">aligner=bwa:0.7.17</span>
+<span class="cl ins">fastqc=0.12.1</span>
+<span class="cl ins">gc_content=41</span>
+<span class="cl ins">aligner=bwa-mem2:2.2.1</span>
+</pre></div></div>
+    </div>
+  </div>
+  <div class="task changed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill changed">outputs</span>
+      <span class="task-key mono">QC (sampleC)</span>
+      <span class="task-proc">QC</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <table class="kv diff-table"><thead><tr><th>File</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
+        <tr class="row-changed"><th class="mono">sampleC.qc.txt <span class="pill changed">changed</span></th><td>62 B</td><td>66 B</td></tr>
+      </tbody></table>
+      <div class="log-file"><span class="mono">sampleC.qc.txt</span> <span class="pill changed">+3 −3</span></div>
+      <div class="code-diff"><div class="code-col wide"><pre><span class="cl eq">sample=sampleC</span>
+<span class="cl del">fastqc=0.11.9</span>
+<span class="cl del">gc_content=43</span>
+<span class="cl del">aligner=bwa:0.7.17</span>
+<span class="cl ins">fastqc=0.12.1</span>
+<span class="cl ins">gc_content=41</span>
+<span class="cl ins">aligner=bwa-mem2:2.2.1</span>
+</pre></div></div>
+    </div>
+  </div>
+</section>
+<section id="logs" class="section">
+  <h2>Task logs</h2>
+  <p class="mode-note">Task stdout/stderr (.command.out/.err/.log) compared line by line, tailed to the last 200 lines per file. Logs are informational only — they never affect the &quot;identical&quot; verdict or --fail-on-change.</p>
+  <div class="task removed">
+    <div class="task-hdr" onclick="toggleTask(this)">
+      <span class="pill removed">failure</span>
+      <span class="task-key mono">QC (sampleB)</span>
+      <span class="task-proc">QC</span>
+      <span class="chev">▸</span>
+    </div>
+    <div class="task-body">
+      <p class="solo-note">exit 0 &rarr; 1 · status COMPLETED &rarr; FAILED</p>
+      <div class="log-file"><span class="mono">.command.err</span> <span class="pill changed">changed</span></div>
+      <div class="code-diff"><div class="code-col wide"><pre><span class="cl ins">ERROR: adapter contamination above threshold for sampleB</span>
+<span class="cl ins">QC gate failed</span>
+</pre></div></div>
+      <div class="log-file"><span class="mono">.command.log</span> <span class="pill changed">changed</span></div>
+      <div class="code-diff"><div class="code-col wide"><pre><span class="cl ins">ERROR: adapter contamination above threshold for sampleB</span>
+<span class="cl ins">QC gate failed</span>
+</pre></div></div>
+    </div>
+  </div>
+</section>
+<section id="dag" class="section">
+  <h2>Process wiring (DAG)</h2>
+  <p class="mode-note">Process wiring inferred from each task&#39;s staged input symlinks (a link into another task&#39;s work directory is a producer→consumer edge). This is a best-effort reconstruction — enable lineage (lineage.enabled) for an authoritative graph. Informational only — it never affects the &quot;identical&quot; verdict or --fail-on-change.</p>
+  <table class="proc">
+    <thead><tr><th>Producer</th><th>Consumer</th><th></th></tr></thead>
+  <tbody>
+    <tr class="row-added"><th class="mono">ALIGN</th><td class="mono">MARKDUP</td><td><span class="pill added">added</span></td></tr>
+    <tr class="row-added"><th class="mono">MARKDUP</th><td class="mono">QC</td><td><span class="pill added">added</span></td></tr>
+    <tr class="row-removed"><th class="mono">ALIGN</th><td class="mono">QC</td><td><span class="pill removed">removed</span></td></tr>
+  </tbody>
+  </table>
+</section>
+</main>
+<footer class="foot">
+  Generated by <strong>nf-diff</strong> · Tue Sep 08 23:20:13 GMT-03:00 2026
+  <div class="foot-sub">Compares run history and cache produced by <strong>Nextflow</strong>.</div>
+  <div class="foot-sub"><a href="https://github.com/mribeirodantas/nf-diff" target="_blank" rel="noopener noreferrer">github.com/mribeirodantas/nf-diff</a></div>
+</footer>
+<script>
+
+function toggleTask(hdr){ hdr.parentElement.classList.toggle('open'); }
+// theme toggle (initial theme already applied by the inline <head> script)
+(function(){
+  var root = document.documentElement, KEY = 'nf-diff-theme';
+  var btn = document.getElementById('theme-toggle');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    root.setAttribute('data-theme', next);
+    try{ localStorage.setItem(KEY, next); }catch(e){}
+  });
+})();
+(function(){
+  var cb = document.getElementById('hide-unchanged');
+  function apply(){
+    var hide = cb.checked;
+    document.querySelectorAll('.task[data-unchanged="1"]').forEach(function(el){
+      el.style.display = hide ? 'none' : '';
+    });
+  }
+  if(cb){ cb.addEventListener('change', apply); apply(); }
+
+  // scroll-spy for the nav
+  var links = Array.prototype.slice.call(document.querySelectorAll('.tabs a'));
+  var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  window.addEventListener('scroll', function(){
+    var pos = window.scrollY + 120, idx = 0;
+    for(var i=0;i<sections.length;i++){ if(sections[i] && sections[i].offsetTop <= pos) idx = i; }
+    links.forEach(function(a,i){ a.classList.toggle('active', i===idx); });
+  }, {passive:true});
+})();
+
+</script>
+</body>
+</html>
