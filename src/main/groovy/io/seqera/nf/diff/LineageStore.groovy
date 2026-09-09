@@ -34,7 +34,11 @@ import io.seqera.nf.diff.DiffResult.DagEdge
  * Nextflow records, rather than inferring it from work-dir input symlinks.
  *
  * <p>Nextflow writes one JSON record per lineage entity under the store, keyed
- * by its lineage id (LID). The record types relevant here are:
+ * by its lineage id (LID). Each record is a {@code lineage/v1beta1} envelope
+ * whose discriminator is {@code kind} and whose payload is nested under
+ * {@code spec} (older, pre-{@code v1beta1} stores put the same fields flat at
+ * the top level under {@code type} — both shapes are accepted). The record
+ * kinds relevant here are:
  * <ul>
  *   <li>{@code WorkflowRun} — one per run, carrying the {@code sessionId};</li>
  *   <li>{@code TaskRun} — one per task, carrying its process {@code name},
@@ -121,12 +125,13 @@ class LineageStore {
                 final record = parse(slurper, file)
                 if( record == null )
                     continue
-                if( record.get('type') != 'TaskRun' )
+                if( kindOf(record) != 'TaskRun' )
                     continue
-                if( asText(record.get('sessionId')) != session )
+                final spec = specOf(record)
+                if( asText(spec.get('sessionId')) != session )
                     continue
                 final hash = lidHash(file)
-                final process = processName(asText(record.get('name')))
+                final process = processName(asText(spec.get('name')))
                 if( hash != null && process != null ) {
                     taskHashToProcess.put(hash, process)
                     taskRecords.add(record)
@@ -147,10 +152,11 @@ class LineageStore {
         // producing task's process and record a producer -> consumer edge.
         final edges = new LinkedHashSet<DagEdge>()
         taskRecords.each { Map<String,Object> record ->
-            final consumer = processName(asText(record.get('name')))
+            final spec = specOf(record)
+            final consumer = processName(asText(spec.get('name')))
             if( consumer == null )
                 return
-            inputLidHashes(record.get('input')).each { String producerHash ->
+            inputLidHashes(spec.get('input')).each { String producerHash ->
                 final producer = taskHashToProcess.get(producerHash)
                 if( producer != null )
                     edges << new DagEdge(from: producer, to: consumer)
@@ -259,5 +265,27 @@ class LineageStore {
 
     private static String asText(Object value) {
         return value != null ? value.toString() : null
+    }
+
+    /**
+     * The record's discriminator. Nextflow's {@code lineage/v1beta1} envelope
+     * names it {@code kind} and nests the payload under {@code spec}; the
+     * pre-{@code v1beta1} flat records used {@code type} at the top level. We
+     * accept either so a store from either era reconstructs.
+     */
+    private static String kindOf(Map<String,Object> record) {
+        final kind = record.get('kind')
+        return kind != null ? kind.toString() : asText(record.get('type'))
+    }
+
+    /**
+     * The record's payload map: the {@code spec} sub-object for a
+     * {@code v1beta1} envelope, or the record itself for a legacy flat record
+     * (where {@code sessionId}/{@code name}/{@code input} live at the top level).
+     */
+    @SuppressWarnings('unchecked')
+    private static Map<String,Object> specOf(Map<String,Object> record) {
+        final spec = record.get('spec')
+        return spec instanceof Map ? (Map<String,Object>) spec : record
     }
 }

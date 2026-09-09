@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The lineage-derived DAG now reads the `lineage/v1beta1` store Nextflow
+  actually writes, instead of silently falling back to the symlink heuristic.**
+  `LineageStore` parsed a pre-`v1beta1` *flat* record shape — discriminator
+  `type`, with `sessionId`/`name`/`input` at the top level. Current Nextflow
+  (25.04+) instead writes a `lineage/v1beta1` envelope whose discriminator is
+  `kind` and whose payload is nested under `spec`. Every record therefore failed
+  the `type != 'TaskRun'` guard, `edgesForSession()` returned `null`, and
+  `DagComparator` fell back to reconstructing edges from work-dir input symlinks
+  — so the authoritative-provenance path this class exists to provide was dead
+  against any real store, with nothing logged above debug level. `LineageStore`
+  now reads the discriminator via `kindOf()` (`kind`, falling back to `type`)
+  and the payload via `specOf()` (the `spec` map, falling back to the record
+  itself), so both the current envelope and legacy flat stores reconstruct. The
+  existing unit tests were green only because they encoded the same obsolete
+  flat shape; a new fixture of real `v1beta1` records captured from a
+  `rich-report` run (`src/test/resources/lineage/rich-report`) now pins the
+  end-to-end `INDEX_REF→ALIGN→MARKDUP→QC→MULTIQC` reconstruction, alongside
+  direct `v1beta1` envelope cases. The `examples/rich-report` report was
+  regenerated so its DAG layer reflects the authoritative lineage.
+
 ## [0.4.0] - 2026-09-09
 
 ### Fixed

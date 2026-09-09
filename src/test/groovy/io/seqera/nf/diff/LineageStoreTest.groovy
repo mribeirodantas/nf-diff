@@ -48,9 +48,15 @@ class LineageStoreTest extends Specification {
         Files.write(dir.resolve('.data.json'), JsonOutput.toJson(rec).bytes)
     }
 
-    /** Convenience builder for a TaskRun record. */
+    /** Convenience builder for a legacy flat TaskRun record. */
     private Map taskRun(String session, String name, Object input = []) {
         return [type: 'TaskRun', sessionId: session, name: name, input: input]
+    }
+
+    /** Convenience builder for a {@code lineage/v1beta1} TaskRun record. */
+    private Map taskRunV1(String session, String name, Object input = []) {
+        return [version: 'lineage/v1beta1', kind: 'TaskRun',
+                spec: [sessionId: session, name: name, input: input]]
     }
 
     private Set<String> edgeStrings(Set<DiffResult.DagEdge> edges) {
@@ -246,5 +252,52 @@ class LineageStoreTest extends Specification {
 
         expect: 'the nameless record is dropped; the real edge survives'
         edgeStrings(LineageStore.locate(tmp).edgesForSession(sid)) == ['A->B'] as Set
+    }
+
+    // --- lineage/v1beta1 envelope (the shape Nextflow actually writes) -------
+
+    def 'reads the v1beta1 envelope (kind + nested spec), not just the flat shape'() {
+        given: 'producer/consumer pair written as v1beta1 records'
+        def store = newStore()
+        def sid = UUID.randomUUID()
+        record(store, 'hashA', taskRunV1(sid.toString(), 'A'))
+        record(store, 'hashB', taskRunV1(sid.toString(), 'B',
+                [[type: 'path', name: 'in', value: ['lid://hashA/out.txt']]]))
+
+        expect:
+        edgeStrings(LineageStore.locate(tmp).edgesForSession(sid)) == ['A->B'] as Set
+    }
+
+    def 'ignores a v1beta1 WorkflowRun (kind), returning the fall-back signal'() {
+        given: 'only a WorkflowRun envelope for the session, no TaskRun'
+        def store = newStore()
+        def sid = UUID.randomUUID()
+        record(store, 'wf', [version: 'lineage/v1beta1', kind: 'WorkflowRun',
+                             spec: [sessionId: sid.toString(), name: 'run']])
+
+        expect:
+        LineageStore.locate(tmp).edgesForSession(sid) == null
+    }
+
+    def 'reconstructs the rich-report store from real captured lineage records'() {
+        given: 'a checked-in fixture of real v1beta1 records from a rich-report run'
+        def projectDir = Path.of('src/test/resources/lineage/rich-report')
+        def sessionId = UUID.fromString('b6dff190-2703-4c75-8d05-71dc0cb57a76')
+
+        and: 'sanity: the fixture store is present on the classpath source tree'
+        assert Files.isDirectory(projectDir.resolve(LineageStore.DEFAULT_DIR))
+
+        when:
+        def store = LineageStore.locate(projectDir)
+        def edges = store.edgesForSession(sessionId)
+
+        then: 'the authoritative producer -> consumer chain is recovered end to end'
+        store != null
+        edgeStrings(edges) == [
+                'INDEX_REF->ALIGN',
+                'ALIGN->MARKDUP',
+                'MARKDUP->QC',
+                'QC->MULTIQC',
+        ] as Set
     }
 }
