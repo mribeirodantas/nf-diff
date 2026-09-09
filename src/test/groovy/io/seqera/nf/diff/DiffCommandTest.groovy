@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026, Seqera Labs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.seqera.nf.diff
 
 import spock.lang.Specification
@@ -51,6 +67,18 @@ class DiffCommandTest extends Specification {
     def 'fail-on-change flag is parsed'() {
         expect:
         parse(['runA', 'runB', '--fail-on-change']).failOnChange
+    }
+
+    def 'summary-only defaults off and is parsed from every alias and form'() {
+        expect:
+        !parse(['runA', 'runB']).summaryOnly
+        parse(['runA', 'runB', '--summary-only']).summaryOnly
+        parse(['runA', 'runB', '--quiet']).summaryOnly
+        parse(['runA', 'runB', '-q']).summaryOnly
+        // launcher-injected `--flag true`, inline, and explicit false forms
+        parse(['runA', 'runB', '--summary-only', 'true']).summaryOnly
+        parse(['runA', 'runB', '--summary-only=true']).summaryOnly
+        !parse(['runA', 'runB', '--summary-only=false']).summaryOnly
     }
 
     def 'outputs-max-lines defaults and is parsed from inline or spaced form'() {

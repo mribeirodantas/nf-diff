@@ -27,6 +27,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`-q` / `--quiet` / `--summary-only` prints just the summary block and skips
+  the report body.** Every invocation rendered and wrote (or streamed) the full
+  HTML/JSON/Markdown report, even when a CI gate only cares about the one-line
+  `N changed, …` signal — so the report body was pure noise in the job log (and
+  a wasted file write). The new flag suppresses rendering entirely (`content` is
+  never computed) and prints the summary to stdout regardless of `--output`; the
+  summary's `Report:` line reads `(suppressed by --summary-only)`. Exit-code
+  behaviour is unchanged, so `--summary-only --fail-on-change` is now the leanest
+  CI gate. Accepts the launcher-injected `--flag true`, inline `=`, and explicit
+  `=false` forms like the other boolean flags.
+- **Apache-2.0 license headers on every source file.** The repository ships an
+  Apache-2.0 `LICENSE`, but none of the 40 Groovy sources (`src/main` +
+  `src/test`) carried the per-file SPDX/copyright header that the license text
+  itself recommends and that a registry-published plugin wants for clean
+  provenance. The canonical Nextflow header (`Copyright 2026, Seqera Labs`) is
+  now prepended to each file above its `package` declaration.
 - **End-to-end smoke test that drives the real `nextflow plugin nf-diff:diff`
   launcher.** The Spock suite exercises every component in isolation, but
   nothing resolved the plugin by its bare id and ran the actual CLI verb
@@ -52,6 +68,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The opt-in work-dir layers now share one executor instead of one pool
+  each.** `--diff-outputs`, `--diff-logs` and `--diff-dag` each fan their
+  independent, read-only work-dir I/O across a bounded thread pool — but
+  `mapMatchedInParallel`/`runInParallel` created (and `shutdownNow()`-tore-down)
+  a fresh pool *per layer*, so `--diff-all` paid for three create/destroy cycles
+  in a single comparison. `RunComparator.compare` now builds one daemon-threaded
+  pool (sized to `availableProcessors()`) up front — only when at least one of
+  the three layers is enabled — threads it through the three `compute*` methods,
+  and shuts it down once in a `finally`. Results still return in `result.tasks`
+  order, and the single-pair sequential fast path (which never touches the pool)
+  is unchanged, so reports are byte-for-byte identical.
 - **HTML report restyled to match the `nf-docs` design language.** The report
   previously leaned on a dark-by-default, gradient-heavy look (radial body/hero
   "glows", gradient-filled cards and chips, a gradient logo, 16px radii). The

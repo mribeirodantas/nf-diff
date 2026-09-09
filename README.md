@@ -98,6 +98,7 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 | `--logs-max-lines=<n>` | With `--diff-logs`, keep only the last `<n>` lines of each log file before diffing. Default `200`. |
 | `--diff-dag`           | Reconstruct each run's process→process wiring and diff the two edge sets, surfacing added/removed edges (a rewired pipeline). Reads the authoritative `.lineage/` data-lineage store when present (`lineage.enabled = true`, no work dirs needed); otherwise infers edges from the input symlinks staged into task work directories, which must still exist locally (best-effort when some were cleaned up). Informational only: never affects `--fail-on-change`. |
 | `--fail-on-change`     | Exit with code `3` if the runs are not identical (useful in CI)                                  |
+| `-q`, `--quiet`, `--summary-only` | Print only the summary block (the `N changed, …` line); skip rendering and writing the full report. Handy for CI logs where the report body is noise. Exit-code behaviour (including `--fail-on-change`) is unaffected. |
 | `--dir=<dir>`          | Project directory containing `.nextflow/` (default: `.`). Used for both runs unless overridden per-run below. |
 | `--dir-a=<dir>` / `--dir-b=<dir>` | Per-run project directory for run A / run B (its `.nextflow/` history, cache, config and params). Use these to compare a run from one project or checkout against a run from another ("same pipeline, two directories"). Each falls back to `--dir` when omitted. Cannot be combined with `--last`, which needs a single history. |
 | `-v`, `--verbose`, `--all` | Also diff fields that always change between runs (run name, session id, launch time, work dir, wall/real time, resource usage) |
@@ -150,6 +151,9 @@ nextflow plugin nf-diff:diff runA runB --dir-a=/path/to/checkout-v1 --dir-b=/pat
 
 # CI-friendly: emit JSON and fail the step if anything changed
 nextflow plugin nf-diff:diff --last --format=json --fail-on-change
+
+# Leanest CI gate: no report body, just the summary line, fail if anything changed
+nextflow plugin nf-diff:diff --last --summary-only --fail-on-change
 
 # Stream JSON to stdout and pipe it straight into jq
 nextflow plugin nf-diff:diff --last --format=json --output=- | jq .summary

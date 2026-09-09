@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026, Seqera Labs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.seqera.nf.diff
 
 import java.nio.file.Path
@@ -41,6 +57,14 @@ class DiffCommand {
     String format = 'html'
     /** When true, return a non-zero exit code if the runs are not identical. */
     boolean failOnChange = false
+    /**
+     * When true, print only the human-readable summary block and skip rendering
+     * and writing the full report. Useful in CI logs where the full HTML/MD/JSON
+     * is noise but the "N changed, …" line is the signal. The summary is
+     * computed regardless, so this only suppresses the report body; exit-code
+     * behaviour (including {@code --fail-on-change}) is unaffected.
+     */
+    boolean summaryOnly = false
     /** When true, compare runs from history rather than explicit run identifiers. */
     boolean last = false
     /**
@@ -153,21 +177,31 @@ class DiffCommand {
         opts.diffDag = diffDag
         final diff = new RunComparator(opts).compare(snapA, snapB)
 
-        final content = renderContent(diff)
+        // --summary-only suppresses the report body entirely, so there is no
+        // point rendering it; the summary is computed either way.
+        final content = summaryOnly ? null : renderContent(diff)
 
         // When writing to stdout ("-"), the report is the only thing on stdout
         // so it can be piped (e.g. `--format=json --output=- | jq`). The human
         // summary then goes to stderr to keep the piped stream clean.
         final destination = toStdout() ? '<stdout>' : outputFile.toAbsolutePath().toString()
+        final reportLine = summaryOnly
+                ? '  Report: (suppressed by --summary-only)'
+                : "  Report: ${destination} (${format})"
         final summary = """\
 nf-diff: comparison complete
   Run A : ${snapA.label()}  (${snapA.tasks.size()} tasks)
   Run B : ${snapB.label()}  (${snapB.tasks.size()} tasks)
   Diff  : ${diff.tasksChanged} changed, ${diff.tasksAdded} only-in-B, ${diff.tasksRemoved} only-in-A, ${diff.tasksUnchanged} unchanged
   Mode  : ${verbose ? 'verbose (all fields, including always-changing ones)' : 'meaningful changes only (use --verbose for all fields)'}
-  Report: ${destination} (${format})"""
+${reportLine}"""
 
-        if( toStdout() ) {
+        if( summaryOnly ) {
+            // No report body is produced; the summary is the whole output and
+            // goes to stdout regardless of --output.
+            System.out.println(summary)
+        }
+        else if( toStdout() ) {
             System.out.print(content)
             System.out.flush()
             System.err.println(summary)
@@ -313,6 +347,11 @@ nf-diff: comparison complete
                 case '--verbose':
                 case '--all':
                     verbose = cur.boolValue()
+                    break
+                case '-q':
+                case '--quiet':
+                case '--summary-only':
+                    summaryOnly = cur.boolValue()
                     break
                 default:
                     if( arg.startsWith('-') )
@@ -615,6 +654,11 @@ Options:
                        context but not flagged as changes.
   --fail-on-change     Exit with a non-zero status (3) when the runs are not
                        identical. Useful for gating CI on unexpected changes.
+  -q, --quiet, --summary-only
+                       Print only the summary block (the "N changed, …" line);
+                       skip rendering and writing the full report. Handy for CI
+                       logs where the report body is noise. Exit-code behaviour
+                       (including --fail-on-change) is unaffected.
   -h, --help           Show this help
 
   Use the inline `--output=<file>` form (with `=`). Nextflow's `plugin`
@@ -628,6 +672,7 @@ Examples:
   nextflow plugin nf-diff:diff --last=2
   nextflow plugin nf-diff:diff --last=2:1
   nextflow plugin nf-diff:diff --last --format=json --fail-on-change
+  nextflow plugin nf-diff:diff --last --summary-only --fail-on-change
   nextflow plugin nf-diff:diff --last --format=md --output=diff.md
   nextflow plugin nf-diff:diff --last --only='ALIGN:*' --exclude='*:INDEX'
   nextflow plugin nf-diff:diff --last --diff-outputs --fail-on-change
