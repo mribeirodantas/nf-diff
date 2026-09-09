@@ -35,6 +35,33 @@ class DiffPlugin extends BasePlugin implements PluginAbstractExec {
 
     @Override
     int exec(String cmd, List<String> args) {
+        final code = dispatch(cmd, args)
+        // The `nextflow plugin <id>:<cmd>` launcher (CmdPlugin) runs on
+        // Nextflow's Launcher path, whose command `run()` is `void`: it invokes
+        // this exec() but discards the returned int, so the process exits 0 no
+        // matter what we return (verified on 26.04.1). That silently breaks the
+        // documented CLI exit-code contract — 1 (runtime error), 2 (usage
+        // error), 3 (--fail-on-change) — which is the entire point of
+        // --fail-on-change in CI. So force the code ourselves for any non-zero
+        // result. We still `return code` below so the value is correct for a
+        // direct caller, or a future Nextflow line that does propagate it.
+        if( code != 0 ) {
+            // Flush first: System.exit() skips the trait's session teardown, and
+            // we don't want a half-buffered report/summary lost on the way out.
+            System.out.flush()
+            System.err.flush()
+            System.exit(code)
+        }
+        return code
+    }
+
+    /**
+     * Dispatch the verb and map outcomes to the documented exit codes. Kept
+     * package-visible (not {@code private}) so the exit-code mapping can be unit
+     * tested without {@link #exec}'s {@code System.exit()} tearing down the test
+     * JVM.
+     */
+    int dispatch(String cmd, List<String> args) {
         if( cmd != 'diff' ) {
             // An unknown verb is a usage error, not a runtime failure, so it
             // returns 2 (matching DiffCommand.UsageException handling below).

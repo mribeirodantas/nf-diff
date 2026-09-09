@@ -89,11 +89,18 @@ nextflow plugin nf-diff:diff --last --output=report.html
 grep -qi '<html' report.html || fail "report.html is not an HTML document"
 echo "smoke: HTML report OK"
 
-# NOTE: we intentionally do not assert the process exit code of the
-# `nextflow plugin` launcher. On Nextflow 26.04.x the launcher does not
-# propagate the plugin's exec() return value, so `--fail-on-change` (documented
-# to exit 3) still exits 0 when invoked via `nextflow plugin`. Change detection
-# is asserted above via the JSON `identical` field instead.
+# 4) CI exit-code contract: the two runs differ, so `--fail-on-change` must make
+#    the process exit 3 — the headline behaviour CI relies on. The `nextflow
+#    plugin` launcher discards a verb's exec() return value (it stays 0 no matter
+#    what we return, seen on 26.04.1), so the plugin forces the code via
+#    System.exit(); this asserts that reaches the shell. Guarded with `set +e`
+#    because the non-zero exit is the expected result, not a script failure.
+set +e
+nextflow plugin nf-diff:diff --last --fail-on-change --format=json --output=report-fail.json
+code=$?
+set -e
+[[ $code -eq 3 ]] || fail "expected --fail-on-change to exit 3 for differing runs, got $code"
+echo "smoke: --fail-on-change exit code OK (3)"
 
 popd >/dev/null
 echo "smoke: PASS"

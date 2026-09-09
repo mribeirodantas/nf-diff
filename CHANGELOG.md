@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`--fail-on-change` now actually exits `3` when invoked via `nextflow
+  plugin`.** The documented CLI exit-code contract (1 runtime error, 2 usage
+  error, 3 `--fail-on-change` on a difference) is the whole reason
+  `--fail-on-change` exists — a CI job keys off it. But the `nextflow plugin
+  <id>:<verb>` launcher (`CmdPlugin`, on Nextflow's `void` `Launcher.run()`
+  path) invokes the plugin's `exec()` and then **discards its returned int**, so
+  every invocation exited `0` no matter what — verified on 26.04.1, where two
+  `identical:false` runs still exited `0`. `DiffPlugin.exec()` now forces the
+  process exit code itself via `System.exit(code)` for any non-zero result
+  (flushing stdout/stderr first, since that path skips the trait's session
+  teardown), so 1/2/3 reach the shell regardless of whether the launcher
+  propagates the value. The exit-code mapping was split into a package-visible
+  `dispatch()` so it stays unit-testable without the terminal `System.exit()`,
+  and `e2e/smoke.sh` now asserts the real `3` end to end instead of noting the
+  bug as a known limitation.
+
 ### Added
 
 - **End-to-end smoke test that drives the real `nextflow plugin nf-diff:diff`

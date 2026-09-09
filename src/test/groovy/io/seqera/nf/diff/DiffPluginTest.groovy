@@ -4,10 +4,17 @@ import org.pf4j.PluginWrapper
 import spock.lang.Specification
 
 /**
- * Tests for {@link DiffPlugin#exec} exit-code contract. The plugin maps failures
+ * Tests for the {@link DiffPlugin} exit-code contract. The plugin maps failures
  * to distinct codes — {@code 2} for usage errors (unknown verb, bad/missing
  * arguments) and {@code 1} for runtime failures — matching the documented
  * exit-code table. These tests pin that mapping without needing a run cache.
+ *
+ * They exercise {@link DiffPlugin#dispatch} rather than {@link DiffPlugin#exec}:
+ * exec() is the launcher entry point and now calls {@code System.exit(code)} for
+ * any non-zero result (the `nextflow plugin` launcher discards exec()'s return
+ * value, so forcing the code is the only way the documented 1/2/3 reach the
+ * shell). Calling exec() here would therefore kill the test JVM; dispatch() holds
+ * the same mapping logic minus that terminal side effect.
  */
 class DiffPluginTest extends Specification {
 
@@ -17,19 +24,19 @@ class DiffPluginTest extends Specification {
 
     def 'unknown command returns the usage exit code (2)'() {
         expect:
-        plugin().exec('nope', []) == 2
+        plugin().dispatch('nope', []) == 2
     }
 
     def 'missing run identifiers is a usage error (2)'() {
         expect:
         // 'diff' with no positional runs trips DiffCommand's UsageException,
-        // which exec() maps to 2 — never touching the run cache.
-        plugin().exec('diff', []) == 2
+        // which dispatch() maps to 2 — never touching the run cache.
+        plugin().dispatch('diff', []) == 2
     }
 
     def 'help request is a usage exit (2)'() {
         expect:
-        plugin().exec('diff', ['-h']) == 2
+        plugin().dispatch('diff', ['-h']) == 2
     }
 
     def 'getCommands advertises only the diff verb'() {
