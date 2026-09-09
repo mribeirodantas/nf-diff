@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Report percentages are now locale-independent.** `Format.signedPct()` and
+  `HtmlReportRenderer.fmt()` formatted floating-point values with
+  `String.format('%.1f', …)` / `String.format('%.2f', …)`, which use the JVM's
+  default `Locale`. Under a comma-decimal locale (e.g. `pt_BR`, `de_DE`) the
+  report emitted values like `+12,5%` and `1,50` instead of `+12.5%` and
+  `1.50`, corrupting the rendered percentages and breaking any downstream
+  numeric parsing that expects `.` as the decimal separator. Both call sites
+  now pass `Locale.ROOT` so output is stable regardless of the host locale.
+
 - **The lineage-derived DAG now reads the `lineage/v1beta1` store Nextflow
   actually writes, instead of silently falling back to the symlink heuristic.**
   `LineageStore` parsed a pre-`v1beta1` *flat* record shape — discriminator

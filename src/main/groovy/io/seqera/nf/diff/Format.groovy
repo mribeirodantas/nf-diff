@@ -67,6 +67,6 @@ class Format {
         if( pct == null )
             return NA
         final sign = pct >= 0 ? '+' : ''
-        return "${sign}${String.format('%.1f', pct)}%".toString()
+        return "${sign}${String.format(Locale.ROOT, '%.1f', pct)}%".toString()
     }
 }

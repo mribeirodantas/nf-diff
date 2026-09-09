@@ -740,7 +740,7 @@ class HtmlReportRenderer {
     }
 
     private static String fmt(double v) {
-        return String.format('%.2f', v)
+        return String.format(Locale.ROOT, '%.2f', v)
     }
 
     /** HTML-escape text for safe embedding. */
