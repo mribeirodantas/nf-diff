@@ -140,14 +140,14 @@ class HtmlReportRenderer {
             if( diff.newFailureCount() > 0 )
                 sb << statCard('New failures', diff.newFailureCount(), 'removed')
         }
-        sb << statCard('Software changed', diff.software.count { it.changed } as int, 'changed')
-        sb << statCard('Regressions', diff.regressions.count { it.regression } as int, 'removed')
+        sb << statCard('Software changed', diff.softwareChangedCount(), 'changed')
+        sb << statCard('Regressions', diff.regressionCount(), 'removed')
         if( diff.hasEfficiency() )
             sb << statCard('Over-provisioned (B)', diff.overProvisionedB(), 'removed')
         if( diff.diffOutputs )
-            sb << statCard('Outputs changed', diff.outputs.count { it.hasChanges() } as int, 'changed')
+            sb << statCard('Outputs changed', diff.outputsChangedCount(), 'changed')
         if( diff.diffLogs )
-            sb << statCard('Logs changed', diff.logs.count { it.hasChanges() } as int, 'changed')
+            sb << statCard('Logs changed', diff.logsChangedCount(), 'changed')
         if( diff.diffDag )
             sb << statCard('Wiring edges changed', diff.dagEdgesAdded() + diff.dagEdgesRemoved(), 'changed')
         sb << '  </div>\n'

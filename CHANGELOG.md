@@ -19,6 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Derived summary counts now live on `DiffResult`, not inline in each
+  renderer.** The "software changed", "regressions", "outputs changed" and
+  "logs changed" stats were each recomputed inline in the HTML, JSON and
+  Markdown renderers (`diff.software.count { it.changed }`,
+  `diff.regressions.count { it.regression }`, etc.). `DiffResult` already
+  exposed peer accessors for the same class of derived count
+  (`failedCountA()`, `newFailureCount()`, `dagEdgesAdded()`,
+  `overProvisionedA()`) — these four just weren't pulled in, so if the
+  `changed`/`regression`/`hasChanges` predicate ever shifted the three
+  renderers could silently disagree. New `softwareChangedCount()`,
+  `regressionCount()`, `outputsChangedCount()` and `logsChangedCount()`
+  accessors sit next to the existing ones as the single source of truth, and
+  all three renderers now call them.
 - **`RunComparator` now takes a single `CompareOptions` value object instead of
   a twelve-argument positional constructor.** The old signature interleaved four
   `boolean`s (`showObvious`, `diffOutputs`, `diffLogs`, `diffDag`) and three

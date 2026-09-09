@@ -52,7 +52,7 @@ class MarkdownReportRenderer {
             sb << '## Summary\n\n'
             sb << '| Changed | Only in B | Only in A | Unchanged | Recomputed | Software | Regressions |\n'
             sb << '|--------:|----------:|----------:|----------:|-----------:|---------:|------------:|\n'
-            sb << "| ${diff.tasksChanged} | ${diff.tasksAdded} | ${diff.tasksRemoved} | ${diff.tasksUnchanged} | ${diff.tasksRecomputed} | ${diff.software.count { it.changed }} | ${diff.regressions.count { it.regression }} |\n\n"
+            sb << "| ${diff.tasksChanged} | ${diff.tasksAdded} | ${diff.tasksRemoved} | ${diff.tasksUnchanged} | ${diff.tasksRecomputed} | ${diff.softwareChangedCount()} | ${diff.regressionCount()} |\n\n"
         }
     }
 

@@ -635,6 +635,14 @@ class DiffResult {
     }
 
     /**
+     * Number of processes whose software environment changed between runs.
+     * Single source of truth for the "Software changed" summary stat so the
+     * HTML / JSON / Markdown renderers cannot drift if the {@code changed}
+     * predicate ever shifts.
+     */
+    int softwareChangedCount() { software.count { SoftwareDiff s -> s.changed } as int }
+
+    /**
      * Per-process resource-provisioning efficiency for both runs (requested vs
      * measured-peak CPU and memory). Read from the run cache, so it is always
      * populated. Informational only — never affects {@link #isIdentical()}.
@@ -696,6 +704,13 @@ class DiffResult {
      */
     List<RegressionDiff> regressions = []
 
+    /**
+     * Number of task metrics that regressed (Run B worse than Run A). Single
+     * source of truth for the "Regressions" summary stat, shared by every
+     * renderer so the {@code regression} predicate is applied identically.
+     */
+    int regressionCount() { regressions.count { RegressionDiff r -> r.regression } as int }
+
     /** The percentage threshold used to flag {@link #regressions}. */
     double perfThreshold
 
@@ -724,6 +739,12 @@ class DiffResult {
     }
 
     /**
+     * Number of compared tasks whose output files changed. Single source of
+     * truth for the "Outputs changed" summary stat across all renderers.
+     */
+    int outputsChangedCount() { outputs.count { OutputDiff od -> od.hasChanges() } as int }
+
+    /**
      * Whether the log-diff layer was computed. When false, {@link #logs} is
      * empty. This layer is always informational and never affects
      * {@link #isIdentical()}.
@@ -747,6 +768,12 @@ class DiffResult {
     boolean hasLogChanges() {
         return diffLogs && logs.any { it.hasChanges() }
     }
+
+    /**
+     * Number of compared tasks whose logs (or exit/status) changed. Single
+     * source of truth for the "Logs changed" summary stat across all renderers.
+     */
+    int logsChangedCount() { logs.count { LogDiff ld -> ld.hasChanges() } as int }
 
     /**
      * Whether the process&#8594;process wiring layer was computed. When false,
