@@ -44,8 +44,10 @@ class JsonReportRendererTest extends Specification {
                 [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'echo bye'])] )
 
         then:
-        obj.keySet().containsAll(['generatedAt', 'identical', 'showObvious',
+        obj.keySet().containsAll(['schemaVersion', 'generatedAt', 'identical', 'showObvious',
                                   'runA', 'runB', 'summary', 'metadata', 'params', 'processes', 'tasks'])
+        obj.schemaVersion == '1'
+        obj.keySet().first() == 'schemaVersion'
         obj.runA.runName == 'runA'
         obj.runB.runName == 'runB'
         obj.summary.tasksChanged == 1

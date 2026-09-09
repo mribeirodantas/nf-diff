@@ -27,6 +27,7 @@ class JsonReportRenderer {
 
     private Map<String,Object> toModel(DiffResult diff) {
         return [
+                schemaVersion: '1',
                 generatedAt: diff.generatedAt?.toInstant()?.toString(),
                 identical  : diff.identical,
                 showObvious: diff.showObvious,

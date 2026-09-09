@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--format=json` output now carries a top-level `schemaVersion` field.**
+  The JSON model emitted `generatedAt`, `identical`, `runA`/`runB`, `summary`
+  and the layers but no version marker, so a downstream `jq` assertion in a CI
+  pipeline, PR bot or dashboard — the very consumers the README markets JSON to
+  — had no way to detect a breaking shape change. `schemaVersion: "1"` is now
+  emitted as the first key of the document, establishing an explicit contract
+  that can be bumped when the shape changes incompatibly.
+
 ### Changed
 
 - **`RunComparator` now takes a single `CompareOptions` value object instead of
