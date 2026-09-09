@@ -52,6 +52,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **HTML report restyled to match the `nf-docs` design language.** The report
+  previously leaned on a dark-by-default, gradient-heavy look (radial body/hero
+  "glows", gradient-filled cards and chips, a gradient logo, 16px radii). The
+  internal `nf-docs`-generated pages use a flat, light-by-default documentation
+  aesthetic — a slate palette (`slate-50/100/200` surfaces in light,
+  `slate-900/800/700` in dark) with the shared Seqera primary green `#0DC09D` as
+  the sole brand accent, bordered white cards with only a hairline `0 1px 2px`
+  shadow, and tighter geometry. The report's inline CSS now adopts those exact
+  tokens: both theme palettes were re-mapped to slate + `#0DC09D`, the radial
+  gradients and gradient fills were removed in favour of flat bordered surfaces,
+  card/table radii dropped from 16px to 10px, the body gained
+  `line-height:1.625` and a `ui-sans-serif, system-ui, …` stack, the page title
+  is now primary-green, and table rows gained a `:hover` highlight. Accent
+  colours (pills, row highlights, verdict, code-diff, warn-note, source badges)
+  were re-based onto the green/blue/`green-500`/`red-500`/`yellow-500` system,
+  with darker `a16207`/`dc2626`/`16a34a` variants in light mode for contrast on
+  white. Only the inline `CSS` constant changed — the report markup, JavaScript,
+  `data-theme` toggle mechanism and every existing class name are untouched, and
+  the report remains self-contained (no web fonts or external assets).
 - **Derived summary counts now live on `DiffResult`, not inline in each
   renderer.** The "software changed", "regressions", "outputs changed" and
   "logs changed" stats were each recomputed inline in the HTML, JSON and
