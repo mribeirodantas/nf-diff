@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **End-to-end smoke test that drives the real `nextflow plugin nf-diff:diff`
+  launcher.** The Spock suite exercises every component in isolation, but
+  nothing resolved the plugin by its bare id and ran the actual CLI verb
+  against a genuine `.nextflow/history` + LevelDB cache — the exact path where
+  the internal Nextflow APIs the plugin reuses (`HistoryFile`, `CacheDB`/
+  `DefaultCacheStore`, `ConfigBuilder`) can drift between Nextflow lines. The
+  CI matrix already pinned `NXF_VER` to both `25.04.0` and `26.04.0` for this
+  reason, yet only compiled and unit-tested against them. A new `e2e/smoke.sh`
+  (wired in as `make smoke`) now runs a trivial pipeline twice to produce two
+  real runs, then invokes the plugin verb and asserts exit codes and report
+  content (JSON `schemaVersion`/`summary`, a standalone HTML document, and the
+  documented exit code `3` for `--fail-on-change` when the runs differ). CI
+  installs the matrix Nextflow version via `get.nextflow.io` (which honours
+  `NXF_VER`) and runs it on every matrix leg, so drift is caught at the launcher
+  layer where it actually surfaces.
 - **`--format=json` output now carries a top-level `schemaVersion` field.**
   The JSON model emitted `generatedAt`, `identical`, `runA`/`runB`, `summary`
   and the layers but no version marker, so a downstream `jq` assertion in a CI

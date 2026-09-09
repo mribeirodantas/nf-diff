@@ -50,6 +50,21 @@ jobs:
           NXF_VER: ${{ matrix.nextflow }}
         run: make check
 
+      - name: Install Nextflow ${{ matrix.nextflow }}
+        env:
+          # get.nextflow.io honours NXF_VER, so the runtime binary matches the
+          # version the plugin was compiled against in the step above.
+          NXF_VER: ${{ matrix.nextflow }}
+        run: |
+          curl -s https://get.nextflow.io | bash
+          sudo mv nextflow /usr/local/bin/
+          nextflow -version
+
+      - name: End-to-end smoke test
+        env:
+          NXF_VER: ${{ matrix.nextflow }}
+        run: make smoke
+
       - name: Upload test reports
         # Fork PRs get a read-only token, so artifact finalize always 403s there.
         if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
