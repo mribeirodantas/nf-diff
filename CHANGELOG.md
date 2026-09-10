@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The report header now shows each run's `main.nf` path and puts the verdict
+  on the heading row.** When a run's `.lineage/` store recorded the main
+  script's absolute path (`scriptFile`), it is threaded through
+  `LineageStore.RunEnv` → `RunSnapshot.pipelinePath` and rendered dimmed
+  beneath the pipeline name in the run chip (and as a hover tooltip), so the
+  reader can see exactly which file ran. The "These runs differ" / "identical"
+  verdict badge moved from a separate band below the heading into a flex row
+  (`.hero-title`) beside the `Run comparison` title, so it reads immediately
+  without spending extra vertical space.
+
+### Changed
+
+- **Run status now uses Nextflow / Seqera Platform vocabulary everywhere.** The
+  terse `OK`/`ERR` history-file tokens were still surfaced raw in the Metadata
+  table's Status row, even though the header pill already mapped them to
+  `SUCCEEDED`/`FAILED`. The mapping now lives once on
+  `RunSnapshot.statusLabel()`; `RunComparator.compareMetadata()` and
+  `HtmlReportRenderer` both delegate to it, so the reader is never left
+  guessing what "OK" means and the two views can't drift apart.
+
+- **The Performance regressions section now leads with a diverging-bar plot.**
+  A new `HtmlReportRenderer.regressionPlot()` emits a self-contained inline-SVG
+  chart — one row per flagged metric (worst first, as the comparator already
+  orders them), bars growing right for regressions (Run B slower/heavier, red)
+  and left for improvements (green), scaled to the largest absolute delta, with
+  a zero axis, per-bar signed-percentage labels, dashed outlines on same-work
+  rows (identical cache hash), and a legend. Like the DAG diagram it needs no
+  JavaScript or external assets. The existing table stays beneath as the exact
+  A/B detail and large-list fallback.
+
+- **The process-wiring section gains per-run DAG views.** Alongside the union
+  "Changes" diagram, new "Run A (before)" / "Run B (after)" tabs project the
+  union DAG down to each run's own edges (`runEdges`) and render them neutrally
+  (`dagSvg` gained a `diffLegend` flag; `dagPanel` handles the empty case). A
+  small self-contained tab script switches panels.
+
+- **Run chips now show a facts list.** Each run chip gained a Started timestamp
+  (via a new `Format.datetime()`) and, when a `.lineage/` store recorded it, the
+  run's Nextflow version. The Nextflow row is omitted rather than padded with a
+  placeholder when the version is unknown.
+
+### Changed
+
+- **The HTML report is paginated instead of long-scroll.** Sections render one
+  at a time (`.section` defaults to hidden, `.is-active` reveals it) inside a new
+  `.layout` wrapper. A bottom pager (`renderPager`) steps through the visible nav
+  entries, labelling its Previous/Next buttons from the adjacent sections and
+  disabling at the ends. The page JS drives selection from the nav, keeps the URL
+  hash in sync via `history.replaceState`, responds to `hashchange`, and scrolls
+  to top on each page change, so deep links to a section anchor still land on the
+  right page.
+
+- **The report navigation is now a vertical sidebar.** The sticky horizontal
+  `.tabs` strip is replaced by a `.sidenav` column (sticky, own scroll, active
+  item marked with a left border). Below 820px it collapses back to a horizontal
+  scrolling strip so narrow screens keep their content width. The old scroll-spy
+  is gone — active state follows the shown page.
+
+- **Run status uses Nextflow / Seqera Platform vocabulary.** The report no longer
+  surfaces the terse history-file tokens. A new `statusLabel()` (backed by
+  `isSucceeded()` / `isFailed()`) maps `OK` → `SUCCEEDED` and `ERR` → `FAILED`
+  everywhere a run status is shown, so the reader is not left guessing what "OK"
+  meant. Resource-efficiency pills are relabelled for the same reason:
+  `over` → `over-provisioned` and the neutral `ok` → `right-sized` (class names
+  and colours unchanged).
+
 ## [0.5.0] - 2026-09-10
 
 ### Added

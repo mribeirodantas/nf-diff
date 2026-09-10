@@ -87,19 +87,21 @@ class HtmlReportRenderer {
         sb << '<span class="ti-dark">🌙</span><span class="ti-light">☀️</span></button>\n'
         sb << '  <div class="hero-inner">\n'
         sb << '    <div class="brand"><span class="logo">±</span><span>nf-diff</span></div>\n'
-        sb << '    <h1>Run comparison</h1>\n'
-        sb << '    <div class="runs">\n'
-        sb << runChip(diff.runA, 'a')
-        sb << '      <div class="vs">vs</div>\n'
-        sb << runChip(diff.runB, 'b')
-        sb << '    </div>\n'
+        // Heading and verdict badge share one row (badge to the right of the
+        // title) so the verdict reads immediately without a separate band, and
+        // no extra vertical space is spent on it.
         final sameText = diff.showObvious
                 ? 'These runs are identical across every inspected layer'
                 : 'These runs are identical (ignoring always-changing fields)'
         final verdict = diff.identical
                 ? "<span class=\"verdict same\">${sameText}</span>"
-                : "<span class=\"verdict diff\">${diff.tasksChanged + diff.tasksAdded + diff.tasksRemoved} task-level difference(s) detected</span>"
-        sb << "    <div class=\"verdict-wrap\">${verdict}</div>\n"
+                : "<span class=\"verdict diff\">These runs differ</span>"
+        sb << '    <div class="hero-title"><h1>Run comparison</h1>' << verdict << '</div>\n'
+        sb << '    <div class="runs">\n'
+        sb << runChip(diff.runA, 'a')
+        sb << '      <div class="vs">vs</div>\n'
+        sb << runChip(diff.runB, 'b')
+        sb << '    </div>\n'
         sb << '  </div>\n'
         sb << '</header>\n'
     }
@@ -110,6 +112,16 @@ class HtmlReportRenderer {
         // Nextflow version is only known when the run has a .lineage/ store;
         // omit the row rather than show a placeholder when it wasn't recorded.
         final details = new StringBuilder()
+        if( run.pipeline ) {
+            // Name on the first line; when the lineage store recorded the main
+            // script's absolute path, show it dimmed beneath (and as a hover
+            // tooltip) so the reader can see exactly which file ran.
+            final pathLine = run.pipelinePath
+                    ? "<div class=\"run-fact-path\">${esc(run.pipelinePath)}</div>"
+                    : ''
+            final title = run.pipelinePath ? " title=\"${esc(run.pipelinePath)}\"" : ''
+            details << "          <div class=\"run-fact\"><dt>Pipeline</dt><dd class=\"mono\"${title}>${esc(run.pipeline)}${pathLine}</dd></div>\n"
+        }
         details << "          <div class=\"run-fact\"><dt>Started</dt><dd>${esc(Format.datetime(run.timestamp))}</dd></div>\n"
         if( run.nextflowVersion )
             details << "          <div class=\"run-fact\"><dt>Nextflow</dt><dd class=\"mono\">${esc(run.nextflowVersion)}</dd></div>\n"
@@ -1098,14 +1110,12 @@ ${recNote}  </div>
 
     /**
      * Map a run's raw history-file status token to the workflow-status
-     * vocabulary used across Nextflow / Seqera Platform. Nextflow records the
-     * terse {@code OK}/{@code ERR} tokens in {@code .nextflow/history}; the
-     * report surfaces them as {@code SUCCEEDED}/{@code FAILED} so the reader is
-     * not left guessing what "OK" means.
+     * vocabulary used across Nextflow / Seqera Platform (SUCCEEDED/FAILED).
+     * Delegates to {@link RunSnapshot#statusLabel(String)} so the header pill
+     * and the metadata table share one definition.
      */
     private static String statusLabel(String raw) {
-        final status = (raw ?: 'UNKNOWN').toUpperCase()
-        return isSucceeded(status) ? 'SUCCEEDED' : (isFailed(status) ? 'FAILED' : status)
+        return RunSnapshot.statusLabel(raw)
     }
 
     /** HTML-escape text for safe embedding. */
@@ -1176,7 +1186,8 @@ html[data-theme="light"] .theme-toggle .ti-light{display:inline}
 .hero-inner{max-width:1100px;margin:0 auto}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px;color:var(--muted)}
 .logo{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--brand);color:#fff;font-weight:900;font-size:18px}
-.hero h1{margin:14px 0 20px;font-size:30px;font-weight:700;color:var(--brand)}
+.hero-title{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:14px 0 20px}
+.hero h1{margin:0;font-size:30px;font-weight:700;color:var(--brand)}
 .runs{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .run-chip{flex:1;min-width:260px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;position:relative;overflow:hidden;box-shadow:0 1px 2px var(--shadow)}
 .run-chip::before{content:"";position:absolute;inset:0 auto 0 0;width:4px}
@@ -1188,8 +1199,8 @@ html[data-theme="light"] .theme-toggle .ti-light{display:inline}
 .run-fact{display:contents}
 .run-fact dt{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
 .run-fact dd{margin:0;font-size:13px;color:var(--txt)}
+.run-fact-path{color:var(--muted);font-size:11px;word-break:break-all;margin-top:2px;font-weight:400}
 .vs{font-weight:700;color:var(--muted);font-size:15px}
-.verdict-wrap{margin-top:18px}
 .verdict{display:inline-block;padding:8px 14px;border-radius:8px;font-weight:600;font-size:14px}
 .verdict.same{background:var(--brand-soft);color:var(--brand);border:1px solid rgba(13,192,157,.4)}
 .verdict.diff{background:rgba(234,179,8,.12);color:var(--changed);border:1px solid rgba(234,179,8,.4)}

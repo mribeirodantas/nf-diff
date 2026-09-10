@@ -37,6 +37,16 @@ class RunSnapshot {
     Date timestamp
     Long durationMillis
 
+    // -- pipeline (project) name. Sourced authoritatively from the lineage
+    //    WorkflowRun's projectName; falls back to the positional argument of the
+    //    recorded launch command when no .lineage/ store is present. Null when
+    //    neither source yields a value.
+    String pipeline
+
+    // -- absolute path to the run's main script (lineage scriptFile, e.g.
+    //    /path/to/main.nf). Null when no .lineage/ store recorded it.
+    String pipelinePath
+
     // -- Nextflow version & runtime environment (from the lineage WorkflowRun
     //    record, when a .lineage/ store is present; otherwise all null).
     String nextflowVersion
@@ -88,5 +98,26 @@ class RunSnapshot {
     String label() {
         final shortId = sessionId ? sessionId.toString().substring(0, 8) : '????????'
         return "${runName ?: requestedId} (${shortId})".toString()
+    }
+
+    /** This run's status in Nextflow / Seqera Platform vocabulary. */
+    String statusLabel() {
+        return statusLabel(status)
+    }
+
+    /**
+     * Map a raw run-level status token to the workflow-status vocabulary used
+     * across Nextflow / Seqera Platform. Nextflow records the terse
+     * {@code OK}/{@code ERR} tokens in {@code .nextflow/history}; surface them
+     * as {@code SUCCEEDED}/{@code FAILED} so the reader is not left guessing
+     * what "OK" means. Values already in long form pass through unchanged.
+     */
+    static String statusLabel(String raw) {
+        final s = (raw ?: 'UNKNOWN').toUpperCase()
+        if( s.startsWith('OK') || s == 'COMPLETED' || s == 'SUCCEEDED' )
+            return 'SUCCEEDED'
+        if( s.startsWith('ERR') || s == 'FAILED' )
+            return 'FAILED'
+        return s
     }
 }

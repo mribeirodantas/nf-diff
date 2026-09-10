@@ -514,9 +514,16 @@ class RunComparator {
 
     private List<FieldDiff> compareMetadata(RunSnapshot a, RunSnapshot b) {
         final diffs = new ArrayList<FieldDiff>()
+        // Pipeline (project) name — a real change worth flagging when it differs.
+        // Added only when at least one run recorded it, so runs without a
+        // lineage store or a parseable command are not padded with a blank row.
+        if( a.pipeline != null || b.pipeline != null )
+            diffs << field('Pipeline', a.pipeline, b.pipeline)
         diffs << field('Run name', a.runName, b.runName)
         diffs << field('Session ID', a.sessionId?.toString(), b.sessionId?.toString())
-        diffs << field('Status', a.status, b.status)
+        // Use the Nextflow/Platform status vocabulary (SUCCEEDED/FAILED) rather
+        // than the terse OK/ERR history tokens, matching the header status pill.
+        diffs << field('Status', a.statusLabel(), b.statusLabel())
         diffs << field('Revision', a.revisionId, b.revisionId)
         diffs << field('Command', a.command, b.command)
         diffs << field('Launched', a.timestamp?.toString(), b.timestamp?.toString())
