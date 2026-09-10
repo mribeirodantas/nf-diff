@@ -107,6 +107,8 @@ class LineageStore {
      */
     @CompileStatic
     static class RunEnv {
+        String pipeline
+        String pipelinePath
         String nextflowVersion
         String nextflowBuild
         String containerEngine
@@ -159,7 +161,13 @@ class LineageStore {
         final nf = meta.get('nextflow') instanceof Map ? (Map) meta.get('nextflow') : null
         final wave = meta.get('wave') instanceof Map ? (Map) meta.get('wave') : null
         final fusion = meta.get('fusion') instanceof Map ? (Map) meta.get('fusion') : null
+        // Prefer the git repository (e.g. nf-core/rnaseq) as the pipeline name;
+        // fall back to projectName, which for a local run is the script name
+        // (e.g. main.nf) — the same label Nextflow itself reports.
+        final pipeline = asText(meta.get('repository')) ?: asText(meta.get('projectName'))
         return new RunEnv(
+                pipeline        : pipeline,
+                pipelinePath    : asText(meta.get('scriptFile')),
                 nextflowVersion : nf != null ? asText(nf.get('version')) : null,
                 nextflowBuild   : nf != null ? asText(nf.get('build')) : null,
                 containerEngine : asText(meta.get('containerEngine')),

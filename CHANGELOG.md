@@ -7,6 +7,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The report's vertical section nav now flags which sections hold
+  differences.** Each `.sidenav` entry whose section carries a change gets a
+  trailing warning icon (`.nav-alert`, colored with the shared `--changed`
+  token), so the reader can see at a glance where the runs diverge without
+  opening every page. The flag reuses each section's own "changed" predicate
+  and respects the verbose (`--verbose`) view for the metadata / parameters /
+  configuration layers; purely informational sections (Summary, Efficiency)
+  never alert. `renderNav` now routes every link through a `navLink` helper.
+
+- **The report header now shows each run's `main.nf` path and puts the verdict
+  on the heading row.** When a run's `.lineage/` store recorded the main
+  script's absolute path (`scriptFile`), it is threaded through
+  `LineageStore.RunEnv` → `RunSnapshot.pipelinePath` and rendered dimmed
+  beneath the pipeline name in the run chip (and as a hover tooltip), so the
+  reader can see exactly which file ran. The "These runs differ" / "identical"
+  verdict badge moved from a separate band below the heading into a flex row
+  (`.hero-title`) beside the `Run comparison` title, so it reads immediately
+  without spending extra vertical space.
+
+### Changed
+
+- **Under `--verbose`, a flagged performance regression now counts as a
+  difference.** In the default meaningful-changes view the performance-
+  regressions layer stays informational (it is derived from always-changing
+  numeric metrics), but the verbose view promotes always-changing fields to
+  meaningful — so `DiffResult.isIdentical()` now also requires
+  `regressionCount() == 0` when `showObvious` is set, keeping the layer
+  consistent with the rest of the verbose verdict.
+
+- **The HTML report's cards get a softer, uniform surface and lose their
+  colored accent bars.** The flat 1px-outline treatment is replaced by shared
+  CSS tokens — `--radius` (14px), a near-invisible `--hair` border, and layered
+  `--elev` / `--elev-hover` shadows (defined for both themes) — applied across
+  every card surface (`.card`, `.run-chip`, `.summary-headline`, `.disp`,
+  `.rp-plot`, `.dag-graph`, `.task`, tables, `.warn-note`); interactive cards
+  gain a subtle hover lift. The status/run colored *accent borders* are removed
+  in favour of the color cues already present elsewhere: the active section-nav
+  item is now a solid brand pill (not a soft fill with a left bar); task cards
+  drop their 4px colored left bar (the header pill already states status);
+  summary stat cards drop the inset bottom-bar shadow (the status-colored
+  numeral stays); and the warning note drops its left bar (amber tint kept).
+  Run cards drop the `.run-chip::before` left bar and instead render the run
+  name as an inline pill badge colored by run — green (Run A) / blue (Run B).
+  Per-line diff gutters and the DAG tab underline are kept as line/tab markers.
+  `HtmlReportRenderer` (CSS + `runChip`) and the regenerated demo report only;
+  no `DiffResult` accessors or comparison logic changed.
+
+- **The HTML report is paginated instead of long-scroll.** Sections render one
+  at a time (`.section` defaults to hidden, `.is-active` reveals it) inside a new
+  `.layout` wrapper. A bottom pager (`renderPager`) steps through the visible nav
+  entries, labelling its Previous/Next buttons from the adjacent sections and
+  disabling at the ends. The page JS drives selection from the nav, keeps the URL
+  hash in sync via `history.replaceState`, responds to `hashchange`, and scrolls
+  to top on each page change, so deep links to a section anchor still land on the
+  right page.
+
+- **The report navigation is now a vertical sidebar.** The sticky horizontal
+  `.tabs` strip is replaced by a `.sidenav` column (sticky, own scroll, active
+  item marked with a left border). Below 820px it collapses back to a horizontal
+  scrolling strip so narrow screens keep their content width. The old scroll-spy
+  is gone — active state follows the shown page.
+
+- **Run status now uses Nextflow / Seqera Platform vocabulary everywhere.** The
+  terse `OK`/`ERR` history-file tokens were still surfaced raw in the Metadata
+  table's Status row, even though the header pill already mapped them to
+  `SUCCEEDED`/`FAILED`. The mapping now lives once on
+  `RunSnapshot.statusLabel()`; `RunComparator.compareMetadata()` and
+  `HtmlReportRenderer` both delegate to it, so the reader is never left
+  guessing what "OK" means and the two views can't drift apart. Resource-efficiency
+  pills are relabelled for the same reason: `over` → `over-provisioned` and the
+  neutral `ok` → `right-sized` (class names and colours unchanged).
+
+- **The Performance regressions section now leads with a diverging-bar plot.**
+  A new `HtmlReportRenderer.regressionPlot()` emits a self-contained inline-SVG
+  chart — one row per flagged metric (worst first, as the comparator already
+  orders them), bars growing right for regressions (Run B slower/heavier, red)
+  and left for improvements (green), scaled to the largest absolute delta, with
+  a zero axis, per-bar signed-percentage labels, dashed outlines on same-work
+  rows (identical cache hash), and a legend. Like the DAG diagram it needs no
+  JavaScript or external assets. The existing table stays beneath as the exact
+  A/B detail and large-list fallback.
+
+- **The process-wiring section gains per-run DAG views.** Alongside the union
+  "Changes" diagram, new "Run A (before)" / "Run B (after)" tabs project the
+  union DAG down to each run's own edges (`runEdges`) and render them neutrally
+  (`dagSvg` gained a `diffLegend` flag; `dagPanel` handles the empty case). A
+  small self-contained tab script switches panels.
+
+- **Run chips now show a facts list.** Each run chip gained a Started timestamp
+  (via a new `Format.datetime()`) and, when a `.lineage/` store recorded it, the
+  run's Nextflow version. The Nextflow row is omitted rather than padded with a
+  placeholder when the version is unknown.
+
+### Fixed
+
+- **Two independent runs of the same pipeline are no longer reported as
+  differing solely because of their task cache hashes.** Nextflow folds the
+  per-run session UUID into every task's cache hash, so two *independent* runs
+  always compute a different hash for every task even when the script, inputs
+  and container are byte-identical. The task `hash` field was compared but not
+  marked "obvious", so each matched task was flagged `changed` and the verdict
+  flipped to "These runs differ" — e.g. comparing two plain `nextflow run
+  hello` runs. `hash` is now part of `RunComparator.OBVIOUS_TASK_FIELDS`, so a
+  bare hash change is shown for context (and still surfaced as the **recompute
+  count**) but never flips the "identical" verdict or trips `--fail-on-change`
+  on its own. Under `--verbose` it is flagged like any other obvious field.
+
 ## [0.5.0] - 2026-09-10
 
 ### Added

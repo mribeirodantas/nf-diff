@@ -201,6 +201,43 @@ class CommandParams {
         return out
     }
 
+    /**
+     * Best-effort extraction of the pipeline (project) name from a recorded
+     * launch command. This is the first positional argument after {@code run}
+     * — e.g. {@code nextflow run nf-core/rnaseq -r 3.14} yields
+     * {@code nf-core/rnaseq}, and a local {@code nextflow run main.nf} yields
+     * {@code main.nf}. Flags and their values are skipped, so
+     * {@code nextflow run -profile test main.nf} still resolves to
+     * {@code main.nf}. Returns {@code null} when the command has no {@code run}
+     * verb or no positional follows it.
+     *
+     * <p>Best-effort only: the lineage {@code WorkflowRun.projectName} is the
+     * authoritative source. A boolean option placed <em>before</em> the project
+     * name (unusual) can be mistaken for a value-taking flag and swallow the
+     * name — acceptable for a fallback used only when no lineage store exists.
+     */
+    static String projectName(String command) {
+        if( !command )
+            return null
+        final tokens = tokenize(command)
+        final runIdx = tokens.indexOf('run')
+        if( runIdx < 0 )
+            return null
+        int i = runIdx + 1
+        while( i < tokens.size() ) {
+            final tok = tokens[i]
+            if( !isFlag(tok) )
+                return tok
+            // A flag with no '=' consumes the following token as its value,
+            // unless that token is itself a flag (then the flag is boolean).
+            if( tok.indexOf('=') < 0 && i + 1 < tokens.size() && !isFlag(tokens[i + 1]) )
+                i += 2
+            else
+                i += 1
+        }
+        return null
+    }
+
     /** True for a pipeline parameter (double-dash), false for a Nextflow option. */
     static boolean isPipelineParam(String key) {
         return key != null && key.startsWith('--')

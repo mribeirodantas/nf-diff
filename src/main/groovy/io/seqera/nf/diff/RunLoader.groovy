@@ -71,6 +71,10 @@ class RunLoader {
 
         snapshot.tasks = loadTasks(record.sessionId, record.runName)
         populateEnvironment(snapshot)
+        // Fall back to the recorded command's positional project argument when
+        // the lineage store did not supply a pipeline name (no .lineage/ store).
+        if( !snapshot.pipeline )
+            snapshot.pipeline = CommandParams.projectName(record.command)
         log.debug "nf-diff: loaded ${snapshot.tasks.size()} task(s) for run '${record.runName}' (${record.sessionId})"
         return snapshot
     }
@@ -89,6 +93,8 @@ class RunLoader {
         final env = store.environmentForSession(snapshot.sessionId)
         if( env == null )
             return
+        snapshot.pipeline        = env.pipeline
+        snapshot.pipelinePath    = env.pipelinePath
         snapshot.nextflowVersion = env.nextflowVersion
         snapshot.nextflowBuild   = env.nextflowBuild
         snapshot.containerEngine = env.containerEngine

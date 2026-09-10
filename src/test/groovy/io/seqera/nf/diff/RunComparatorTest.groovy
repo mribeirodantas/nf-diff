@@ -258,11 +258,12 @@ class RunComparatorTest extends Specification {
         when:
         def diff = new RunComparator().compare(a, b)
 
-        then: 'the hash change marks the task recomputed and changed'
+        then: 'the hash change marks the task recomputed and is recorded on the hash field'
         diff.tasksRecomputed == 1
-        diff.tasksChanged == 1
-        !diff.identical
         diff.tasks.find { it.key == 'FOO (1)' }.fieldDiffs.find { it.field == 'hash' }.changed
+
+        and: 'but the hash is an always-changing field (session UUID), so it is not highlighted by default'
+        !diff.tasks.find { it.key == 'FOO (1)' }.fieldDiffs.find { it.field == 'hash' }.isHighlighted(false)
     }
 
     def 'identical hashes are not counted as recomputed'() {
@@ -278,6 +279,32 @@ class RunComparatorTest extends Specification {
         then:
         diff.tasksRecomputed == 0
         diff.identical
+    }
+
+    def 'a hash-only difference is recomputed but does not break identical by default'() {
+        given: 'two matched tasks identical in every field except the cache hash'
+        def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)', hash: 'aa/1111',
+                display: [hash: 'aa/1111', status: 'COMPLETED', script: 'echo hi'])])
+        def b = snap('runB', [task(process: 'FOO', name: 'FOO (1)', hash: 'bb/2222',
+                display: [hash: 'bb/2222', status: 'COMPLETED', script: 'echo hi'])])
+
+        when: 'the default (meaningful-only) comparison'
+        def diff = new RunComparator().compare(a, b)
+
+        then: 'the hash change is surfaced as a recompute, but the runs stay identical'
+        diff.tasksRecomputed == 1
+        diff.tasksChanged == 0
+        diff.tasksUnchanged == 1
+        diff.identical
+
+        when: 'the verbose comparison'
+        def verbose = new RunComparator(new CompareOptions(showObvious: true)).compare(a, b)
+
+        then: 'the hash change is now flagged as a difference'
+        verbose.showObvious
+        verbose.tasksRecomputed == 1
+        verbose.tasksChanged == 1
+        !verbose.identical
     }
 
     def 'detects performance regressions beyond the threshold, worst first'() {
@@ -314,6 +341,22 @@ class RunComparatorTest extends Specification {
 
         and: 'a runtime regression alone does not break identical (obvious fields)'
         diff.identical
+    }
+
+    def 'a performance regression breaks identical in verbose mode'() {
+        given: 'two matched tasks (same cache hash) whose runtime regresses well past the threshold'
+        def a = snap('runA', [task(process: 'SLOW', name: 'SLOW (1)', hash: 'h1',
+                display: [status: 'COMPLETED', realtime: '10s'], raw: [realtime: 10_000L])])
+        def b = snap('runB', [task(process: 'SLOW', name: 'SLOW (1)', hash: 'h1',
+                display: [status: 'COMPLETED', realtime: '30s'], raw: [realtime: 30_000L])])
+
+        when: 'the verbose comparison'
+        def diff = new RunComparator(new CompareOptions(showObvious: true)).compare(a, b)
+
+        then: 'the regression is flagged and now counts as a difference'
+        diff.showObvious
+        diff.regressionCount() == 1
+        !diff.identical
     }
 
     def 'a custom perf threshold widens or narrows what is flagged'() {

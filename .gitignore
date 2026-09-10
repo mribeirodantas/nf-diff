@@ -9,6 +9,7 @@ results
 
 # nf-diff generated reports
 nf-diff-report.html
+nf-diff-report.json
 compare.html
 
 # IDE

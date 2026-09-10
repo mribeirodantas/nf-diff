@@ -80,8 +80,20 @@ class RunComparator {
      * layer flags (e.g. run B's task ran on a slower {@code cpu_model}) — but
      * they are {@code obvious}, so they never flip the "identical" verdict or
      * count for {@code --fail-on-change} unless the verbose view is enabled.
+     *
+     * <p>The task cache {@code hash} is obvious for the same reason: Nextflow
+     * folds the per-run session UUID into every task's hash (it is the first
+     * hash component, which is why {@code -resume} reuses the prior session id
+     * to match), so two <em>independent</em> runs always compute a different
+     * hash for every task even when the script, inputs and container are
+     * byte-identical. A bare hash change is therefore the "these tasks were
+     * recomputed rather than resumed" signal — already surfaced separately via
+     * {@link DiffResult#tasksRecomputed} — and must not by itself flip the
+     * "identical" verdict. Under {@code --verbose} it is flagged like any other
+     * obvious field.
      */
     static final Set<String> OBVIOUS_TASK_FIELDS = [
+            'hash',
             'realtime', '%cpu', 'peak_rss', 'peak_vmem', 'rchar', 'wchar', 'workdir',
             'read_bytes', 'write_bytes', 'syscr', 'syscw', 'vol_ctxt', 'inv_ctxt',
             'cpu_model', 'hostname', 'native_id'
@@ -514,9 +526,16 @@ class RunComparator {
 
     private List<FieldDiff> compareMetadata(RunSnapshot a, RunSnapshot b) {
         final diffs = new ArrayList<FieldDiff>()
+        // Pipeline (project) name — a real change worth flagging when it differs.
+        // Added only when at least one run recorded it, so runs without a
+        // lineage store or a parseable command are not padded with a blank row.
+        if( a.pipeline != null || b.pipeline != null )
+            diffs << field('Pipeline', a.pipeline, b.pipeline)
         diffs << field('Run name', a.runName, b.runName)
         diffs << field('Session ID', a.sessionId?.toString(), b.sessionId?.toString())
-        diffs << field('Status', a.status, b.status)
+        // Use the Nextflow/Platform status vocabulary (SUCCEEDED/FAILED) rather
+        // than the terse OK/ERR history tokens, matching the header status pill.
+        diffs << field('Status', a.statusLabel(), b.statusLabel())
         diffs << field('Revision', a.revisionId, b.revisionId)
         diffs << field('Command', a.command, b.command)
         diffs << field('Launched', a.timestamp?.toString(), b.timestamp?.toString())
