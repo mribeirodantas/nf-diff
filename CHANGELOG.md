@@ -21,6 +21,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The HTML report's cards get a softer, uniform surface and lose their
+  colored accent bars.** The flat 1px-outline treatment is replaced by shared
+  CSS tokens — `--radius` (14px), a near-invisible `--hair` border, and layered
+  `--elev` / `--elev-hover` shadows (defined for both themes) — applied across
+  every card surface (`.card`, `.run-chip`, `.summary-headline`, `.disp`,
+  `.rp-plot`, `.dag-graph`, `.task`, tables, `.warn-note`); interactive cards
+  gain a subtle hover lift. The status/run colored *accent borders* are removed
+  in favour of the color cues already present elsewhere: the active section-nav
+  item is now a solid brand pill (not a soft fill with a left bar); task cards
+  drop their 4px colored left bar (the header pill already states status);
+  summary stat cards drop the inset bottom-bar shadow (the status-colored
+  numeral stays); and the warning note drops its left bar (amber tint kept).
+  Run cards drop the `.run-chip::before` left bar and instead render the run
+  name as an inline pill badge colored by run — green (Run A) / blue (Run B).
+  Per-line diff gutters and the DAG tab underline are kept as line/tab markers.
+  `HtmlReportRenderer` (CSS + `runChip`) and the regenerated demo report only;
+  no `DiffResult` accessors or comparison logic changed.
+
 - **The HTML report is paginated instead of long-scroll.** Sections render one
   at a time (`.section` defaults to hidden, `.is-active` reveals it) inside a new
   `.layout` wrapper. A bottom pager (`renderPager`) steps through the visible nav
