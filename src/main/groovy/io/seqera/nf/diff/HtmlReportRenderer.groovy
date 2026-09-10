@@ -326,7 +326,7 @@ ${recNote}  </div>
             sb << '</section>\n'
             return
         }
-        sb << '  <p class="mode-note">Pipeline params (<code>--foo</code>) and Nextflow options (<code>-profile</code>, <code>-r</code>) from each run\'s launch command, merged with any <code>-params-file</code> contents. The <em>Source</em> column shows whether a value came from the command line, a params-file, or both (the command line wins on conflict).</p>\n'
+        sb << '  <p class="mode-note">Pipeline params (<code>--foo</code>) and Nextflow options (<code>-profile</code>, <code>-r</code>) from each run\'s launch command, merged with any <code>-params-file</code> contents. The <em>Source</em> column shows whether a value came from the command line, a params-file, or both (the command line wins on conflict). Params that were <em>not</em> passed at launch &mdash; e.g. defaults, or values set inside <code>nextflow.config</code> or an activated profile &mdash; are resolved config, not launch input, so they appear in the <a href="#config">Configuration</a> layer rather than here.</p>\n'
         sb << '  <table class="kv">\n'
         sb << '    <thead><tr><th>Flag</th><th>Run A</th><th>Run B</th><th>Source</th></tr></thead>\n  <tbody>\n'
         diff.params.each { FieldDiff fd ->

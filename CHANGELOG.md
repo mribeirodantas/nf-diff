@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The task layer now compares I/O counters and reports execution hardware.**
+  `RunComparator.TASK_FIELDS` gained the disk-I/O counters (`read_bytes`,
+  `write_bytes`, `syscr`, `syscw`, `vol_ctxt`, `inv_ctxt`) and the
+  execution-environment fields (`cpu_model`, `hostname`, `native_id`). These are
+  already present in every `TraceRecord` Nextflow writes to the cache, so no new
+  data source is needed — the report simply stopped throwing them away. All nine
+  are added to `OBVIOUS_TASK_FIELDS`, so they surface for context (notably,
+  `cpu_model`/`hostname` explain a performance regression the perf layer already
+  flags — run B's task landing on a slower CPU) without flipping the "identical"
+  verdict or tripping `--fail-on-change` unless `--verbose` is set.
+
+### Changed
+
+- **The Parameters note now explains where non-launch params go.** The HTML
+  report's params section only ever lists values from the launch command and
+  `-params-file`; params left at their defaults or set inside `nextflow.config`
+  / an activated profile were silently absent, which read as "unset". The note
+  now states those are resolved config, not launch input, and links to the
+  Configuration layer where they actually appear.
+
 - **`--help` now documents the full exit-code contract.** `DiffPlugin.dispatch()`
   maps outcomes to four exit codes — `0` success, `1` runtime error, `2` usage
   error, `3` `--fail-on-change` on a difference — but `usage()` only mentioned

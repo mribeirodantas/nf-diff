@@ -51,7 +51,10 @@ class RunComparator {
             'hash', 'status', 'exit', 'container', 'script',
             'cpus', 'memory', 'time', 'disk',
             'realtime', '%cpu', 'peak_rss', 'peak_vmem',
-            'rchar', 'wchar', 'attempt', 'queue', 'workdir', 'tag'
+            'rchar', 'wchar', 'read_bytes', 'write_bytes',
+            'syscr', 'syscw', 'vol_ctxt', 'inv_ctxt',
+            'attempt', 'queue', 'workdir', 'tag',
+            'cpu_model', 'hostname', 'native_id'
     ]
 
     /**
@@ -70,12 +73,18 @@ class RunComparator {
 
     /**
      * Task fields that vary between essentially any two runs even when the work
-     * is identical (unique work dir, timing, and measured resource usage). These
-     * are flagged {@code obvious} and excluded from change detection unless the
-     * verbose view is enabled.
+     * is identical: the unique work dir, timing, measured resource usage, the
+     * measured I/O counters, and the execution environment (which host/CPU a
+     * task landed on, its OS process id). These are shown for context —
+     * crucially, the hardware fields explain a performance regression the perf
+     * layer flags (e.g. run B's task ran on a slower {@code cpu_model}) — but
+     * they are {@code obvious}, so they never flip the "identical" verdict or
+     * count for {@code --fail-on-change} unless the verbose view is enabled.
      */
     static final Set<String> OBVIOUS_TASK_FIELDS = [
-            'realtime', '%cpu', 'peak_rss', 'peak_vmem', 'rchar', 'wchar', 'workdir'
+            'realtime', '%cpu', 'peak_rss', 'peak_vmem', 'rchar', 'wchar', 'workdir',
+            'read_bytes', 'write_bytes', 'syscr', 'syscw', 'vol_ctxt', 'inv_ctxt',
+            'cpu_model', 'hostname', 'native_id'
     ] as Set
 
     /**
