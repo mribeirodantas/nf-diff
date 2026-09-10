@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **HTML report summary reorganised from a flat wall of boxes into a scannable
+  hierarchy.** The summary section previously rendered up to 14 identical,
+  equal-weight `statCard`s in a single `auto-fit` grid — the reader had to read
+  every box one by one to find the answer, with no cue that the first five were
+  a single task distribution and the rest were per-layer change counts.
+  `renderSummary()` now leads with a headline number (total task-level
+  differences, coloured by the identical/different verdict), collapses the four
+  mutually-exclusive task buckets (Changed / Only in A / Only in B / Unchanged)
+  into one stacked proportion bar with a counted legend — with `Recomputed`
+  demoted to an annotation since it is a cross-cut of `changed`, not a fifth
+  bucket — and groups the remaining diff-layer counts under labelled
+  **Failures** and **Changes by layer** bands. New `statGroup()` and
+  `dispositionBar()` helpers plus supporting CSS (`.summary-headline`,
+  `.card-group`, `.disp*`) reuse the existing colour tokens; no counts,
+  `DiffResult` accessors, or other renderers changed.
+
 ### Fixed
 
 - **Report percentages are now locale-independent.** `Format.signedPct()` and

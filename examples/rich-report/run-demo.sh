@@ -35,6 +35,11 @@ cd "$HERE"
 echo "demo: cleaning previous run state"
 rm -rf .nextflow* work .lineage report.html report.json
 
+# Nextflow caches extracted plugins by version under NXF_HOME, so a rebuilt
+# plugin with an unchanged version is ignored. Drop the extracted copy so this
+# run always picks up the freshly assembled `make dev-repo` build.
+rm -rf "$NXF_HOME/plugins/nf-diff-"*
+
 echo "demo: run A (baseline)"
 nextflow run main.nf -profile baseline
 

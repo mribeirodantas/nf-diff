@@ -144,29 +144,49 @@ class HtmlReportRenderer {
     private void renderSummary(StringBuilder sb, DiffResult diff) {
         sb << '<section id="summary" class="section">\n'
         sb << '  <h2>Summary</h2>\n'
-        sb << '  <div class="cards">\n'
-        sb << statCard('Tasks changed', diff.tasksChanged, 'changed')
-        sb << statCard('Only in A', diff.tasksRemoved, 'removed')
-        sb << statCard('Only in B', diff.tasksAdded, 'added')
-        sb << statCard('Unchanged', diff.tasksUnchanged, 'unchanged')
-        sb << statCard('Recomputed', diff.tasksRecomputed, 'changed')
-        if( diff.hasFailures() ) {
-            sb << statCard('Failed (A)', diff.failedCountA(), 'removed')
-            sb << statCard('Failed (B)', diff.failedCountB(), 'removed')
-            if( diff.newFailureCount() > 0 )
-                sb << statCard('New failures', diff.newFailureCount(), 'removed')
-        }
-        sb << statCard('Software changed', diff.softwareChangedCount(), 'changed')
-        sb << statCard('Regressions', diff.regressionCount(), 'removed')
-        if( diff.hasEfficiency() )
-            sb << statCard('Over-provisioned (B)', diff.overProvisionedB(), 'removed')
-        if( diff.diffOutputs )
-            sb << statCard('Outputs changed', diff.outputsChangedCount(), 'changed')
-        if( diff.diffLogs )
-            sb << statCard('Logs changed', diff.logsChangedCount(), 'changed')
-        if( diff.diffDag )
-            sb << statCard('Wiring edges changed', diff.dagEdgesAdded() + diff.dagEdgesRemoved(), 'changed')
+
+        // Headline: the single "should I care?" number — total task-level
+        // differences — mirroring the verdict shown in the hero.
+        final totalDiff = diff.tasksChanged + diff.tasksAdded + diff.tasksRemoved
+        final hlKind = diff.identical ? 'same' : 'diff'
+        final hlNote = diff.identical
+                ? 'No task-level differences detected'
+                : 'across added, removed and changed tasks'
+        sb << "  <div class=\"summary-headline ${hlKind}\">\n"
+        sb << "    <span class=\"hl-num\">${totalDiff}</span>\n"
+        sb << '    <span class="hl-text"><span class="hl-label-lg">task-level difference(s)</span>'
+        sb << "<br><span class=\"hl-label\">${esc(hlNote)}</span></span>\n"
         sb << '  </div>\n'
+
+        // Task disposition: the four mutually-exclusive buckets (changed / only
+        // in A / only in B / unchanged) as one stacked proportion bar instead of
+        // four equal-weight boxes. `Recomputed` is a cross-cut of `changed`, so
+        // it rides along as an annotation rather than a segment.
+        sb << dispositionBar(diff)
+
+        // Grouped card bands — only the diff-layer counts that don't fit the
+        // disposition bar, split into "Failures" and "Changes by layer".
+        if( diff.hasFailures() ) {
+            def fb = new StringBuilder()
+            fb << statCard('Failed (A)', diff.failedCountA(), 'removed')
+            fb << statCard('Failed (B)', diff.failedCountB(), 'removed')
+            if( diff.newFailureCount() > 0 )
+                fb << statCard('New failures', diff.newFailureCount(), 'removed')
+            sb << statGroup('Failures', fb.toString())
+        }
+
+        def cb = new StringBuilder()
+        cb << statCard('Software changed', diff.softwareChangedCount(), 'changed')
+        cb << statCard('Regressions', diff.regressionCount(), 'removed')
+        if( diff.hasEfficiency() )
+            cb << statCard('Over-provisioned (B)', diff.overProvisionedB(), 'removed')
+        if( diff.diffOutputs )
+            cb << statCard('Outputs changed', diff.outputsChangedCount(), 'changed')
+        if( diff.diffLogs )
+            cb << statCard('Logs changed', diff.logsChangedCount(), 'changed')
+        if( diff.diffDag )
+            cb << statCard('Wiring edges changed', diff.dagEdgesAdded() + diff.dagEdgesRemoved(), 'changed')
+        sb << statGroup('Changes by layer', cb.toString())
 
         // wall-time comparison bar
         final a = diff.runA.durationMillis
@@ -189,6 +209,58 @@ class HtmlReportRenderer {
       <div class="stat-num">${value}</div>
       <div class="stat-label">${esc(label)}</div>
     </div>
+"""
+    }
+
+    /** Wrap a run of stat cards under a labelled band. */
+    private String statGroup(String title, String cardsHtml) {
+        return """\
+  <div class="card-group">
+    <h3>${esc(title)}</h3>
+    <div class="cards">
+${cardsHtml}    </div>
+  </div>
+"""
+    }
+
+    /**
+     * A single stacked proportion bar for the four mutually-exclusive task
+     * buckets, replacing four equal-weight boxes. Segment widths are shares of
+     * the matched+unmatched total; a legend carries the exact counts.
+     */
+    private String dispositionBar(DiffResult diff) {
+        final changed = diff.tasksChanged
+        final removed = diff.tasksRemoved
+        final added = diff.tasksAdded
+        final unchanged = diff.tasksUnchanged
+        final total = changed + removed + added + unchanged
+        final List<List> segs = [
+                ['changed',   'Changed',   changed],
+                ['removed',   'Only in A', removed],
+                ['added',     'Only in B', added],
+                ['unchanged', 'Unchanged', unchanged],
+        ]
+        final bar = new StringBuilder()
+        segs.each { List seg ->
+            final n = (seg[2] as Integer)
+            if( n <= 0 )
+                return
+            final w = total > 0 ? (n / (total as double)) * 100.0d : 0.0d
+            bar << "<div class=\"disp-seg ${seg[0]}\" style=\"width:${fmt(w)}%\" title=\"${esc(seg[1] as String)}: ${n}\"></div>"
+        }
+        final legend = new StringBuilder()
+        segs.each { List seg ->
+            legend << "<span class=\"lg\"><span class=\"sw ${seg[0]}\"></span>${esc(seg[1] as String)} <strong>${seg[2]}</strong></span>"
+        }
+        final recNote = diff.tasksRecomputed > 0
+                ? "    <div class=\"disp-note\">Of the changed tasks, <strong>${diff.tasksRecomputed}</strong> would have been recomputed rather than resumed.</div>\n"
+                : ''
+        return """\
+  <div class="disp">
+    <div class="card-title">Task disposition · ${total} total</div>
+    <div class="disp-bar">${bar}</div>
+    <div class="disp-legend">${legend}</div>
+${recNote}  </div>
 """
     }
 
@@ -841,6 +913,31 @@ html[data-theme="light"] .theme-toggle .ti-light{display:inline}
 .stat.added{box-shadow:inset 0 -3px 0 var(--added)} .stat.added .stat-num{color:var(--added)}
 .stat.removed{box-shadow:inset 0 -3px 0 var(--removed)} .stat.removed .stat-num{color:var(--removed)}
 .stat.unchanged{box-shadow:inset 0 -3px 0 var(--unchanged)} .stat.unchanged .stat-num{color:var(--muted)}
+.summary-headline{display:flex;align-items:center;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 22px;box-shadow:0 1px 2px var(--shadow);margin-bottom:18px}
+.summary-headline .hl-num{font-size:46px;font-weight:800;line-height:1}
+.summary-headline.same .hl-num{color:var(--brand)}
+.summary-headline.diff .hl-num{color:var(--changed)}
+.summary-headline .hl-label-lg{font-size:16px;font-weight:600;color:var(--txt)}
+.summary-headline .hl-label{color:var(--muted);font-size:13px}
+.card-group{margin-top:20px}
+.card-group>h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:0 0 12px}
+.disp{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;box-shadow:0 1px 2px var(--shadow)}
+.disp-bar{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--panel2)}
+.disp-seg{height:100%}
+.disp-seg.changed{background:var(--changed)}
+.disp-seg.removed{background:var(--removed)}
+.disp-seg.added{background:var(--added)}
+.disp-seg.unchanged{background:var(--unchanged)}
+.disp-legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:12px}
+.disp-legend .lg{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)}
+.disp-legend .sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+.disp-legend .sw.changed{background:var(--changed)}
+.disp-legend .sw.removed{background:var(--removed)}
+.disp-legend .sw.added{background:var(--added)}
+.disp-legend .sw.unchanged{background:var(--unchanged)}
+.disp-legend .lg strong{color:var(--txt);font-weight:700}
+.disp-note{color:var(--muted);font-size:13px;margin-top:12px}
+.disp-note strong{color:var(--txt)}
 .delta{margin-top:10px;color:var(--muted);font-size:14px}
 table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
