@@ -21,13 +21,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The HTML report is paginated instead of long-scroll.** Sections render one
+  at a time (`.section` defaults to hidden, `.is-active` reveals it) inside a new
+  `.layout` wrapper. A bottom pager (`renderPager`) steps through the visible nav
+  entries, labelling its Previous/Next buttons from the adjacent sections and
+  disabling at the ends. The page JS drives selection from the nav, keeps the URL
+  hash in sync via `history.replaceState`, responds to `hashchange`, and scrolls
+  to top on each page change, so deep links to a section anchor still land on the
+  right page.
+
+- **The report navigation is now a vertical sidebar.** The sticky horizontal
+  `.tabs` strip is replaced by a `.sidenav` column (sticky, own scroll, active
+  item marked with a left border). Below 820px it collapses back to a horizontal
+  scrolling strip so narrow screens keep their content width. The old scroll-spy
+  is gone — active state follows the shown page.
+
 - **Run status now uses Nextflow / Seqera Platform vocabulary everywhere.** The
   terse `OK`/`ERR` history-file tokens were still surfaced raw in the Metadata
   table's Status row, even though the header pill already mapped them to
   `SUCCEEDED`/`FAILED`. The mapping now lives once on
   `RunSnapshot.statusLabel()`; `RunComparator.compareMetadata()` and
   `HtmlReportRenderer` both delegate to it, so the reader is never left
-  guessing what "OK" means and the two views can't drift apart.
+  guessing what "OK" means and the two views can't drift apart. Resource-efficiency
+  pills are relabelled for the same reason: `over` → `over-provisioned` and the
+  neutral `ok` → `right-sized` (class names and colours unchanged).
 
 - **The Performance regressions section now leads with a diverging-bar plot.**
   A new `HtmlReportRenderer.regressionPlot()` emits a self-contained inline-SVG
@@ -49,31 +66,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (via a new `Format.datetime()`) and, when a `.lineage/` store recorded it, the
   run's Nextflow version. The Nextflow row is omitted rather than padded with a
   placeholder when the version is unknown.
-
-### Changed
-
-- **The HTML report is paginated instead of long-scroll.** Sections render one
-  at a time (`.section` defaults to hidden, `.is-active` reveals it) inside a new
-  `.layout` wrapper. A bottom pager (`renderPager`) steps through the visible nav
-  entries, labelling its Previous/Next buttons from the adjacent sections and
-  disabling at the ends. The page JS drives selection from the nav, keeps the URL
-  hash in sync via `history.replaceState`, responds to `hashchange`, and scrolls
-  to top on each page change, so deep links to a section anchor still land on the
-  right page.
-
-- **The report navigation is now a vertical sidebar.** The sticky horizontal
-  `.tabs` strip is replaced by a `.sidenav` column (sticky, own scroll, active
-  item marked with a left border). Below 820px it collapses back to a horizontal
-  scrolling strip so narrow screens keep their content width. The old scroll-spy
-  is gone — active state follows the shown page.
-
-- **Run status uses Nextflow / Seqera Platform vocabulary.** The report no longer
-  surfaces the terse history-file tokens. A new `statusLabel()` (backed by
-  `isSucceeded()` / `isFailed()`) maps `OK` → `SUCCEEDED` and `ERR` → `FAILED`
-  everywhere a run status is shown, so the reader is not left guessing what "OK"
-  meant. Resource-efficiency pills are relabelled for the same reason:
-  `over` → `over-provisioned` and the neutral `ok` → `right-sized` (class names
-  and colours unchanged).
 
 ## [0.5.0] - 2026-09-10
 
