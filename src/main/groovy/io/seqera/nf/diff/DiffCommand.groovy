@@ -665,6 +665,12 @@ Options:
   launcher swallows space-separated flags such as `-o compare.html`
   before they reach the plugin.
 
+Exit codes:
+  0  Success: the runs were compared (identical, or differences not gated).
+  1  Runtime error (e.g. a run id not found, unreadable history/cache).
+  2  Usage error (bad option, wrong number of run identifiers, or --help).
+  3  Runs differ and --fail-on-change was set.
+
 Examples:
   nextflow plugin nf-diff:diff tender_euler happy_curie
   nextflow plugin nf-diff:diff 3a8c1f2e 9f2b7d10 --output=compare.html

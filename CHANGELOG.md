@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`--help` now documents the full exit-code contract.** `DiffPlugin.dispatch()`
+  maps outcomes to four exit codes — `0` success, `1` runtime error, `2` usage
+  error, `3` `--fail-on-change` on a difference — but `usage()` only mentioned
+  `3` (buried in the `--fail-on-change` entry). A CI author reading `--help` had
+  no way to tell `2` ("I typed the command wrong") from `1` ("the diff itself
+  failed"). A new `Exit codes:` block in `usage()` spells out all four; doc-only,
+  no behaviour change.
+
 - **The process-wiring section now leads with a node-link diagram of the DAG,
   not just a table of changed edges.** `renderDag()` already had the full union
   of process&rarr;process edges tagged `UNCHANGED`/`ADDED`/`REMOVED`
