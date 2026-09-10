@@ -36,6 +36,14 @@ class Format {
         return new Duration(millis).toString()
     }
 
+    /** Format a run timestamp as a readable, locale-independent date-time. */
+    static String datetime(Date date) {
+        if( date == null )
+            return NA
+        final fmt = new java.text.SimpleDateFormat('yyyy-MM-dd HH:mm', Locale.ROOT)
+        return fmt.format(date)
+    }
+
     /** Null/blank-safe string for display. */
     static String orNa(String value) {
         return (value != null && !value.isEmpty()) ? value : NA

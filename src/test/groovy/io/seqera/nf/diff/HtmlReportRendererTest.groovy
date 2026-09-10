@@ -77,6 +77,23 @@ class HtmlReportRendererTest extends Specification {
         and: 'the regression row surfaces the metric and signed delta'
         html.contains('Performance regressions')
         html.contains('+200.0%')
+
+        and: 'a diverging-bar plot leads the section, with a bar for the flagged metric'
+        html.contains('class="rp-plot"')
+        html.contains('class="rp-svg"')
+        html.contains('rp-bar worse')
+        html.contains('class="rp-legend"')
+    }
+
+    def 'regressions plot is absent when no metric crosses the threshold'() {
+        given:
+        def html = render(
+                [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'x'])],
+                [task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'y'])] )
+
+        expect: 'the empty note shows and no plot is emitted'
+        html.contains('No task metric')
+        !html.contains('class="rp-plot"')
     }
 
     def 'regressions section shows an empty note when nothing crosses the threshold'() {
@@ -88,6 +105,37 @@ class HtmlReportRendererTest extends Specification {
         expect:
         html.contains('id="regressions"')
         html.contains('No task metric')
+    }
+
+    // --------------------------------------------------------- run chips
+
+    def 'run chips carry the run start time, and the Nextflow version when recorded'() {
+        given: 'run A recorded a Nextflow version via its lineage store; run B did not'
+        def runA = new RunSnapshot(
+                requestedId: 'runA', runName: 'runA',
+                sessionId: UUID.randomUUID(), status: 'OK',
+                timestamp: new Date(1_757_000_000_000L),
+                nextflowVersion: '25.04.2', durationMillis: 1000L, tasks: [] )
+        def runB = new RunSnapshot(
+                requestedId: 'runB', runName: 'runB',
+                sessionId: UUID.randomUUID(), status: 'OK',
+                timestamp: new Date(1_757_600_000_000L),
+                durationMillis: 1000L, tasks: [] )
+        def diff = new RunComparator(new CompareOptions()).compare(runA, runB)
+
+        when:
+        def html = new HtmlReportRenderer().render(diff)
+
+        then: 'both chips show a formatted start date/time'
+        html.contains('<dt>Started</dt>')
+        html.count('<dt>Started</dt>') == 2
+        html.contains(Format.datetime(runA.timestamp))
+        html.contains(Format.datetime(runB.timestamp))
+
+        and: 'the Nextflow row appears only for the run that recorded a version'
+        html.contains('<dt>Nextflow</dt>')
+        html.count('<dt>Nextflow</dt>') == 1
+        html.contains('25.04.2')
     }
 
     // --------------------------------------------------------- self-contained
@@ -272,6 +320,29 @@ class HtmlReportRendererTest extends Specification {
     def 'dag diagram is empty when there are no edges'() {
         expect:
         new HtmlReportRenderer().dagSvg([]) == ''
+    }
+
+    def 'per-run dag view omits the added/removed diff legend'() {
+        given: 'a small union DAG'
+        def edges = [
+                edge('INDEX', 'ALIGN', DiffResult.Kind.UNCHANGED),
+                edge('ALIGN', 'QC',    DiffResult.Kind.UNCHANGED) ]
+
+        when: 'rendered as a neutral single-run view (diffLegend = false)'
+        def svg = new HtmlReportRenderer().dagSvg(edges, false)
+
+        then: 'the graph and nodes are still drawn'
+        svg.contains('<svg')
+        svg.contains('class="dag-graph"')
+        ['INDEX', 'ALIGN', 'QC'].every { svg.contains(">${it}<") }
+
+        and: 'but the before/after diff legend is dropped'
+        !svg.contains('dag-legend')
+        !svg.contains('Added in B')
+        !svg.contains('Removed (only in A)')
+
+        and: 'the union view keeps the legend'
+        new HtmlReportRenderer().dagSvg(edges).contains('dag-legend')
     }
 
     // --------------------------------------------------------------- params
