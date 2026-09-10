@@ -24,6 +24,7 @@ src/main/groovy/io/seqera/nf/diff/
   RunSnapshot.groovy        # run-level metadata + tasks
   TaskInfo.groovy           # per-task record (formatted + raw values)
   RunComparator.groovy      # multi-layer comparison logic
+  CompareOptions.groovy     # options bag passed into RunComparator (filters, thresholds, opt-in layers)
   CommandParams.groovy      # resolves launch params (CLI + -params-file), tagged by source
   ConfigLoader.groovy       # resolves the effective nextflow.config (profiles + -c)
   GitProvenance.groovy      # inspects working-tree git HEAD + dirty state for the config caveat

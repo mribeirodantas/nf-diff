@@ -56,6 +56,7 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 | `--diff-logs`          | Compare the standard log files (`.command.out`/`.command.err`/`.command.log`) each matched task wrote to its work directory, line by line. Ideal for inspecting why a task's exit code changed. Requires the tasks' work directories to still exist locally. Informational only: never affects `--fail-on-change`. |
 | `--logs-max-lines=<n>` | With `--diff-logs`, keep only the last `<n>` lines of each log file before diffing. Default `200`. |
 | `--diff-dag`           | Reconstruct each run's process→process wiring and diff the two edge sets, surfacing added/removed edges (a rewired pipeline). Reads the authoritative `.lineage/` data-lineage store when present (`lineage.enabled = true`, no work dirs needed); otherwise infers edges from the input symlinks staged into task work directories, which must still exist locally (best-effort when some were cleaned up). Informational only: never affects `--fail-on-change`. |
+| `--diff-all`           | Enable all three work-dir layers at once (`--diff-outputs`, `--diff-logs`, `--diff-dag`); they share the same precondition (the tasks' work directories must still exist locally). Enables only — a later explicit `--diff-<layer>=false` can still switch an individual layer back off. |
 | `--fail-on-change`     | Exit with code `3` if the runs are not identical (useful in CI)                                  |
 | `-q`, `--quiet`, `--summary-only` | Print only the summary block (the `N changed, …` line); skip rendering and writing the full report. Handy for CI logs where the report body is noise. Exit-code behaviour (including `--fail-on-change`) is unaffected. |
 | `--dir=<dir>`          | Project directory containing `.nextflow/` (default: `.`). Used for both runs unless overridden per-run below. |
@@ -102,6 +103,9 @@ nextflow plugin nf-diff:diff --last --diff-logs
 # See whether the process wiring changed (edges added/removed between runs)
 nextflow plugin nf-diff:diff --last --diff-dag
 
+# Enable all three work-dir layers at once (outputs + logs + dag)
+nextflow plugin nf-diff:diff --last --diff-all --output=compare.html
+
 # Inspect a project in another directory, with every field flagged
 nextflow plugin nf-diff:diff runA runB --dir=/path/to/project --verbose
 
@@ -139,7 +143,7 @@ nf-diff: comparison complete
   Report: /path/to/nf-diff-report.html (html)
 ```
 
-The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark theme toggle, so you can open it directly in a browser or email it to a colleague. Its layers are paginated behind a vertical sidebar (one page at a time, with Previous/Next controls), run statuses are shown in Nextflow / Seqera vocabulary (`SUCCEEDED` / `FAILED` rather than the terse `OK` / `ERR` history tokens), the performance-regressions page leads with a diverging-bar chart, and the process-wiring page adds per-run "before/after" views alongside the changed-edges diagram. Cards share a soft, uniform surface (hairline border, rounded corners, gentle elevation) and carry status/run identity through color cues rather than accent bars — the two runs are told apart by a colored name badge (green for Run A, blue for Run B). With `--format=json` the same six-layer comparison — plus the derived performance-regressions layer, resource-efficiency layer, and recompute count — is written as structured JSON instead, convenient for diffing in scripts or asserting against in a pipeline.
+The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark theme toggle, so you can open it directly in a browser or email it to a colleague. Its layers are paginated behind a vertical sidebar (one page at a time, with Previous/Next controls), run statuses are shown in Nextflow / Seqera vocabulary (`SUCCEEDED` / `FAILED` rather than the terse `OK` / `ERR` history tokens), the performance-regressions page leads with a diverging-bar chart, and the process-wiring page adds per-run "before/after" views alongside the changed-edges diagram. Cards share a soft, uniform surface (hairline border, rounded corners, gentle elevation) and carry status/run identity through color cues rather than accent bars — the two runs are told apart by a colored name badge (green for Run A, blue for Run B). With `--format=json` the same comparison — the six core layers plus the derived performance-regressions layer, resource-efficiency layer, and recompute count — is written as structured JSON instead, convenient for diffing in scripts or asserting against in a pipeline.
 
 ## Exit codes
 
