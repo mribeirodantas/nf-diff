@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>nf-diff · nasty_mclean (f64cedcd) vs cranky_yalow (4b4b253e)</title>
+<title>nf-diff · happy_heisenberg (2a279bc7) vs pedantic_leavitt (41286684)</title>
 <script>(function(){try{var k="nf-diff-theme",s=localStorage.getItem(k),t=s||((window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark");document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <style>
 
@@ -109,6 +109,22 @@ html[data-theme="light"] .theme-toggle .ti-light{display:inline}
 .disp-note{color:var(--muted);font-size:13px;margin-top:12px}
 .disp-note strong{color:var(--txt)}
 .delta{margin-top:10px;color:var(--muted);font-size:14px}
+.dag-graph{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:16px;margin-bottom:16px;box-shadow:0 1px 2px var(--shadow)}
+.dag-svg{display:block;max-width:100%;height:auto}
+.dag-node rect{fill:var(--panel2);stroke:var(--line);stroke-width:1.5}
+.dag-node.add rect{stroke:#22c55e;stroke-width:2}
+.dag-node.rem rect{stroke:#ef4444;stroke-width:2;stroke-dasharray:5 3}
+.dag-node text{fill:var(--txt);font:600 11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.dag-edge{fill:none;stroke-width:2}
+.dag-edge.eq{stroke:#94a3b8}
+.dag-edge.add{stroke:#22c55e}
+.dag-edge.rem{stroke:#ef4444;stroke-dasharray:6 4}
+.dag-legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;font-size:13px;color:var(--muted)}
+.dag-legend .lg{display:flex;align-items:center;gap:8px}
+.dag-legend .ln{width:24px;border-top:2px solid;display:inline-block}
+.dag-legend .ln.eq{border-color:#94a3b8}
+.dag-legend .ln.add{border-color:#22c55e}
+.dag-legend .ln.rem{border-top-style:dashed;border-color:#ef4444}
 table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
 thead th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;background:var(--panel2)}
@@ -188,21 +204,21 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
     <h1>Run comparison</h1>
     <div class="runs">
       <div class="run-chip run-a">
-        <div class="run-name">nasty_mclean</div>
+        <div class="run-name">happy_heisenberg</div>
         <div class="run-meta">
           <span class="pill status-ok">OK</span>
-          <span class="mono">f64cedcd</span>
+          <span class="mono">2a279bc7</span>
         </div>
-        <div class="run-sub">8 tasks · 1m 30s</div>
+        <div class="run-sub">8 tasks · 13.8s</div>
       </div>
       <div class="vs">vs</div>
       <div class="run-chip run-b">
-        <div class="run-name">cranky_yalow</div>
+        <div class="run-name">pedantic_leavitt</div>
         <div class="run-meta">
           <span class="pill status-ok">OK</span>
-          <span class="mono">4b4b253e</span>
+          <span class="mono">41286684</span>
         </div>
-        <div class="run-sub">11 tasks · 1m 24s</div>
+        <div class="run-sub">11 tasks · 23.9s</div>
       </div>
     </div>
     <div class="verdict-wrap"><span class="verdict diff">11 task-level difference(s) detected</span></div>
@@ -260,7 +276,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="stat-label">Software changed</div>
     </div>
     <div class="card stat removed">
-      <div class="stat-num">2</div>
+      <div class="stat-num">3</div>
       <div class="stat-label">Regressions</div>
     </div>
     <div class="card stat changed">
@@ -268,7 +284,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="stat-label">Outputs changed</div>
     </div>
     <div class="card stat changed">
-      <div class="stat-num">8</div>
+      <div class="stat-num">1</div>
       <div class="stat-label">Logs changed</div>
     </div>
     <div class="card stat changed">
@@ -280,10 +296,10 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
   <div class="card wide">
     <div class="card-title">Wall-clock duration</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">1m 30s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:93.33%"></div></div><span class="bar-val">1m 24s</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:57.74%"></div></div><span class="bar-val">13.8s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">23.9s</span></div>
         </div>
-    <div class="delta">B vs A: <strong>-6.7%</strong></div>
+    <div class="delta">B vs A: <strong>+73.2%</strong></div>
   </div>
 </section>
 <section id="failures" class="section">
@@ -301,14 +317,14 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
   <table class="kv">
     <thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead>
   <tbody>
-        <tr class="row-obvious"><th>Run name <span class="tag-auto" title="Always differs between runs">auto</span></th><td>nasty_mclean</td><td>cranky_yalow</td></tr>
-        <tr class="row-obvious"><th>Session ID <span class="tag-auto" title="Always differs between runs">auto</span></th><td>f64cedcd-18d1-44b1-b877-bf43bd45cd84</td><td>4b4b253e-eeb9-4715-ae4a-e4285f18d5d1</td></tr>
+        <tr class="row-obvious"><th>Run name <span class="tag-auto" title="Always differs between runs">auto</span></th><td>happy_heisenberg</td><td>pedantic_leavitt</td></tr>
+        <tr class="row-obvious"><th>Session ID <span class="tag-auto" title="Always differs between runs">auto</span></th><td>2a279bc7-af84-47b5-84a9-e81fcd02753c</td><td>41286684-6131-4d88-a561-689cd291b6f2</td></tr>
         <tr><th>Status</th><td>OK</td><td>OK</td></tr>
         <tr><th>Revision</th><td>47e64accfc3825bf03ccb5e6f5c996d5</td><td>47e64accfc3825bf03ccb5e6f5c996d5</td></tr>
         <tr class="row-obvious"><th>Command <span class="tag-auto" title="Always differs between runs">auto</span></th><td>nextflow run main.nf -profile baseline</td><td>nextflow run main.nf -profile changed</td></tr>
-        <tr class="row-obvious"><th>Launched <span class="tag-auto" title="Always differs between runs">auto</span></th><td>Thu Sep 10 01:16:38 GMT-03:00 2026</td><td>Thu Sep 10 01:18:11 GMT-03:00 2026</td></tr>
-        <tr class="row-obvious"><th>Wall duration <span class="tag-auto" title="Always differs between runs">auto</span></th><td>1m 30s</td><td>1m 24s</td></tr>
-        <tr class="row-obvious"><th>Total task realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>3m 41s</td><td>3m 11s</td></tr>
+        <tr class="row-obvious"><th>Launched <span class="tag-auto" title="Always differs between runs">auto</span></th><td>Thu Sep 10 01:49:54 GMT-03:00 2026</td><td>Thu Sep 10 01:50:13 GMT-03:00 2026</td></tr>
+        <tr class="row-obvious"><th>Wall duration <span class="tag-auto" title="Always differs between runs">auto</span></th><td>13.8s</td><td>23.9s</td></tr>
+        <tr class="row-obvious"><th>Total task realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>16.6s</td><td>31.1s</td></tr>
         <tr class="row-changed"><th>Task count</th><td>8</td><td>11</td></tr>
         <tr><th>Cached tasks</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>Distinct processes</th><td>4</td><td>5</td></tr>
@@ -328,7 +344,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 <section id="config" class="section">
   <h2>Resolved configuration</h2>
   <p class="mode-note">Resolved from the current on-disk config files under ., applying each run&#39;s -profile/-c options — not a snapshot of the config at launch time.</p>
-  <p class="warn-note"><strong>⚠ Config provenance:</strong> The resolved configuration was rebuilt from the working tree at c18910bb52, but both runs were launched at a different git revision (A: 47e64accfc, B: 47e64accfc). Any config difference driven by code changes between those revisions is NOT visible here — both sides were resolved against the current checkout. The working tree has uncommitted changes, so the resolved configuration reflects local edits that may not match either run.</p>
+  <p class="warn-note"><strong>⚠ Config provenance:</strong> The resolved configuration was rebuilt from the working tree at 17363ac4a6, but both runs were launched at a different git revision (A: 47e64accfc, B: 47e64accfc). Any config difference driven by code changes between those revisions is NOT visible here — both sides were resolved against the current checkout. The working tree has uncommitted changes, so the resolved configuration reflects local edits that may not match either run.</p>
   <table class="kv">
     <thead><tr><th>Key</th><th>Run A</th><th>Run B</th></tr></thead>
   <tbody>
@@ -375,14 +391,14 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
   <table class="proc">
     <thead><tr><th>Task</th><th>Metric</th><th>Run A</th><th>Run B</th><th>Δ</th><th>Same work</th></tr></thead>
   <tbody>
-    <tr class="row-removed"><th class="mono">ALIGN (sampleC)</th><td>Realtime</td><td>27.6s</td><td>53.2s</td><td class="mono">+92.6%</td><td></td></tr>
-    <tr class="row-removed"><th class="mono">ALIGN (sampleB)</th><td>Realtime</td><td>27.7s</td><td>53.2s</td><td class="mono">+92.4%</td><td></td></tr>
-    <tr class="row-added"><th class="mono">ALIGN (sampleA)</th><td>Realtime</td><td>25.6s</td><td>7s</td><td class="mono">-72.7%</td><td></td></tr>
-    <tr class="row-added"><th class="mono">QC (sampleB)</th><td>Realtime</td><td>39s</td><td>7.7s</td><td class="mono">-80.2%</td><td></td></tr>
-    <tr class="row-added"><th class="mono">QC (sampleC)</th><td>Realtime</td><td>39.1s</td><td>7.2s</td><td class="mono">-81.7%</td><td></td></tr>
-    <tr class="row-added"><th class="mono">QC (sampleA)</th><td>Realtime</td><td>41.1s</td><td>7.2s</td><td class="mono">-82.4%</td><td></td></tr>
-    <tr class="row-added"><th class="mono">MULTIQC (aggregate)</th><td>Realtime</td><td>9.8s</td><td>661ms</td><td class="mono">-93.3%</td><td></td></tr>
-    <tr class="row-added"><th class="mono">INDEX_REF (GRCh38)</th><td>Realtime</td><td>11.3s</td><td>329ms</td><td class="mono">-97.1%</td><td></td></tr>
+    <tr class="row-removed"><th class="mono">ALIGN (sampleB)</th><td>Realtime</td><td>2.3s</td><td>8.3s</td><td class="mono">+262.1%</td><td></td></tr>
+    <tr class="row-removed"><th class="mono">ALIGN (sampleA)</th><td>Realtime</td><td>2.3s</td><td>8.3s</td><td class="mono">+254.4%</td><td></td></tr>
+    <tr class="row-removed"><th class="mono">ALIGN (sampleC)</th><td>Realtime</td><td>2.4s</td><td>7.6s</td><td class="mono">+219.9%</td><td></td></tr>
+    <tr class="row-added"><th class="mono">MULTIQC (aggregate)</th><td>Realtime</td><td>1.7s</td><td>1.2s</td><td class="mono">-30.0%</td><td></td></tr>
+    <tr class="row-added"><th class="mono">QC (sampleB)</th><td>Realtime</td><td>921ms</td><td>640ms</td><td class="mono">-30.5%</td><td></td></tr>
+    <tr class="row-added"><th class="mono">QC (sampleC)</th><td>Realtime</td><td>842ms</td><td>570ms</td><td class="mono">-32.3%</td><td></td></tr>
+    <tr class="row-added"><th class="mono">QC (sampleA)</th><td>Realtime</td><td>966ms</td><td>640ms</td><td class="mono">-33.7%</td><td></td></tr>
+    <tr class="row-added"><th class="mono">INDEX_REF (GRCh38)</th><td>Realtime</td><td>5.2s</td><td>1.4s</td><td class="mono">-72.5%</td><td></td></tr>
   </tbody>
   </table>
 </section>
@@ -410,13 +426,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">25.6s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:27.27%"></div></div><span class="bar-val">7s</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:28.22%"></div></div><span class="bar-val">2.3s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">8.3s</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>90/723baa</td><td>03/ce3c5d</td></tr>
+        <tr class="row-changed"><th>hash</th><td>d7/ab6c61</td><td>d5/ba2725</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>container</th><td colspan="2">
@@ -461,7 +477,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr class="row-changed"><th>memory</th><td>4 GB</td><td>8 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>25.6s</td><td>7s</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>2.3s</td><td>8.3s</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -469,7 +485,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>wchar</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/90/723baa4b761131da4ed9ed027c873c</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/03/ce3c5d18d4fe42da564c00e2450d75</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/d7/ab6c61d3621e88fde7088569f31ca0</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/d5/ba272572c1c76acd8d56b8b933066e</td></tr>
         <tr><th>tag</th><td>sampleA</td><td>sampleA</td></tr>
       </tbody></table>
     </div>
@@ -485,13 +501,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:51.98%"></div></div><span class="bar-val">27.7s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">53.2s</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:27.61%"></div></div><span class="bar-val">2.3s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">8.3s</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>1c/b85f52</td><td>ca/260018</td></tr>
+        <tr class="row-changed"><th>hash</th><td>05/c7356b</td><td>85/b0fb51</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>container</th><td colspan="2">
@@ -536,7 +552,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr class="row-changed"><th>memory</th><td>4 GB</td><td>8 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>27.7s</td><td>53.2s</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>2.3s</td><td>8.3s</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -544,7 +560,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>wchar</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/1c/b85f52e8be614ba207c18104bbbd61</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/ca/2600188b22a4a7a0509f6fe01fa959</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/05/c7356be288fbd9a91561f35883fd12</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/85/b0fb51358b3288e502f49a410e8052</td></tr>
         <tr><th>tag</th><td>sampleB</td><td>sampleB</td></tr>
       </tbody></table>
     </div>
@@ -560,13 +576,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:51.91%"></div></div><span class="bar-val">27.6s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">53.2s</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:31.26%"></div></div><span class="bar-val">2.4s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">7.6s</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>0b/24b868</td><td>16/389824</td></tr>
+        <tr class="row-changed"><th>hash</th><td>38/85ff22</td><td>1b/014c3e</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>container</th><td colspan="2">
@@ -611,7 +627,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr class="row-changed"><th>memory</th><td>4 GB</td><td>8 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>27.6s</td><td>53.2s</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>2.4s</td><td>7.6s</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -619,7 +635,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>wchar</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/0b/24b86830cbdaafb40859aca62125e2</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/16/38982464619144a7894bae4b98ee8f</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/38/85ff22bd1b98da37e2b23df0968a9e</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/1b/014c3e47d51156b3d3f3610d196ad7</td></tr>
         <tr><th>tag</th><td>sampleC</td><td>sampleC</td></tr>
       </tbody></table>
     </div>
@@ -635,13 +651,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">11.3s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:2.90%"></div></div><span class="bar-val">329ms</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">5.2s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:27.47%"></div></div><span class="bar-val">1.4s</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>00/f7a6d4</td><td>b9/5d833b</td></tr>
+        <tr class="row-changed"><th>hash</th><td>31/0e4eba</td><td>ca/249d2c</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>script</th><td colspan="2">
@@ -662,7 +678,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>11.3s</td><td>329ms</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>5.2s</td><td>1.4s</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -670,7 +686,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>wchar</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/00/f7a6d4ee2caf15ae2bc501067384ec</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/b9/5d833b4a4aedd2887518b31d3cf711</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/31/0e4ebac1e06e61cf00629364e9475a</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/ca/249d2cbcfafdd86ef868afe9f647ad</td></tr>
         <tr><th>tag</th><td>GRCh38</td><td>GRCh38</td></tr>
       </tbody></table>
     </div>
@@ -686,13 +702,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">9.8s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:6.73%"></div></div><span class="bar-val">661ms</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">1.7s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:69.98%"></div></div><span class="bar-val">1.2s</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>d3/69aa82</td><td>f5/53951a</td></tr>
+        <tr class="row-changed"><th>hash</th><td>fe/d6d084</td><td>21/b7dcd2</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>script</th><td colspan="2">
@@ -717,7 +733,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>9.8s</td><td>661ms</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>1.7s</td><td>1.2s</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -725,7 +741,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>wchar</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/d3/69aa8277506d8b62add13a13ba15f9</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/f5/53951ab127168f33675deb0d9cb935</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/fe/d6d084fe906fa64a48a1366c49277c</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/21/b7dcd2e4ce75d7355d0e0b6994c89e</td></tr>
         <tr><th>tag</th><td>aggregate</td><td>aggregate</td></tr>
       </tbody></table>
     </div>
@@ -741,13 +757,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">41.1s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:17.55%"></div></div><span class="bar-val">7.2s</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">966ms</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:66.25%"></div></div><span class="bar-val">640ms</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>b3/b73cf3</td><td>19/befa3c</td></tr>
+        <tr class="row-changed"><th>hash</th><td>cf/3ca333</td><td>15/f4636d</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>container</th><td colspan="2">
@@ -800,7 +816,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>41.1s</td><td>7.2s</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>966ms</td><td>640ms</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -808,7 +824,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>wchar</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/b3/b73cf3ea287a428e5ddbc3300cd051</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/19/befa3c9f286ede45d6a1c269e5ccf8</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/cf/3ca3334a143e03f1a094e1b2f90f31</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/15/f4636dcee023e2325b481f5a467a4e</td></tr>
         <tr><th>tag</th><td>sampleA</td><td>sampleA</td></tr>
       </tbody></table>
     </div>
@@ -824,13 +840,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">39s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:19.76%"></div></div><span class="bar-val">7.7s</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">921ms</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:69.49%"></div></div><span class="bar-val">640ms</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>9e/0b6adb</td><td>00/f9d161</td></tr>
+        <tr class="row-changed"><th>hash</th><td>4e/a34e83</td><td>fc/71c511</td></tr>
         <tr class="row-changed"><th>status</th><td>COMPLETED</td><td>FAILED</td></tr>
         <tr class="row-changed"><th>exit</th><td>0</td><td>1</td></tr>
         <tr class="row-changed"><th>container</th><td colspan="2">
@@ -885,7 +901,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>39s</td><td>7.7s</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>921ms</td><td>640ms</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -893,7 +909,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>wchar</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/9e/0b6adbf711f137c30a1418b4e18e48</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/00/f9d161fc27f027b4f930e6ff0e7a6f</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/4e/a34e83e56a630acc8f81557466eff9</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/fc/71c511042a3b7f917aea47062ff1a6</td></tr>
         <tr><th>tag</th><td>sampleB</td><td>sampleB</td></tr>
       </tbody></table>
     </div>
@@ -909,13 +925,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">39.1s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:18.32%"></div></div><span class="bar-val">7.2s</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">842ms</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:67.70%"></div></div><span class="bar-val">570ms</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>9a/7ae14e</td><td>dd/794546</td></tr>
+        <tr class="row-changed"><th>hash</th><td>90/05fc46</td><td>cc/a2d14e</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>container</th><td colspan="2">
@@ -968,7 +984,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>39.1s</td><td>7.2s</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>842ms</td><td>570ms</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -976,7 +992,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>wchar</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/9a/7ae14ef83fb78c0f1ef0bbbbf42506</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/dd/794546eb1f57876c387cd1169063bd</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/90/05fc4626e26632b7c2b73a0355aa6e</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/cc/a2d14e807f3b28c05b56dad76a2c39</td></tr>
         <tr><th>tag</th><td>sampleC</td><td>sampleC</td></tr>
       </tbody></table>
     </div>
@@ -991,7 +1007,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
     <div class="task-body">
       <p class="solo-note">Only present in Run B</p>
       <table class="kv"><tbody>
-        <tr><th>hash</th><td colspan="2">02/53ff71</td></tr>
+        <tr><th>hash</th><td colspan="2">ce/a8bcae</td></tr>
         <tr><th>status</th><td colspan="2">COMPLETED</td></tr>
         <tr><th>exit</th><td colspan="2">0</td></tr>
         <tr><th>container</th><td colspan="2">quay.io/biocontainers/prinseq-plus-plus:1.2.3--hc90279e_1</td></tr>
@@ -1003,7 +1019,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td colspan="2">2 GB</td></tr>
         <tr><th>time</th><td colspan="2">-</td></tr>
         <tr><th>disk</th><td colspan="2">-</td></tr>
-        <tr><th>realtime</th><td colspan="2">13.3s</td></tr>
+        <tr><th>realtime</th><td colspan="2">596ms</td></tr>
         <tr><th>%cpu</th><td colspan="2">-</td></tr>
         <tr><th>peak_rss</th><td colspan="2">-</td></tr>
         <tr><th>peak_vmem</th><td colspan="2">-</td></tr>
@@ -1011,7 +1027,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>wchar</th><td colspan="2">-</td></tr>
         <tr><th>attempt</th><td colspan="2">1</td></tr>
         <tr><th>queue</th><td colspan="2">-</td></tr>
-        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/02/53ff715f7b15110bcdd532c52618a9</td></tr>
+        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/ce/a8bcae185ec56bfc9dbdd41853daa2</td></tr>
         <tr><th>tag</th><td colspan="2">sampleA</td></tr>
       </tbody></table>
     </div>
@@ -1026,7 +1042,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
     <div class="task-body">
       <p class="solo-note">Only present in Run B</p>
       <table class="kv"><tbody>
-        <tr><th>hash</th><td colspan="2">3a/4b4b23</td></tr>
+        <tr><th>hash</th><td colspan="2">f1/76675d</td></tr>
         <tr><th>status</th><td colspan="2">COMPLETED</td></tr>
         <tr><th>exit</th><td colspan="2">0</td></tr>
         <tr><th>container</th><td colspan="2">quay.io/biocontainers/prinseq-plus-plus:1.2.3--hc90279e_1</td></tr>
@@ -1038,7 +1054,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td colspan="2">2 GB</td></tr>
         <tr><th>time</th><td colspan="2">-</td></tr>
         <tr><th>disk</th><td colspan="2">-</td></tr>
-        <tr><th>realtime</th><td colspan="2">20.5s</td></tr>
+        <tr><th>realtime</th><td colspan="2">578ms</td></tr>
         <tr><th>%cpu</th><td colspan="2">-</td></tr>
         <tr><th>peak_rss</th><td colspan="2">-</td></tr>
         <tr><th>peak_vmem</th><td colspan="2">-</td></tr>
@@ -1046,7 +1062,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>wchar</th><td colspan="2">-</td></tr>
         <tr><th>attempt</th><td colspan="2">1</td></tr>
         <tr><th>queue</th><td colspan="2">-</td></tr>
-        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/3a/4b4b23182c6f5f3a7fae4787e32358</td></tr>
+        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/f1/76675def77dbe5af0dbf2539bfc5f7</td></tr>
         <tr><th>tag</th><td colspan="2">sampleB</td></tr>
       </tbody></table>
     </div>
@@ -1061,7 +1077,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
     <div class="task-body">
       <p class="solo-note">Only present in Run B</p>
       <table class="kv"><tbody>
-        <tr><th>hash</th><td colspan="2">f1/62afb7</td></tr>
+        <tr><th>hash</th><td colspan="2">87/8c5237</td></tr>
         <tr><th>status</th><td colspan="2">COMPLETED</td></tr>
         <tr><th>exit</th><td colspan="2">0</td></tr>
         <tr><th>container</th><td colspan="2">quay.io/biocontainers/prinseq-plus-plus:1.2.3--hc90279e_1</td></tr>
@@ -1073,7 +1089,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td colspan="2">2 GB</td></tr>
         <tr><th>time</th><td colspan="2">-</td></tr>
         <tr><th>disk</th><td colspan="2">-</td></tr>
-        <tr><th>realtime</th><td colspan="2">20.4s</td></tr>
+        <tr><th>realtime</th><td colspan="2">1.3s</td></tr>
         <tr><th>%cpu</th><td colspan="2">-</td></tr>
         <tr><th>peak_rss</th><td colspan="2">-</td></tr>
         <tr><th>peak_vmem</th><td colspan="2">-</td></tr>
@@ -1081,7 +1097,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>wchar</th><td colspan="2">-</td></tr>
         <tr><th>attempt</th><td colspan="2">1</td></tr>
         <tr><th>queue</th><td colspan="2">-</td></tr>
-        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/f1/62afb7ca8caf3c43adb054cf63d3ee</td></tr>
+        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/87/8c5237dd5b389b637714e95be1104a</td></tr>
         <tr><th>tag</th><td colspan="2">sampleC</td></tr>
       </tbody></table>
     </div>
@@ -1280,270 +1296,6 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 <section id="logs" class="section">
   <h2>Task logs</h2>
   <p class="mode-note">Task stdout/stderr (.command.out/.err/.log) compared line by line, tailed to the last 200 lines per file. Logs are informational only — they never affect the &quot;identical&quot; verdict or --fail-on-change.</p>
-  <div class="task changed">
-    <div class="task-hdr" onclick="toggleTask(this)">
-      <span class="pill changed">logs</span>
-      <span class="task-key mono">ALIGN (sampleA)</span>
-      <span class="task-proc">ALIGN</span>
-      <span class="chev">▸</span>
-    </div>
-    <div class="task-body">
-      <div class="log-file"><span class="mono">.command.err</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6&#39; locally</span>
-<span class="cl del">edeb13799090a2a6: Pulling from library/bowtie2_htslib_samtools_pigz</span>
-<span class="cl del">6c48bcb5ca78: Pulling fs layer</span>
-<span class="cl del">d1d13b0e7ebb: Pulling fs layer</span>
-<span class="cl del">d1d13b0e7ebb: Download complete</span>
-<span class="cl del">d1d13b0e7ebb: Pull complete</span>
-<span class="cl del">6c48bcb5ca78: Download complete</span>
-<span class="cl del">6c48bcb5ca78: Pull complete</span>
-<span class="cl del">Digest: sha256:26758d72855cd44c475c24360f2cdcc2120955e182c680427c5d099a06b1423e</span>
-<span class="cl del">Status: Downloaded newer image for community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6</span>
-</pre></div></div>
-      <div class="log-file"><span class="mono">.command.log</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6&#39; locally</span>
-<span class="cl del">edeb13799090a2a6: Pulling from library/bowtie2_htslib_samtools_pigz</span>
-<span class="cl del">6c48bcb5ca78: Pulling fs layer</span>
-<span class="cl del">d1d13b0e7ebb: Pulling fs layer</span>
-<span class="cl del">d1d13b0e7ebb: Download complete</span>
-<span class="cl del">d1d13b0e7ebb: Pull complete</span>
-<span class="cl del">6c48bcb5ca78: Download complete</span>
-<span class="cl del">6c48bcb5ca78: Pull complete</span>
-<span class="cl del">Digest: sha256:26758d72855cd44c475c24360f2cdcc2120955e182c680427c5d099a06b1423e</span>
-<span class="cl del">Status: Downloaded newer image for community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6</span>
-</pre></div></div>
-    </div>
-  </div>
-  <div class="task changed">
-    <div class="task-hdr" onclick="toggleTask(this)">
-      <span class="pill changed">logs</span>
-      <span class="task-key mono">ALIGN (sampleB)</span>
-      <span class="task-proc">ALIGN</span>
-      <span class="chev">▸</span>
-    </div>
-    <div class="task-body">
-      <div class="log-file"><span class="mono">.command.err</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6&#39; locally</span>
-<span class="cl del">edeb13799090a2a6: Pulling from library/bowtie2_htslib_samtools_pigz</span>
-<span class="cl del">6c48bcb5ca78: Pulling fs layer</span>
-<span class="cl del">d1d13b0e7ebb: Pulling fs layer</span>
-<span class="cl del">d1d13b0e7ebb: Download complete</span>
-<span class="cl del">d1d13b0e7ebb: Pull complete</span>
-<span class="cl del">6c48bcb5ca78: Download complete</span>
-<span class="cl del">6c48bcb5ca78: Pull complete</span>
-<span class="cl del">Digest: sha256:26758d72855cd44c475c24360f2cdcc2120955e182c680427c5d099a06b1423e</span>
-<span class="cl del">Status: Downloaded newer image for community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6</span>
-<span class="cl ins">Unable to find image &#39;community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9&#39; locally</span>
-<span class="cl ins">07416fe99b090fa9: Pulling from library/bbmap_pigz</span>
-<span class="cl ins">165c783d16ef: Pulling fs layer</span>
-<span class="cl ins">01ff853e3581: Pulling fs layer</span>
-<span class="cl ins">01ff853e3581: Download complete</span>
-<span class="cl ins">01ff853e3581: Pull complete</span>
-<span class="cl ins">165c783d16ef: Download complete</span>
-<span class="cl ins">165c783d16ef: Pull complete</span>
-<span class="cl ins">Digest: sha256:d065afbdbdd9a9f36b329abdbf791f69e52e8a407f66976829aceedffa4677da</span>
-<span class="cl ins">Status: Downloaded newer image for community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9</span>
-</pre></div></div>
-      <div class="log-file"><span class="mono">.command.log</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6&#39; locally</span>
-<span class="cl del">edeb13799090a2a6: Pulling from library/bowtie2_htslib_samtools_pigz</span>
-<span class="cl del">6c48bcb5ca78: Pulling fs layer</span>
-<span class="cl del">d1d13b0e7ebb: Pulling fs layer</span>
-<span class="cl del">d1d13b0e7ebb: Download complete</span>
-<span class="cl del">d1d13b0e7ebb: Pull complete</span>
-<span class="cl del">6c48bcb5ca78: Download complete</span>
-<span class="cl del">6c48bcb5ca78: Pull complete</span>
-<span class="cl del">Digest: sha256:26758d72855cd44c475c24360f2cdcc2120955e182c680427c5d099a06b1423e</span>
-<span class="cl del">Status: Downloaded newer image for community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6</span>
-<span class="cl ins">Unable to find image &#39;community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9&#39; locally</span>
-<span class="cl ins">07416fe99b090fa9: Pulling from library/bbmap_pigz</span>
-<span class="cl ins">165c783d16ef: Pulling fs layer</span>
-<span class="cl ins">01ff853e3581: Pulling fs layer</span>
-<span class="cl ins">01ff853e3581: Download complete</span>
-<span class="cl ins">01ff853e3581: Pull complete</span>
-<span class="cl ins">165c783d16ef: Download complete</span>
-<span class="cl ins">165c783d16ef: Pull complete</span>
-<span class="cl ins">Digest: sha256:d065afbdbdd9a9f36b329abdbf791f69e52e8a407f66976829aceedffa4677da</span>
-<span class="cl ins">Status: Downloaded newer image for community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9</span>
-</pre></div></div>
-    </div>
-  </div>
-  <div class="task changed">
-    <div class="task-hdr" onclick="toggleTask(this)">
-      <span class="pill changed">logs</span>
-      <span class="task-key mono">ALIGN (sampleC)</span>
-      <span class="task-proc">ALIGN</span>
-      <span class="chev">▸</span>
-    </div>
-    <div class="task-body">
-      <div class="log-file"><span class="mono">.command.err</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6&#39; locally</span>
-<span class="cl del">edeb13799090a2a6: Pulling from library/bowtie2_htslib_samtools_pigz</span>
-<span class="cl del">6c48bcb5ca78: Pulling fs layer</span>
-<span class="cl del">d1d13b0e7ebb: Pulling fs layer</span>
-<span class="cl del">d1d13b0e7ebb: Download complete</span>
-<span class="cl del">d1d13b0e7ebb: Pull complete</span>
-<span class="cl del">6c48bcb5ca78: Download complete</span>
-<span class="cl del">6c48bcb5ca78: Pull complete</span>
-<span class="cl del">Digest: sha256:26758d72855cd44c475c24360f2cdcc2120955e182c680427c5d099a06b1423e</span>
-<span class="cl del">Status: Downloaded newer image for community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6</span>
-<span class="cl ins">Unable to find image &#39;community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9&#39; locally</span>
-<span class="cl ins">07416fe99b090fa9: Pulling from library/bbmap_pigz</span>
-<span class="cl ins">165c783d16ef: Pulling fs layer</span>
-<span class="cl ins">165c783d16ef: Download complete</span>
-<span class="cl ins">165c783d16ef: Pull complete</span>
-<span class="cl ins">Digest: sha256:d065afbdbdd9a9f36b329abdbf791f69e52e8a407f66976829aceedffa4677da</span>
-<span class="cl ins">Status: Downloaded newer image for community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9</span>
-</pre></div></div>
-      <div class="log-file"><span class="mono">.command.log</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6&#39; locally</span>
-<span class="cl del">edeb13799090a2a6: Pulling from library/bowtie2_htslib_samtools_pigz</span>
-<span class="cl del">6c48bcb5ca78: Pulling fs layer</span>
-<span class="cl del">d1d13b0e7ebb: Pulling fs layer</span>
-<span class="cl del">d1d13b0e7ebb: Download complete</span>
-<span class="cl del">d1d13b0e7ebb: Pull complete</span>
-<span class="cl del">6c48bcb5ca78: Download complete</span>
-<span class="cl del">6c48bcb5ca78: Pull complete</span>
-<span class="cl del">Digest: sha256:26758d72855cd44c475c24360f2cdcc2120955e182c680427c5d099a06b1423e</span>
-<span class="cl del">Status: Downloaded newer image for community.wave.seqera.io/library/bowtie2_htslib_samtools_pigz:edeb13799090a2a6</span>
-<span class="cl ins">Unable to find image &#39;community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9&#39; locally</span>
-<span class="cl ins">07416fe99b090fa9: Pulling from library/bbmap_pigz</span>
-<span class="cl ins">165c783d16ef: Pulling fs layer</span>
-<span class="cl ins">165c783d16ef: Download complete</span>
-<span class="cl ins">165c783d16ef: Pull complete</span>
-<span class="cl ins">Digest: sha256:d065afbdbdd9a9f36b329abdbf791f69e52e8a407f66976829aceedffa4677da</span>
-<span class="cl ins">Status: Downloaded newer image for community.wave.seqera.io/library/bbmap_pigz:07416fe99b090fa9</span>
-</pre></div></div>
-    </div>
-  </div>
-  <div class="task changed">
-    <div class="task-hdr" onclick="toggleTask(this)">
-      <span class="pill changed">logs</span>
-      <span class="task-key mono">INDEX_REF (GRCh38)</span>
-      <span class="task-proc">INDEX_REF</span>
-      <span class="chev">▸</span>
-    </div>
-    <div class="task-body">
-      <div class="log-file"><span class="mono">.command.err</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;community.wave.seqera.io/library/htslib_samtools:1.24--d697cfb9dce007cd&#39; locally</span>
-<span class="cl del">1.24--d697cfb9dce007cd: Pulling from library/htslib_samtools</span>
-<span class="cl del">355702cc329a: Pulling fs layer</span>
-<span class="cl del">ca2678b20700: Pulling fs layer</span>
-<span class="cl del">ca2678b20700: Download complete</span>
-<span class="cl del">ca2678b20700: Pull complete</span>
-<span class="cl del">355702cc329a: Download complete</span>
-<span class="cl del">355702cc329a: Pull complete</span>
-<span class="cl del">Digest: sha256:a55ddea590e567a91df592300a960aa534cfc1bd16e7623e3938ec21f4f3df15</span>
-<span class="cl del">Status: Downloaded newer image for community.wave.seqera.io/library/htslib_samtools:1.24--d697cfb9dce007cd</span>
-</pre></div></div>
-      <div class="log-file"><span class="mono">.command.log</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;community.wave.seqera.io/library/htslib_samtools:1.24--d697cfb9dce007cd&#39; locally</span>
-<span class="cl del">1.24--d697cfb9dce007cd: Pulling from library/htslib_samtools</span>
-<span class="cl del">355702cc329a: Pulling fs layer</span>
-<span class="cl del">ca2678b20700: Pulling fs layer</span>
-<span class="cl del">ca2678b20700: Download complete</span>
-<span class="cl del">ca2678b20700: Pull complete</span>
-<span class="cl del">355702cc329a: Download complete</span>
-<span class="cl del">355702cc329a: Pull complete</span>
-<span class="cl del">Digest: sha256:a55ddea590e567a91df592300a960aa534cfc1bd16e7623e3938ec21f4f3df15</span>
-<span class="cl del">Status: Downloaded newer image for community.wave.seqera.io/library/htslib_samtools:1.24--d697cfb9dce007cd</span>
-</pre></div></div>
-    </div>
-  </div>
-  <div class="task changed">
-    <div class="task-hdr" onclick="toggleTask(this)">
-      <span class="pill changed">logs</span>
-      <span class="task-key mono">MULTIQC (aggregate)</span>
-      <span class="task-proc">MULTIQC</span>
-      <span class="chev">▸</span>
-    </div>
-    <div class="task-body">
-      <div class="log-file"><span class="mono">.command.err</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;community.wave.seqera.io/library/seqkit:2.13.0--05c0a96bf9fb2751&#39; locally</span>
-<span class="cl del">2.13.0--05c0a96bf9fb2751: Pulling from library/seqkit</span>
-<span class="cl del">e36006a05ba1: Pulling fs layer</span>
-<span class="cl del">280bee7389fb: Pulling fs layer</span>
-<span class="cl del">280bee7389fb: Download complete</span>
-<span class="cl del">280bee7389fb: Pull complete</span>
-<span class="cl del">e36006a05ba1: Download complete</span>
-<span class="cl del">e36006a05ba1: Pull complete</span>
-<span class="cl del">Digest: sha256:1f6c3399ca530a727fd243e50348560e820cd1f97668ebbe767d5dff370168da</span>
-<span class="cl del">Status: Downloaded newer image for community.wave.seqera.io/library/seqkit:2.13.0--05c0a96bf9fb2751</span>
-</pre></div></div>
-      <div class="log-file"><span class="mono">.command.log</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;community.wave.seqera.io/library/seqkit:2.13.0--05c0a96bf9fb2751&#39; locally</span>
-<span class="cl del">2.13.0--05c0a96bf9fb2751: Pulling from library/seqkit</span>
-<span class="cl del">e36006a05ba1: Pulling fs layer</span>
-<span class="cl del">280bee7389fb: Pulling fs layer</span>
-<span class="cl del">280bee7389fb: Download complete</span>
-<span class="cl del">280bee7389fb: Pull complete</span>
-<span class="cl del">e36006a05ba1: Download complete</span>
-<span class="cl del">e36006a05ba1: Pull complete</span>
-<span class="cl del">Digest: sha256:1f6c3399ca530a727fd243e50348560e820cd1f97668ebbe767d5dff370168da</span>
-<span class="cl del">Status: Downloaded newer image for community.wave.seqera.io/library/seqkit:2.13.0--05c0a96bf9fb2751</span>
-</pre></div></div>
-    </div>
-  </div>
-  <div class="task changed">
-    <div class="task-hdr" onclick="toggleTask(this)">
-      <span class="pill changed">logs</span>
-      <span class="task-key mono">QC (sampleA)</span>
-      <span class="task-proc">QC</span>
-      <span class="chev">▸</span>
-    </div>
-    <div class="task-body">
-      <div class="log-file"><span class="mono">.command.err</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0&#39; locally</span>
-<span class="cl del">0.12.1--hdfd78af_0: Pulling from biocontainers/fastqc</span>
-<span class="cl del">c1a16a04cedd: Pulling fs layer</span>
-<span class="cl del">a8697f388c82: Pulling fs layer</span>
-<span class="cl del">4ca545ee6d5d: Pulling fs layer</span>
-<span class="cl del">4ca545ee6d5d: Download complete</span>
-<span class="cl del">c1a16a04cedd: Download complete</span>
-<span class="cl del">4ca545ee6d5d: Pull complete</span>
-<span class="cl del">c1a16a04cedd: Pull complete</span>
-<span class="cl del">a8697f388c82: Download complete</span>
-<span class="cl del">a8697f388c82: Pull complete</span>
-<span class="cl del">Digest: sha256:e194048df39c3145d9b4e0a14f4da20b59d59250465b6f2a9cb698445fd45900</span>
-<span class="cl del">Status: Downloaded newer image for quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0</span>
-<span class="cl ins">Unable to find image &#39;community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde&#39; locally</span>
-<span class="cl ins">1.3.6--4df8d6c11b471bde: Pulling from library/fastp</span>
-<span class="cl ins">740b5d776e68: Pulling fs layer</span>
-<span class="cl ins">870ac348fcbe: Pulling fs layer</span>
-<span class="cl ins">740b5d776e68: Download complete</span>
-<span class="cl ins">870ac348fcbe: Download complete</span>
-<span class="cl ins">740b5d776e68: Pull complete</span>
-<span class="cl ins">870ac348fcbe: Pull complete</span>
-<span class="cl ins">Digest: sha256:0e75bde9dcf7545f589ec218d518b4f4ef1cee4e5413d65bd6887221747f1b43</span>
-<span class="cl ins">Status: Downloaded newer image for community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde</span>
-</pre></div></div>
-      <div class="log-file"><span class="mono">.command.log</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0&#39; locally</span>
-<span class="cl del">0.12.1--hdfd78af_0: Pulling from biocontainers/fastqc</span>
-<span class="cl del">c1a16a04cedd: Pulling fs layer</span>
-<span class="cl del">a8697f388c82: Pulling fs layer</span>
-<span class="cl del">4ca545ee6d5d: Pulling fs layer</span>
-<span class="cl del">4ca545ee6d5d: Download complete</span>
-<span class="cl del">c1a16a04cedd: Download complete</span>
-<span class="cl del">4ca545ee6d5d: Pull complete</span>
-<span class="cl del">c1a16a04cedd: Pull complete</span>
-<span class="cl del">a8697f388c82: Download complete</span>
-<span class="cl del">a8697f388c82: Pull complete</span>
-<span class="cl del">Digest: sha256:e194048df39c3145d9b4e0a14f4da20b59d59250465b6f2a9cb698445fd45900</span>
-<span class="cl del">Status: Downloaded newer image for quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0</span>
-<span class="cl ins">Unable to find image &#39;community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde&#39; locally</span>
-<span class="cl ins">1.3.6--4df8d6c11b471bde: Pulling from library/fastp</span>
-<span class="cl ins">740b5d776e68: Pulling fs layer</span>
-<span class="cl ins">870ac348fcbe: Pulling fs layer</span>
-<span class="cl ins">740b5d776e68: Download complete</span>
-<span class="cl ins">870ac348fcbe: Download complete</span>
-<span class="cl ins">740b5d776e68: Pull complete</span>
-<span class="cl ins">870ac348fcbe: Pull complete</span>
-<span class="cl ins">Digest: sha256:0e75bde9dcf7545f589ec218d518b4f4ef1cee4e5413d65bd6887221747f1b43</span>
-<span class="cl ins">Status: Downloaded newer image for community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde</span>
-</pre></div></div>
-    </div>
-  </div>
   <div class="task removed">
     <div class="task-hdr" onclick="toggleTask(this)">
       <span class="pill removed">failure</span>
@@ -1554,118 +1306,12 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
     <div class="task-body">
       <p class="solo-note">exit 0 &rarr; 1 · status COMPLETED &rarr; FAILED</p>
       <div class="log-file"><span class="mono">.command.err</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0&#39; locally</span>
-<span class="cl del">0.12.1--hdfd78af_0: Pulling from biocontainers/fastqc</span>
-<span class="cl del">4ca545ee6d5d: Pulling fs layer</span>
-<span class="cl del">c1a16a04cedd: Pulling fs layer</span>
-<span class="cl del">a8697f388c82: Pulling fs layer</span>
-<span class="cl del">4ca545ee6d5d: Download complete</span>
-<span class="cl del">c1a16a04cedd: Download complete</span>
-<span class="cl del">c1a16a04cedd: Pull complete</span>
-<span class="cl del">4ca545ee6d5d: Pull complete</span>
-<span class="cl del">a8697f388c82: Download complete</span>
-<span class="cl del">a8697f388c82: Pull complete</span>
-<span class="cl del">Digest: sha256:e194048df39c3145d9b4e0a14f4da20b59d59250465b6f2a9cb698445fd45900</span>
-<span class="cl del">Status: Downloaded newer image for quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0</span>
-<span class="cl ins">Unable to find image &#39;community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde&#39; locally</span>
-<span class="cl ins">1.3.6--4df8d6c11b471bde: Pulling from library/fastp</span>
-<span class="cl ins">740b5d776e68: Pulling fs layer</span>
-<span class="cl ins">870ac348fcbe: Pulling fs layer</span>
-<span class="cl ins">740b5d776e68: Download complete</span>
-<span class="cl ins">870ac348fcbe: Download complete</span>
-<span class="cl ins">740b5d776e68: Pull complete</span>
-<span class="cl ins">870ac348fcbe: Pull complete</span>
-<span class="cl ins">Digest: sha256:0e75bde9dcf7545f589ec218d518b4f4ef1cee4e5413d65bd6887221747f1b43</span>
-<span class="cl ins">Status: Downloaded newer image for community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde</span>
-<span class="cl ins">ERROR: adapter contamination above threshold for sampleB</span>
+      <div class="code-diff"><div class="code-col wide"><pre><span class="cl ins">ERROR: adapter contamination above threshold for sampleB</span>
 <span class="cl ins">QC gate failed</span>
 </pre></div></div>
       <div class="log-file"><span class="mono">.command.log</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0&#39; locally</span>
-<span class="cl del">0.12.1--hdfd78af_0: Pulling from biocontainers/fastqc</span>
-<span class="cl del">4ca545ee6d5d: Pulling fs layer</span>
-<span class="cl del">c1a16a04cedd: Pulling fs layer</span>
-<span class="cl del">a8697f388c82: Pulling fs layer</span>
-<span class="cl del">4ca545ee6d5d: Download complete</span>
-<span class="cl del">c1a16a04cedd: Download complete</span>
-<span class="cl del">c1a16a04cedd: Pull complete</span>
-<span class="cl del">4ca545ee6d5d: Pull complete</span>
-<span class="cl del">a8697f388c82: Download complete</span>
-<span class="cl del">a8697f388c82: Pull complete</span>
-<span class="cl del">Digest: sha256:e194048df39c3145d9b4e0a14f4da20b59d59250465b6f2a9cb698445fd45900</span>
-<span class="cl del">Status: Downloaded newer image for quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0</span>
-<span class="cl ins">Unable to find image &#39;community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde&#39; locally</span>
-<span class="cl ins">1.3.6--4df8d6c11b471bde: Pulling from library/fastp</span>
-<span class="cl ins">740b5d776e68: Pulling fs layer</span>
-<span class="cl ins">870ac348fcbe: Pulling fs layer</span>
-<span class="cl ins">740b5d776e68: Download complete</span>
-<span class="cl ins">870ac348fcbe: Download complete</span>
-<span class="cl ins">740b5d776e68: Pull complete</span>
-<span class="cl ins">870ac348fcbe: Pull complete</span>
-<span class="cl ins">Digest: sha256:0e75bde9dcf7545f589ec218d518b4f4ef1cee4e5413d65bd6887221747f1b43</span>
-<span class="cl ins">Status: Downloaded newer image for community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde</span>
-<span class="cl ins">ERROR: adapter contamination above threshold for sampleB</span>
+      <div class="code-diff"><div class="code-col wide"><pre><span class="cl ins">ERROR: adapter contamination above threshold for sampleB</span>
 <span class="cl ins">QC gate failed</span>
-</pre></div></div>
-    </div>
-  </div>
-  <div class="task changed">
-    <div class="task-hdr" onclick="toggleTask(this)">
-      <span class="pill changed">logs</span>
-      <span class="task-key mono">QC (sampleC)</span>
-      <span class="task-proc">QC</span>
-      <span class="chev">▸</span>
-    </div>
-    <div class="task-body">
-      <div class="log-file"><span class="mono">.command.err</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0&#39; locally</span>
-<span class="cl del">0.12.1--hdfd78af_0: Pulling from biocontainers/fastqc</span>
-<span class="cl del">a8697f388c82: Pulling fs layer</span>
-<span class="cl del">c1a16a04cedd: Pulling fs layer</span>
-<span class="cl del">4ca545ee6d5d: Pulling fs layer</span>
-<span class="cl del">4ca545ee6d5d: Download complete</span>
-<span class="cl del">c1a16a04cedd: Download complete</span>
-<span class="cl del">4ca545ee6d5d: Pull complete</span>
-<span class="cl del">c1a16a04cedd: Pull complete</span>
-<span class="cl del">a8697f388c82: Download complete</span>
-<span class="cl del">a8697f388c82: Pull complete</span>
-<span class="cl del">Digest: sha256:e194048df39c3145d9b4e0a14f4da20b59d59250465b6f2a9cb698445fd45900</span>
-<span class="cl del">Status: Downloaded newer image for quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0</span>
-<span class="cl ins">Unable to find image &#39;community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde&#39; locally</span>
-<span class="cl ins">1.3.6--4df8d6c11b471bde: Pulling from library/fastp</span>
-<span class="cl ins">740b5d776e68: Pulling fs layer</span>
-<span class="cl ins">870ac348fcbe: Pulling fs layer</span>
-<span class="cl ins">740b5d776e68: Download complete</span>
-<span class="cl ins">870ac348fcbe: Download complete</span>
-<span class="cl ins">740b5d776e68: Pull complete</span>
-<span class="cl ins">870ac348fcbe: Pull complete</span>
-<span class="cl ins">Digest: sha256:0e75bde9dcf7545f589ec218d518b4f4ef1cee4e5413d65bd6887221747f1b43</span>
-<span class="cl ins">Status: Downloaded newer image for community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde</span>
-</pre></div></div>
-      <div class="log-file"><span class="mono">.command.log</span> <span class="pill changed">changed</span></div>
-      <div class="code-diff"><div class="code-col wide"><pre><span class="cl del">Unable to find image &#39;quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0&#39; locally</span>
-<span class="cl del">0.12.1--hdfd78af_0: Pulling from biocontainers/fastqc</span>
-<span class="cl del">a8697f388c82: Pulling fs layer</span>
-<span class="cl del">c1a16a04cedd: Pulling fs layer</span>
-<span class="cl del">4ca545ee6d5d: Pulling fs layer</span>
-<span class="cl del">4ca545ee6d5d: Download complete</span>
-<span class="cl del">c1a16a04cedd: Download complete</span>
-<span class="cl del">4ca545ee6d5d: Pull complete</span>
-<span class="cl del">c1a16a04cedd: Pull complete</span>
-<span class="cl del">a8697f388c82: Download complete</span>
-<span class="cl del">a8697f388c82: Pull complete</span>
-<span class="cl del">Digest: sha256:e194048df39c3145d9b4e0a14f4da20b59d59250465b6f2a9cb698445fd45900</span>
-<span class="cl del">Status: Downloaded newer image for quay.io/biocontainers/fastqc:0.12.1--hdfd78af_0</span>
-<span class="cl ins">Unable to find image &#39;community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde&#39; locally</span>
-<span class="cl ins">1.3.6--4df8d6c11b471bde: Pulling from library/fastp</span>
-<span class="cl ins">740b5d776e68: Pulling fs layer</span>
-<span class="cl ins">870ac348fcbe: Pulling fs layer</span>
-<span class="cl ins">740b5d776e68: Download complete</span>
-<span class="cl ins">870ac348fcbe: Download complete</span>
-<span class="cl ins">740b5d776e68: Pull complete</span>
-<span class="cl ins">870ac348fcbe: Pull complete</span>
-<span class="cl ins">Digest: sha256:0e75bde9dcf7545f589ec218d518b4f4ef1cee4e5413d65bd6887221747f1b43</span>
-<span class="cl ins">Status: Downloaded newer image for community.wave.seqera.io/library/fastp:1.3.6--4df8d6c11b471bde</span>
 </pre></div></div>
     </div>
   </div>
@@ -1673,6 +1319,30 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 <section id="dag" class="section">
   <h2>Process wiring (DAG)</h2>
   <p class="mode-note">Process wiring read from the Nextflow data-lineage store (each task&#39;s recorded input provenance), so it is authoritative and needs no work directories. Informational only — it never affects the &quot;identical&quot; verdict or --fail-on-change.</p>
+  <div class="dag-graph">
+    <svg class="dag-svg" viewBox="0 0 1024 68" width="1024" height="68" role="img" aria-label="Process wiring diagram">
+      <defs>
+        <marker id="dag-arr-eq" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#94a3b8"/></marker>
+        <marker id="dag-arr-add" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#22c55e"/></marker>
+        <marker id="dag-arr-rem" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#ef4444"/></marker>
+      </defs>
+      <path class="dag-edge add" d="M376,34 C460,34 354,34 438,34" marker-end="url(#dag-arr-add)"/>
+      <path class="dag-edge add" d="M586,34 C670,34 564,34 648,34" marker-end="url(#dag-arr-add)"/>
+      <path class="dag-edge rem" d="M376,34 C460,34 564,34 648,34" marker-end="url(#dag-arr-rem)"/>
+      <path class="dag-edge eq" d="M166,34 C250,34 144,34 228,34" marker-end="url(#dag-arr-eq)"/>
+      <path class="dag-edge eq" d="M796,34 C880,34 774,34 858,34" marker-end="url(#dag-arr-eq)"/>
+      <g class="dag-node eq"><title>ALIGN</title><rect x="228" y="18" width="148" height="32" rx="7"/><text x="302" y="38" text-anchor="middle">ALIGN</text></g>
+      <g class="dag-node add"><title>MARKDUP</title><rect x="438" y="18" width="148" height="32" rx="7"/><text x="512" y="38" text-anchor="middle">MARKDUP</text></g>
+      <g class="dag-node eq"><title>QC</title><rect x="648" y="18" width="148" height="32" rx="7"/><text x="722" y="38" text-anchor="middle">QC</text></g>
+      <g class="dag-node eq"><title>INDEX_REF</title><rect x="18" y="18" width="148" height="32" rx="7"/><text x="92" y="38" text-anchor="middle">INDEX_REF</text></g>
+      <g class="dag-node eq"><title>MULTIQC</title><rect x="858" y="18" width="148" height="32" rx="7"/><text x="932" y="38" text-anchor="middle">MULTIQC</text></g>
+    </svg>
+    <div class="dag-legend">
+      <span class="lg"><span class="ln eq"></span>Unchanged (both runs)</span>
+      <span class="lg"><span class="ln add"></span>Added in B</span>
+      <span class="lg"><span class="ln rem"></span>Removed (only in A)</span>
+    </div>
+  </div>
   <table class="proc">
     <thead><tr><th>Producer</th><th>Consumer</th><th></th></tr></thead>
   <tbody>
@@ -1684,7 +1354,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 </section>
 </main>
 <footer class="foot">
-  Generated by <strong>nf-diff</strong> · Thu Sep 10 01:22:13 GMT-03:00 2026
+  Generated by <strong>nf-diff</strong> · Thu Sep 10 01:50:40 GMT-03:00 2026
   <div class="foot-sub">Compares run history and cache produced by <strong>Nextflow</strong>.</div>
   <div class="foot-sub"><a href="https://github.com/mribeirodantas/nf-diff" target="_blank" rel="noopener noreferrer">github.com/mribeirodantas/nf-diff</a></div>
 </footer>

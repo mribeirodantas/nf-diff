@@ -234,6 +234,46 @@ class HtmlReportRendererTest extends Specification {
         !render(a, b, true).contains('meaningful differences only')
     }
 
+    // ------------------------------------------------------------------ dag
+
+    private DiffResult.DagEdgeDiff edge(String from, String to, DiffResult.Kind kind) {
+        return new DiffResult.DagEdgeDiff(
+                edge: new DiffResult.DagEdge(from: from, to: to), kind: kind )
+    }
+
+    def 'dag diagram renders a colour-coded, self-contained node-link SVG'() {
+        given: 'a union DAG where ALIGN->QC was rerouted through a new MARKDUP'
+        def edges = [
+                edge('INDEX', 'ALIGN',   DiffResult.Kind.UNCHANGED),
+                edge('ALIGN', 'MARKDUP', DiffResult.Kind.ADDED),
+                edge('MARKDUP', 'QC',    DiffResult.Kind.ADDED),
+                edge('ALIGN', 'QC',      DiffResult.Kind.REMOVED) ]
+
+        when:
+        def svg = new HtmlReportRenderer().dagSvg(edges)
+
+        then: 'an inline SVG with a legend is produced (no external assets)'
+        svg.contains('<svg')
+        svg.contains('class="dag-graph"')
+        svg.contains('dag-legend')
+        !svg.contains('http://')
+        !svg.contains('https://')
+
+        and: 'every node appears, with the new process outlined as added'
+        ['INDEX', 'ALIGN', 'MARKDUP', 'QC'].every { svg.contains(">${it}<") }
+        svg.contains('class="dag-node add"')
+
+        and: 'edges are classed by status, added solid / removed dashed'
+        svg.contains('class="dag-edge add"')
+        svg.contains('class="dag-edge rem"')
+        svg.contains('class="dag-edge eq"')
+    }
+
+    def 'dag diagram is empty when there are no edges'() {
+        expect:
+        new HtmlReportRenderer().dagSvg([]) == ''
+    }
+
     // --------------------------------------------------------------- params
 
     def 'params section renders flags parsed from the launch command'() {

@@ -634,6 +634,10 @@ ${recNote}  </div>
             sb << '</section>\n'
             return
         }
+        // Node-link diagram of the union DAG, with added/removed edges highlighted
+        // in place. The table below carries the precise, per-edge detail (and is
+        // the fallback for very large graphs / no-SVG contexts).
+        sb << dagSvg(diff.dag)
         sb << '  <table class="proc">\n'
         sb << '    <thead><tr><th>Producer</th><th>Consumer</th><th></th></tr></thead>\n  <tbody>\n'
         changed.each { DiffResult.DagEdgeDiff d ->
@@ -644,6 +648,132 @@ ${recNote}  </div>
         }
         sb << '  </tbody>\n  </table>\n'
         sb << '</section>\n'
+    }
+
+    // Geometry for the DAG node-link diagram (user-space SVG units).
+    private static final int DAG_NODE_W = 148
+    private static final int DAG_NODE_H = 32
+    private static final int DAG_COL_W  = 210
+    private static final int DAG_ROW_H  = 56
+    private static final int DAG_MARGIN = 18
+
+    /**
+     * Render the union DAG (edges present in either run) as a self-contained,
+     * inline SVG node-link diagram. Edges are colour-coded by status — neutral
+     * when present in both runs, green when added in B, dashed red when removed
+     * (only in A) — and nodes are outlined to match when a process appears in
+     * only one run. Layout is a lightweight longest-path layering (columns =
+     * topological depth), computed here so the SVG needs no JS or external libs.
+     */
+    private String dagSvg(List<DiffResult.DagEdgeDiff> edges) {
+        // Collect nodes in first-seen order and build the combined adjacency.
+        final nodes = new LinkedHashSet<String>()
+        final succ = new LinkedHashMap<String, List<String>>()
+        final indeg = new HashMap<String, Integer>()
+        final inA = new HashSet<String>()
+        final inB = new HashSet<String>()
+        edges.each { DiffResult.DagEdgeDiff d ->
+            final f = d.from()
+            final t = d.to()
+            if( f == null || t == null )
+                return
+            nodes.add(f)
+            nodes.add(t)
+            List<String> lst = succ.get(f)
+            if( lst == null ) { lst = new ArrayList<String>(); succ.put(f, lst) }
+            lst.add(t)
+            indeg.put(f, indeg.getOrDefault(f, 0))
+            indeg.put(t, indeg.getOrDefault(t, 0) + 1)
+            if( d.kind == Kind.UNCHANGED || d.kind == Kind.REMOVED ) { inA.add(f); inA.add(t) }
+            if( d.kind == Kind.UNCHANGED || d.kind == Kind.ADDED )   { inB.add(f); inB.add(t) }
+        }
+        if( nodes.isEmpty() )
+            return ''
+
+        // Longest-path layering (Kahn): layer[v] = max(layer[pred]+1). Any node
+        // left unresolved by a stray cycle simply keeps layer 0 and is still drawn.
+        final layer = new HashMap<String, Integer>()
+        nodes.each { String n -> layer.put(n, 0) }
+        final deg = new HashMap<String, Integer>(indeg)
+        final queue = new ArrayDeque<String>()
+        nodes.each { String n -> if( deg.get(n) == 0 ) queue.add(n) }
+        while( !queue.isEmpty() ) {
+            final u = queue.poll()
+            (succ.get(u) ?: new ArrayList<String>()).each { String v ->
+                if( layer.get(v) < layer.get(u) + 1 )
+                    layer.put(v, layer.get(u) + 1)
+                deg.put(v, deg.get(v) - 1)
+                if( deg.get(v) == 0 )
+                    queue.add(v)
+            }
+        }
+
+        // Bucket nodes by layer (first-seen order preserved) and assign coords.
+        final byLayer = new LinkedHashMap<Integer, List<String>>()
+        nodes.each { String n ->
+            final l = layer.get(n)
+            List<String> col = byLayer.get(l)
+            if( col == null ) { col = new ArrayList<String>(); byLayer.put(l, col) }
+            col.add(n)
+        }
+        final maxLayer = layer.values().max()
+        final pos = new HashMap<String, int[]>()
+        int maxRows = 0
+        byLayer.each { Integer l, List<String> ns ->
+            maxRows = Math.max(maxRows, ns.size())
+            ns.eachWithIndex { String n, Integer r ->
+                final x = DAG_MARGIN + l * DAG_COL_W
+                final y = DAG_MARGIN + r * DAG_ROW_H
+                pos.put(n, [x, y] as int[])
+            }
+        }
+        final w = DAG_MARGIN + maxLayer * DAG_COL_W + DAG_NODE_W + DAG_MARGIN
+        final h = DAG_MARGIN * 2 + Math.max(0, maxRows - 1) * DAG_ROW_H + DAG_NODE_H
+
+        final svg = new StringBuilder()
+        svg << "  <div class=\"dag-graph\">\n"
+        svg << "    <svg class=\"dag-svg\" viewBox=\"0 0 ${w} ${h}\" width=\"${w}\" height=\"${h}\" role=\"img\" aria-label=\"Process wiring diagram\">\n"
+        svg << '      <defs>\n'
+        svg << '        <marker id="dag-arr-eq" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#94a3b8"/></marker>\n'
+        svg << '        <marker id="dag-arr-add" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#22c55e"/></marker>\n'
+        svg << '        <marker id="dag-arr-rem" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#ef4444"/></marker>\n'
+        svg << '      </defs>\n'
+
+        // Edges first, so nodes paint on top.
+        final int dx = (int)(DAG_COL_W * 0.4d)
+        edges.each { DiffResult.DagEdgeDiff d ->
+            final pf = pos.get(d.from())
+            final pt = pos.get(d.to())
+            if( pf == null || pt == null )
+                return
+            final cls = d.isAdded() ? 'add' : (d.isRemoved() ? 'rem' : 'eq')
+            final x1 = pf[0] + DAG_NODE_W
+            final y1 = pf[1] + (DAG_NODE_H / 2 as int)
+            final x2 = pt[0]
+            final y2 = pt[1] + (DAG_NODE_H / 2 as int)
+            svg << "      <path class=\"dag-edge ${cls}\" d=\"M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}\" marker-end=\"url(#dag-arr-${cls})\"/>\n"
+        }
+
+        // Nodes.
+        nodes.each { String n ->
+            final p = pos.get(n)
+            final status = (inA.contains(n) && inB.contains(n)) ? 'eq' : (inB.contains(n) ? 'add' : 'rem')
+            final label = n.length() > 20 ? n.substring(0, 19) + '…' : n
+            final cx = p[0] + (DAG_NODE_W / 2 as int)
+            final cy = p[1] + (DAG_NODE_H / 2 as int) + 4
+            svg << "      <g class=\"dag-node ${status}\">"
+            svg << "<title>${esc(n)}</title>"
+            svg << "<rect x=\"${p[0]}\" y=\"${p[1]}\" width=\"${DAG_NODE_W}\" height=\"${DAG_NODE_H}\" rx=\"7\"/>"
+            svg << "<text x=\"${cx}\" y=\"${cy}\" text-anchor=\"middle\">${esc(label)}</text></g>\n"
+        }
+        svg << '    </svg>\n'
+        svg << '    <div class="dag-legend">\n'
+        svg << '      <span class="lg"><span class="ln eq"></span>Unchanged (both runs)</span>\n'
+        svg << '      <span class="lg"><span class="ln add"></span>Added in B</span>\n'
+        svg << '      <span class="lg"><span class="ln rem"></span>Removed (only in A)</span>\n'
+        svg << '    </div>\n'
+        svg << '  </div>\n'
+        return svg.toString()
     }
 
     // ----------------------------------------------------------------- tasks
@@ -939,6 +1069,22 @@ html[data-theme="light"] .theme-toggle .ti-light{display:inline}
 .disp-note{color:var(--muted);font-size:13px;margin-top:12px}
 .disp-note strong{color:var(--txt)}
 .delta{margin-top:10px;color:var(--muted);font-size:14px}
+.dag-graph{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:16px;margin-bottom:16px;box-shadow:0 1px 2px var(--shadow)}
+.dag-svg{display:block;max-width:100%;height:auto}
+.dag-node rect{fill:var(--panel2);stroke:var(--line);stroke-width:1.5}
+.dag-node.add rect{stroke:#22c55e;stroke-width:2}
+.dag-node.rem rect{stroke:#ef4444;stroke-width:2;stroke-dasharray:5 3}
+.dag-node text{fill:var(--txt);font:600 11px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.dag-edge{fill:none;stroke-width:2}
+.dag-edge.eq{stroke:#94a3b8}
+.dag-edge.add{stroke:#22c55e}
+.dag-edge.rem{stroke:#ef4444;stroke-dasharray:6 4}
+.dag-legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;font-size:13px;color:var(--muted)}
+.dag-legend .lg{display:flex;align-items:center;gap:8px}
+.dag-legend .ln{width:24px;border-top:2px solid;display:inline-block}
+.dag-legend .ln.eq{border-color:#94a3b8}
+.dag-legend .ln.add{border-color:#22c55e}
+.dag-legend .ln.rem{border-top-style:dashed;border-color:#ef4444}
 table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
 thead th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;background:var(--panel2)}

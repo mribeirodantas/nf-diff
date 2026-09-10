@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The process-wiring section now leads with a node-link diagram of the DAG,
+  not just a table of changed edges.** `renderDag()` already had the full union
+  of process&rarr;process edges tagged `UNCHANGED`/`ADDED`/`REMOVED`
+  (`RunComparator` builds it), but the report threw the unchanged edges away and
+  listed only added/removed rows — so the reader never saw *where* in the
+  topology a change sat. A new `dagSvg()` helper lays the union graph out with a
+  lightweight longest-path (Kahn) layering — columns = topological depth — and
+  emits a self-contained inline SVG: unchanged edges are neutral hairlines,
+  added edges solid green, removed edges dashed red, and a process appearing in
+  only one run gets a matching node outline. The layout is computed in Groovy so
+  the SVG needs no JavaScript or external assets (preserving the report's
+  no-network-assets guarantee), and the existing per-edge table is kept beneath
+  it as the precise detail and large-graph fallback. On the rich-report demo the
+  `ALIGN→QC` edge is now visibly rerouted through the newly inserted `MARKDUP`
+  node. Only `HtmlReportRenderer` and its test changed; no `DiffResult`
+  accessors or other renderers were touched.
+
 ### Changed
 
 - **HTML report summary reorganised from a flat wall of boxes into a scannable
