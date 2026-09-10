@@ -1132,7 +1132,21 @@ ${recNote}  </div>
     // ------------------------------------------------------------- css / js
 
     private static String css() {
-        return CSS
+        return CSS + heroBackgroundCss()
+    }
+
+    // The report is a single self-contained document (no external assets, no
+    // network), so the hero background image is embedded as a base64 data URI
+    // read from the bundled resource rather than linked by path. Rendered over
+    // a theme-aware scrim (--hero-scrim) so the header text stays legible. If
+    // the resource is missing the report simply keeps its flat panel header.
+    private static String heroBackgroundCss() {
+        final bytes = HtmlReportRenderer.getResourceAsStream('hero-bg.jpg')?.bytes
+        if( !bytes )
+            return ''
+        final data = bytes.encodeBase64().toString()
+        return "\n.hero{background-image:linear-gradient(var(--hero-scrim),var(--hero-scrim))," +
+                "url(\"data:image/jpeg;base64,${data}\");background-size:cover;background-position:center}\n"
     }
 
     private static String js() {
@@ -1160,6 +1174,8 @@ ${recNote}  </div>
   --hair:rgba(255,255,255,.08);
   --elev:0 1px 2px rgba(0,0,0,.28),0 6px 20px rgba(0,0,0,.26);
   --elev-hover:0 2px 6px rgba(0,0,0,.30),0 14px 32px rgba(0,0,0,.38);
+  /* scrim laid over the hero background image so header text stays legible */
+  --hero-scrim:rgba(15,23,42,.78);
 }
 html[data-theme="light"]{
   /* nf-docs default palette: slate-50/100/200 with white cards. */
@@ -1177,6 +1193,7 @@ html[data-theme="light"]{
   --hair:rgba(15,23,42,.07);
   --elev:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.07);
   --elev-hover:0 2px 8px rgba(15,23,42,.09),0 16px 34px rgba(15,23,42,.11);
+  --hero-scrim:rgba(248,250,252,.80);
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
