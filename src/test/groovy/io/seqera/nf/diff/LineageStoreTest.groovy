@@ -300,4 +300,88 @@ class LineageStoreTest extends Specification {
                 'QC->MULTIQC',
         ] as Set
     }
+
+    def 'reads the Nextflow version and environment from the real captured fixture'() {
+        given: 'the same checked-in rich-report lineage fixture'
+        def projectDir = Path.of('src/test/resources/lineage/rich-report')
+        def sessionId = UUID.fromString('b6dff190-2703-4c75-8d05-71dc0cb57a76')
+
+        when:
+        def env = LineageStore.locate(projectDir).environmentForSession(sessionId)
+
+        then: 'the WorkflowRun metadata is parsed straight from real Nextflow output'
+        env != null
+        env.nextflowVersion == '26.04.1'
+        env.nextflowBuild == '12112'
+        env.containerEngine == 'docker'
+        env.waveEnabled == Boolean.FALSE
+        env.fusionEnabled == Boolean.FALSE
+    }
+
+    // --- environmentForSession(): Nextflow version & runtime environment -----
+
+    /** A v1beta1 WorkflowRun record carrying a {@code metadata} block. */
+    private Map workflowRun(String session, Map metadata) {
+        return [version: 'lineage/v1beta1', kind: 'WorkflowRun',
+                spec: [sessionId: session, name: 'run', metadata: metadata]]
+    }
+
+    def 'environmentForSession returns null for a null session id'() {
+        given:
+        newStore()
+
+        expect:
+        LineageStore.locate(tmp).environmentForSession(null) == null
+    }
+
+    def 'environmentForSession returns null when no WorkflowRun matches the session'() {
+        given: 'a WorkflowRun for a different session'
+        def store = newStore()
+        record(store, 'wf', workflowRun(UUID.randomUUID().toString(),
+                [nextflow: [version: '26.04.1']]))
+
+        expect:
+        LineageStore.locate(tmp).environmentForSession(UUID.randomUUID()) == null
+    }
+
+    def 'environmentForSession reads version, build and runtime environment'() {
+        given:
+        def store = newStore()
+        def sid = UUID.randomUUID()
+        record(store, 'wf', workflowRun(sid.toString(), [
+                nextflow       : [version: '26.04.1', build: 12112],
+                containerEngine: 'docker',
+                wave           : [enabled: false],
+                fusion         : [enabled: true],
+        ]))
+
+        when:
+        def env = LineageStore.locate(tmp).environmentForSession(sid)
+
+        then:
+        env != null
+        env.nextflowVersion == '26.04.1'
+        env.nextflowBuild == '12112'
+        env.containerEngine == 'docker'
+        env.waveEnabled == Boolean.FALSE
+        env.fusionEnabled == Boolean.TRUE
+    }
+
+    def 'environmentForSession tolerates missing sub-objects, leaving fields null'() {
+        given: 'a WorkflowRun whose metadata has no nextflow/wave/fusion blocks'
+        def store = newStore()
+        def sid = UUID.randomUUID()
+        record(store, 'wf', workflowRun(sid.toString(), [containerEngine: 'singularity']))
+
+        when:
+        def env = LineageStore.locate(tmp).environmentForSession(sid)
+
+        then:
+        env != null
+        env.nextflowVersion == null
+        env.nextflowBuild == null
+        env.containerEngine == 'singularity'
+        env.waveEnabled == null
+        env.fusionEnabled == null
+    }
 }

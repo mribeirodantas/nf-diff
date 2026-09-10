@@ -96,6 +96,87 @@ class LineageStore {
     }
 
     /**
+     * The subset of a run's Nextflow environment that {@code nf-diff} can
+     * recover from the lineage {@code WorkflowRun} record's {@code metadata}.
+     * Every field is nullable: it is {@code null} either because the store has
+     * no {@code WorkflowRun} for the session, or because that Nextflow build did
+     * not populate the field. Note there is deliberately no {@code plugins}
+     * field — Nextflow does not persist per-run plugin versions anywhere in the
+     * lineage store (nor in the history file or the task cache), so they cannot
+     * be compared.
+     */
+    @CompileStatic
+    static class RunEnv {
+        String nextflowVersion
+        String nextflowBuild
+        String containerEngine
+        Boolean waveEnabled
+        Boolean fusionEnabled
+    }
+
+    /**
+     * Read the Nextflow version and runtime environment for the run identified
+     * by {@code sessionId} from its {@code WorkflowRun} lineage record's
+     * {@code metadata} block. Returns {@code null} when the store holds no
+     * {@code WorkflowRun} for that session (so the caller leaves the fields
+     * unset and the report simply omits the corresponding rows).
+     */
+    RunEnv environmentForSession(UUID sessionId) {
+        if( sessionId == null )
+            return null
+
+        final session = sessionId.toString()
+        final slurper = new JsonSlurper()
+        int scanned = 0
+        try {
+            for( Path file : recordFiles() ) {
+                if( ++scanned > MAX_RECORDS ) {
+                    log.warn "nf-diff: lineage store under '${storeRoot}' exceeded ${MAX_RECORDS} records; stopping scan"
+                    break
+                }
+                final record = parse(slurper, file)
+                if( record == null || kindOf(record) != 'WorkflowRun' )
+                    continue
+                final spec = specOf(record)
+                if( asText(spec.get('sessionId')) != session )
+                    continue
+                return toRunEnv(spec.get('metadata'))
+            }
+        }
+        catch( Exception e ) {
+            log.warn "nf-diff: failed to read lineage WorkflowRun for session ${session} under '${storeRoot}': ${e.message}"
+            return null
+        }
+        log.debug "nf-diff: lineage store under '${storeRoot}' has no WorkflowRun record for session ${session}"
+        return null
+    }
+
+    /** Build a {@link RunEnv} from a {@code WorkflowRun.metadata} map, tolerating missing sub-objects. */
+    private static RunEnv toRunEnv(Object metadata) {
+        final meta = metadata instanceof Map ? (Map) metadata : null
+        if( meta == null )
+            return null
+        final nf = meta.get('nextflow') instanceof Map ? (Map) meta.get('nextflow') : null
+        final wave = meta.get('wave') instanceof Map ? (Map) meta.get('wave') : null
+        final fusion = meta.get('fusion') instanceof Map ? (Map) meta.get('fusion') : null
+        return new RunEnv(
+                nextflowVersion : nf != null ? asText(nf.get('version')) : null,
+                nextflowBuild   : nf != null ? asText(nf.get('build')) : null,
+                containerEngine : asText(meta.get('containerEngine')),
+                waveEnabled     : wave != null ? asBool(wave.get('enabled')) : null,
+                fusionEnabled   : fusion != null ? asBool(fusion.get('enabled')) : null )
+    }
+
+    /** Coerce a lineage JSON value to a Boolean, or null when absent/unrecognised. */
+    private static Boolean asBool(Object value) {
+        if( value instanceof Boolean )
+            return (Boolean) value
+        if( value instanceof CharSequence )
+            return Boolean.valueOf(value.toString())
+        return null
+    }
+
+    /**
      * Reconstruct the process&#8594;process edges for the run identified by
      * {@code sessionId}. Returns {@code null} when the store holds no records
      * for that session (so the caller can fall back), or an edge set (possibly

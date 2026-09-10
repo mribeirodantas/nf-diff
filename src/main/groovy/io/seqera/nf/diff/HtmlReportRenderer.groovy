@@ -313,6 +313,7 @@ ${recNote}  </div>
             sb << fieldRow(fd, diff.showObvious)
         }
         sb << '  </tbody>\n  </table>\n'
+        sb << '  <p class="mode-note">The <em>Nextflow version</em>, <em>build</em> and runtime environment (<em>container engine</em>, <em>Wave</em>, <em>Fusion</em>) rows are read from each run\'s data-lineage store (<code>lineage.enabled=true</code>, Nextflow 25.04+) and appear only when a run recorded one. Per-run <em>plugin</em> versions are not shown: Nextflow does not persist them in the lineage store, the history file, or the task cache, so they cannot be compared.</p>\n'
         sb << '</section>\n'
     }
 

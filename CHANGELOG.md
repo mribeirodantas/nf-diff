@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Run metadata now compares the Nextflow version and runtime environment.**
+  A run's Nextflow version can change between two runs and silently explain a
+  behaviour difference, but it was never surfaced. `RunLoader` now reads the
+  run's data-lineage `WorkflowRun` record (via a new
+  `LineageStore.environmentForSession()`) and populates `RunSnapshot` with the
+  Nextflow `version` and `build`, the container engine, and whether Wave and
+  Fusion were enabled. `RunComparator.compareMetadata()` adds these as metadata
+  rows (version/engine/Wave/Fusion are meaningful changes; the build number is
+  treated as context via `OBVIOUS_METADATA`), so they render in every report
+  through the existing metadata table with no renderer-specific plumbing. Rows
+  appear only when a run recorded the value, so runs without a `.lineage/` store
+  (`lineage.enabled=true`, Nextflow 25.04+) are not padded with blanks.
+  Per-run **plugin versions are deliberately not compared** — Nextflow does not
+  persist them in the lineage store, the history file, or the task cache — and
+  the HTML metadata section now says so explicitly.
+
 - **The task layer now compares I/O counters and reports execution hardware.**
   `RunComparator.TASK_FIELDS` gained the disk-I/O counters (`read_bytes`,
   `write_bytes`, `syscr`, `syscw`, `vol_ctxt`, `inv_ctxt`) and the

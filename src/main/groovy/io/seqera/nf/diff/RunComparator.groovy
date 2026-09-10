@@ -95,7 +95,8 @@ class RunComparator {
      * what changed on the command line, so the opaque command string is context.
      */
     static final Set<String> OBVIOUS_METADATA = [
-            'Run name', 'Session ID', 'Launched', 'Wall duration', 'Total task realtime', 'Command'
+            'Run name', 'Session ID', 'Launched', 'Wall duration', 'Total task realtime', 'Command',
+            'Nextflow build'
     ] as Set
 
     /**
@@ -524,8 +525,29 @@ class RunComparator {
         diffs << field('Task count', String.valueOf(a.tasks.size()), String.valueOf(b.tasks.size()))
         diffs << field('Cached tasks', String.valueOf(a.cachedCount()), String.valueOf(b.cachedCount()))
         diffs << field('Distinct processes', String.valueOf(a.processNames().size()), String.valueOf(b.processNames().size()))
+        // Nextflow version & runtime environment, recovered from the lineage
+        // WorkflowRun record (Nextflow does not persist per-run plugin versions,
+        // so those cannot be compared). Each row is added only when at least one
+        // run recorded the value, so non-lineage runs are not padded with blank
+        // rows. Version/engine/Wave/Fusion are meaningful changes; the build
+        // number tracks the version and is treated as context (see OBVIOUS_METADATA).
+        if( a.nextflowVersion != null || b.nextflowVersion != null ) {
+            diffs << field('Nextflow version', a.nextflowVersion, b.nextflowVersion)
+            diffs << field('Nextflow build', a.nextflowBuild, b.nextflowBuild)
+        }
+        if( a.containerEngine != null || b.containerEngine != null )
+            diffs << field('Container engine', a.containerEngine, b.containerEngine)
+        if( a.waveEnabled != null || b.waveEnabled != null )
+            diffs << field('Wave enabled', boolText(a.waveEnabled), boolText(b.waveEnabled))
+        if( a.fusionEnabled != null || b.fusionEnabled != null )
+            diffs << field('Fusion enabled', boolText(a.fusionEnabled), boolText(b.fusionEnabled))
         diffs.each { FieldDiff fd -> fd.obvious = OBVIOUS_METADATA.contains(fd.field) }
         return diffs
+    }
+
+    /** Render a nullable environment flag for display; null (unrecorded) stays null so the row shows a missing value. */
+    private static String boolText(Boolean value) {
+        return value != null ? value.toString() : null
     }
 
     /**

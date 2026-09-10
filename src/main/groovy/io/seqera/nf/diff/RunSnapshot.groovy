@@ -37,6 +37,14 @@ class RunSnapshot {
     Date timestamp
     Long durationMillis
 
+    // -- Nextflow version & runtime environment (from the lineage WorkflowRun
+    //    record, when a .lineage/ store is present; otherwise all null).
+    String nextflowVersion
+    String nextflowBuild
+    String containerEngine
+    Boolean waveEnabled
+    Boolean fusionEnabled
+
     // -- tasks (from CacheDB)
     List<TaskInfo> tasks = []
 

@@ -70,8 +70,30 @@ class RunLoader {
                 durationMillis: record.duration?.toMillis() )
 
         snapshot.tasks = loadTasks(record.sessionId, record.runName)
+        populateEnvironment(snapshot)
         log.debug "nf-diff: loaded ${snapshot.tasks.size()} task(s) for run '${record.runName}' (${record.sessionId})"
         return snapshot
+    }
+
+    /**
+     * Enrich {@code snapshot} with the Nextflow version and runtime environment
+     * from the run's {@code .lineage/} store, when one exists next to the
+     * {@code .nextflow/} directory. Best-effort: a missing store, a store without
+     * a matching {@code WorkflowRun}, or any read error simply leaves the fields
+     * null and the report omits the corresponding rows.
+     */
+    private void populateEnvironment(RunSnapshot snapshot) {
+        final store = LineageStore.locate(nextflowDir.getParent())
+        if( store == null )
+            return
+        final env = store.environmentForSession(snapshot.sessionId)
+        if( env == null )
+            return
+        snapshot.nextflowVersion = env.nextflowVersion
+        snapshot.nextflowBuild   = env.nextflowBuild
+        snapshot.containerEngine = env.containerEngine
+        snapshot.waveEnabled     = env.waveEnabled
+        snapshot.fusionEnabled   = env.fusionEnabled
     }
 
     /**
