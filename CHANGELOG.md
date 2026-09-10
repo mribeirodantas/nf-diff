@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Under `--verbose`, a flagged performance regression now counts as a
+  difference.** In the default meaningful-changes view the performance-
+  regressions layer stays informational (it is derived from always-changing
+  numeric metrics), but the verbose view promotes always-changing fields to
+  meaningful — so `DiffResult.isIdentical()` now also requires
+  `regressionCount() == 0` when `showObvious` is set, keeping the layer
+  consistent with the rest of the verbose verdict.
+
 - **The HTML report's cards get a softer, uniform surface and lose their
   colored accent bars.** The flat 1px-outline treatment is replaced by shared
   CSS tokens — `--radius` (14px), a near-invisible `--hair` border, and layered
@@ -84,6 +92,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (via a new `Format.datetime()`) and, when a `.lineage/` store recorded it, the
   run's Nextflow version. The Nextflow row is omitted rather than padded with a
   placeholder when the version is unknown.
+
+### Fixed
+
+- **Two independent runs of the same pipeline are no longer reported as
+  differing solely because of their task cache hashes.** Nextflow folds the
+  per-run session UUID into every task's cache hash, so two *independent* runs
+  always compute a different hash for every task even when the script, inputs
+  and container are byte-identical. The task `hash` field was compared but not
+  marked "obvious", so each matched task was flagged `changed` and the verdict
+  flipped to "These runs differ" — e.g. comparing two plain `nextflow run
+  hello` runs. `hash` is now part of `RunComparator.OBVIOUS_TASK_FIELDS`, so a
+  bare hash change is shown for context (and still surfaced as the **recompute
+  count**) but never flips the "identical" verdict or trips `--fail-on-change`
+  on its own. Under `--verbose` it is flagged like any other obvious field.
 
 ## [0.5.0] - 2026-09-10
 

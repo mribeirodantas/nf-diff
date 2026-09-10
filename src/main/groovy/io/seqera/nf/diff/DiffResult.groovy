@@ -716,7 +716,10 @@ class DiffResult {
     /**
      * Task metrics (realtime, memory) that changed beyond the configured
      * threshold, sorted worst-regression first. Derived from always-changing
-     * numeric fields, so this layer never affects {@link #isIdentical()}.
+     * numeric fields, so in the default (meaningful-changes) view this layer
+     * never affects {@link #isIdentical()}. Under the verbose view
+     * ({@link #showObvious}) a regression counts as a difference — see
+     * {@link #isIdentical()}.
      */
     List<RegressionDiff> regressions = []
 
@@ -849,7 +852,9 @@ class DiffResult {
 
     /**
      * True when the two runs match at every inspected layer. By default this
-     * ignores always-changing fields; with {@link #showObvious} it is exact.
+     * ignores always-changing fields; with {@link #showObvious} it is exact,
+     * and a performance regression (see {@link #regressions}) then counts as a
+     * difference too — regressions are otherwise informational only.
      */
     boolean isIdentical() {
         return tasksAdded == 0 && tasksRemoved == 0 && tasksChanged == 0 &&
@@ -858,6 +863,7 @@ class DiffResult {
                 config.every { !it.isHighlighted(showObvious) } &&
                 processes.every { it.unchanged } &&
                 !hasSoftwareChanges() &&
-                !hasOutputChanges()
+                !hasOutputChanges() &&
+                (!showObvious || regressionCount() == 0)
     }
 }
