@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The report's vertical section nav now flags which sections hold
+  differences.** Each `.sidenav` entry whose section carries a change gets a
+  trailing warning icon (`.nav-alert`, colored with the shared `--changed`
+  token), so the reader can see at a glance where the runs diverge without
+  opening every page. The flag reuses each section's own "changed" predicate
+  and respects the verbose (`--verbose`) view for the metadata / parameters /
+  configuration layers; purely informational sections (Summary, Efficiency)
+  never alert. `renderNav` now routes every link through a `navLink` helper.
+
 - **The report header now shows each run's `main.nf` path and puts the verdict
   on the heading row.** When a run's `.lineage/` store recorded the main
   script's absolute path (`scriptFile`), it is threaded through

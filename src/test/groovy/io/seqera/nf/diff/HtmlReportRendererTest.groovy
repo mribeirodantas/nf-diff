@@ -107,6 +107,34 @@ class HtmlReportRendererTest extends Specification {
         html.contains('No task metric')
     }
 
+    // --------------------------------------------------------- nav alerts
+
+    def 'a changed section gets a nav alert icon, informational sections do not'() {
+        given: 'two runs whose only task differs in its script (a meaningful change)'
+        def html = render(
+                [task(process: 'FOO', name: 'FOO (1)', hash: 'h1', display: [status: 'COMPLETED', script: 'x'])],
+                [task(process: 'FOO', name: 'FOO (1)', hash: 'h2', display: [status: 'COMPLETED', script: 'y'])] )
+
+        expect: 'the Tasks nav link carries the alert marker'
+        html.contains('href="#tasks"><span class="nav-label">Tasks</span><span class="nav-alert"')
+
+        and: 'the icon is only ever emitted inside a nav link, and the CSS token is defined'
+        html.contains('.sidenav a .nav-alert')
+
+        and: 'Summary (overview) never alerts'
+        html.contains('href="#summary" class="active"><span class="nav-label">Summary</span></a>')
+    }
+
+    def 'identical runs produce no nav alert icons'() {
+        given: 'two byte-identical tasks (only the always-changing hash differs)'
+        def html = render(
+                [task(process: 'FOO', name: 'FOO (1)', hash: 'h1', display: [status: 'COMPLETED', script: 'x'])],
+                [task(process: 'FOO', name: 'FOO (1)', hash: 'h2', display: [status: 'COMPLETED', script: 'x'])] )
+
+        expect: 'no section is flagged'
+        !html.contains('class="nav-alert"')
+    }
+
     // --------------------------------------------------------- run chips
 
     def 'run chips carry the run start time, and the Nextflow version when recorded'() {

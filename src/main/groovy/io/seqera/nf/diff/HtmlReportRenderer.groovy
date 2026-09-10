@@ -140,27 +140,46 @@ ${details}        </dl>
     }
 
     private void renderNav(StringBuilder sb, DiffResult diff) {
+        // Whether each section carries a meaningful change, using the same
+        // predicate that section's own body uses to decide "changed". Sections
+        // that are purely informational (Summary, Efficiency) never alert; the
+        // metadata/params/config layers respect the verbose (showObvious) view
+        // so the nav alerts match what the reader actually sees flagged.
+        final ob = diff.showObvious
         sb << '<nav class="sidenav" id="nav" aria-label="Report sections">\n'
         sb << '  <div class="sidenav-title">Sections</div>\n'
-        sb << '  <a href="#summary" class="active">Summary</a>\n'
+        navLink(sb, '#summary', 'Summary', false, true)
         if( diff.hasFailures() )
-            sb << '  <a href="#failures">Failures</a>\n'
-        sb << '  <a href="#metadata">Metadata</a>\n'
-        sb << '  <a href="#params">Parameters</a>\n'
-        sb << '  <a href="#config">Configuration</a>\n'
-        sb << '  <a href="#processes">Processes</a>\n'
-        sb << '  <a href="#software">Software</a>\n'
-        sb << '  <a href="#regressions">Regressions</a>\n'
+            navLink(sb, '#failures', 'Failures', diff.newFailureCount() > 0 || diff.resolvedFailureCount() > 0, false)
+        navLink(sb, '#metadata', 'Metadata', diff.metadata.any { fd -> fd.isHighlighted(ob) }, false)
+        navLink(sb, '#params', 'Parameters', diff.params.any { fd -> fd.isHighlighted(ob) }, false)
+        navLink(sb, '#config', 'Configuration', diff.config.any { fd -> fd.isHighlighted(ob) }, false)
+        navLink(sb, '#processes', 'Processes', diff.processes.any { p -> !p.unchanged }, false)
+        navLink(sb, '#software', 'Software', diff.hasSoftwareChanges(), false)
+        navLink(sb, '#regressions', 'Regressions', diff.regressionCount() > 0, false)
         if( diff.hasEfficiency() )
-            sb << '  <a href="#efficiency">Efficiency</a>\n'
-        sb << '  <a href="#tasks">Tasks</a>\n'
+            navLink(sb, '#efficiency', 'Efficiency', false, false)
+        navLink(sb, '#tasks', 'Tasks', (diff.tasksChanged + diff.tasksAdded + diff.tasksRemoved) > 0, false)
         if( diff.diffOutputs )
-            sb << '  <a href="#outputs">Outputs</a>\n'
+            navLink(sb, '#outputs', 'Outputs', diff.hasOutputChanges(), false)
         if( diff.diffLogs )
-            sb << '  <a href="#logs">Logs</a>\n'
+            navLink(sb, '#logs', 'Logs', diff.hasLogChanges(), false)
         if( diff.diffDag )
-            sb << '  <a href="#dag">Wiring</a>\n'
+            navLink(sb, '#dag', 'Wiring', diff.hasDagChanges(), false)
         sb << '</nav>\n'
+    }
+
+    /**
+     * A single sidebar nav link. When {@code changed} is set the entry gets a
+     * trailing warning icon so the reader can see at a glance which sections
+     * hold differences without opening each page.
+     */
+    private void navLink(StringBuilder sb, String href, String label, boolean changed, boolean active) {
+        final cls = active ? ' class="active"' : ''
+        sb << "  <a href=\"${href}\"${cls}><span class=\"nav-label\">${label}</span>"
+        if( changed )
+            sb << '<span class="nav-alert" title="Changes detected" aria-label="Changes detected">\u26A0\uFE0E</span>'
+        sb << '</a>\n'
     }
 
     /**
@@ -1235,10 +1254,14 @@ html[data-theme="light"] .theme-toggle .ti-light{display:inline}
 .sidenav{position:sticky;top:0;align-self:flex-start;flex:0 0 220px;display:flex;flex-direction:column;gap:2px;
   padding:22px 14px;max-height:100vh;overflow-y:auto;background:var(--tabs-bg);backdrop-filter:blur(10px);border-right:1px solid var(--line)}
 .sidenav-title{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:4px 12px 8px}
-.sidenav a{color:var(--muted);text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:600;font-size:14px;
+.sidenav a{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  color:var(--muted);text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:600;font-size:14px;
   border-left:3px solid transparent}
 .sidenav a:hover{color:var(--txt);background:var(--panel2)}
 .sidenav a.active{color:var(--chip-ink);background:var(--brand);border-left-color:transparent;box-shadow:0 2px 8px var(--brand-soft)}
+/* trailing icon marking a section that holds differences */
+.sidenav a .nav-alert{flex:none;color:var(--changed);font-size:12px;line-height:1}
+.sidenav a.active .nav-alert{color:var(--chip-ink)}
 .wrap{flex:1;min-width:0;max-width:none}
 /* Paginated sections: one page visible at a time. */
 .section{margin:34px 0;display:none}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>nf-diff · focused_darwin (e8f8fca4) vs reverent_kalman (a445b73b)</title>
+<title>nf-diff · cranky_lamport (c71e742a) vs sharp_blackwell (9e342a97)</title>
 <script>(function(){try{var k="nf-diff-theme",s=localStorage.getItem(k),t=s||((window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark");document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
 <style>
 
@@ -88,10 +88,14 @@ html[data-theme="light"] .theme-toggle .ti-light{display:inline}
 .sidenav{position:sticky;top:0;align-self:flex-start;flex:0 0 220px;display:flex;flex-direction:column;gap:2px;
   padding:22px 14px;max-height:100vh;overflow-y:auto;background:var(--tabs-bg);backdrop-filter:blur(10px);border-right:1px solid var(--line)}
 .sidenav-title{color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;padding:4px 12px 8px}
-.sidenav a{color:var(--muted);text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:600;font-size:14px;
+.sidenav a{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  color:var(--muted);text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:600;font-size:14px;
   border-left:3px solid transparent}
 .sidenav a:hover{color:var(--txt);background:var(--panel2)}
 .sidenav a.active{color:var(--chip-ink);background:var(--brand);border-left-color:transparent;box-shadow:0 2px 8px var(--brand-soft)}
+/* trailing icon marking a section that holds differences */
+.sidenav a .nav-alert{flex:none;color:var(--changed);font-size:12px;line-height:1}
+.sidenav a.active .nav-alert{color:var(--chip-ink)}
 .wrap{flex:1;min-width:0;max-width:none}
 /* Paginated sections: one page visible at a time. */
 .section{margin:34px 0;display:none}
@@ -267,29 +271,29 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
     <div class="hero-title"><h1>Run comparison</h1><span class="verdict diff">These runs differ</span></div>
     <div class="runs">
       <div class="run-chip run-a">
-        <div class="run-name">focused_darwin</div>
+        <div class="run-name">cranky_lamport</div>
         <div class="run-meta">
           <span class="pill status-ok">SUCCEEDED</span>
-          <span class="mono">e8f8fca4</span>
+          <span class="mono">c71e742a</span>
         </div>
-        <div class="run-sub">8 tasks · 7.6s</div>
+        <div class="run-sub">8 tasks · 18.7s</div>
         <dl class="run-facts">
           <div class="run-fact"><dt>Pipeline</dt><dd class="mono" title="/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/main.nf">main.nf<div class="run-fact-path">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/main.nf</div></dd></div>
-          <div class="run-fact"><dt>Started</dt><dd>2026-09-10 14:48</dd></div>
+          <div class="run-fact"><dt>Started</dt><dd>2026-09-10 16:22</dd></div>
           <div class="run-fact"><dt>Nextflow</dt><dd class="mono">26.04.1</dd></div>
         </dl>
       </div>
       <div class="vs">vs</div>
       <div class="run-chip run-b">
-        <div class="run-name">reverent_kalman</div>
+        <div class="run-name">sharp_blackwell</div>
         <div class="run-meta">
           <span class="pill status-ok">SUCCEEDED</span>
-          <span class="mono">a445b73b</span>
+          <span class="mono">9e342a97</span>
         </div>
-        <div class="run-sub">11 tasks · 22.8s</div>
+        <div class="run-sub">11 tasks · 22.5s</div>
         <dl class="run-facts">
           <div class="run-fact"><dt>Pipeline</dt><dd class="mono" title="/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/main.nf">main.nf<div class="run-fact-path">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/main.nf</div></dd></div>
-          <div class="run-fact"><dt>Started</dt><dd>2026-09-10 14:48</dd></div>
+          <div class="run-fact"><dt>Started</dt><dd>2026-09-10 16:23</dd></div>
           <div class="run-fact"><dt>Nextflow</dt><dd class="mono">26.04.1</dd></div>
         </dl>
       </div>
@@ -299,18 +303,18 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 <div class="layout">
 <nav class="sidenav" id="nav" aria-label="Report sections">
   <div class="sidenav-title">Sections</div>
-  <a href="#summary" class="active">Summary</a>
-  <a href="#failures">Failures</a>
-  <a href="#metadata">Metadata</a>
-  <a href="#params">Parameters</a>
-  <a href="#config">Configuration</a>
-  <a href="#processes">Processes</a>
-  <a href="#software">Software</a>
-  <a href="#regressions">Regressions</a>
-  <a href="#tasks">Tasks</a>
-  <a href="#outputs">Outputs</a>
-  <a href="#logs">Logs</a>
-  <a href="#dag">Wiring</a>
+  <a href="#summary" class="active"><span class="nav-label">Summary</span></a>
+  <a href="#failures"><span class="nav-label">Failures</span><span class="nav-alert" title="Changes detected" aria-label="Changes detected">⚠︎</span></a>
+  <a href="#metadata"><span class="nav-label">Metadata</span><span class="nav-alert" title="Changes detected" aria-label="Changes detected">⚠︎</span></a>
+  <a href="#params"><span class="nav-label">Parameters</span><span class="nav-alert" title="Changes detected" aria-label="Changes detected">⚠︎</span></a>
+  <a href="#config"><span class="nav-label">Configuration</span><span class="nav-alert" title="Changes detected" aria-label="Changes detected">⚠︎</span></a>
+  <a href="#processes"><span class="nav-label">Processes</span><span class="nav-alert" title="Changes detected" aria-label="Changes detected">⚠︎</span></a>
+  <a href="#software"><span class="nav-label">Software</span><span class="nav-alert" title="Changes detected" aria-label="Changes detected">⚠︎</span></a>
+  <a href="#regressions"><span class="nav-label">Regressions</span><span class="nav-alert" title="Changes detected" aria-label="Changes detected">⚠︎</span></a>
+  <a href="#tasks"><span class="nav-label">Tasks</span><span class="nav-alert" title="Changes detected" aria-label="Changes detected">⚠︎</span></a>
+  <a href="#outputs"><span class="nav-label">Outputs</span><span class="nav-alert" title="Changes detected" aria-label="Changes detected">⚠︎</span></a>
+  <a href="#logs"><span class="nav-label">Logs</span><span class="nav-alert" title="Changes detected" aria-label="Changes detected">⚠︎</span></a>
+  <a href="#dag"><span class="nav-label">Wiring</span><span class="nav-alert" title="Changes detected" aria-label="Changes detected">⚠︎</span></a>
 </nav>
 <main class="wrap">
 <section id="summary" class="section is-active">
@@ -350,7 +354,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="stat-label">Software changed</div>
     </div>
     <div class="card stat removed">
-      <div class="stat-num">4</div>
+      <div class="stat-num">1</div>
       <div class="stat-label">Regressions</div>
     </div>
     <div class="card stat changed">
@@ -370,10 +374,10 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
   <div class="card wide">
     <div class="card-title">Wall-clock duration</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:33.33%"></div></div><span class="bar-val">7.6s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">22.8s</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:83.11%"></div></div><span class="bar-val">18.7s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">22.5s</span></div>
         </div>
-    <div class="delta">B vs A: <strong>+200.0%</strong></div>
+    <div class="delta">B vs A: <strong>+20.3%</strong></div>
   </div>
 </section>
 <section id="failures" class="section">
@@ -392,14 +396,14 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
     <thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead>
   <tbody>
         <tr><th>Pipeline</th><td>main.nf</td><td>main.nf</td></tr>
-        <tr class="row-obvious"><th>Run name <span class="tag-auto" title="Always differs between runs">auto</span></th><td>focused_darwin</td><td>reverent_kalman</td></tr>
-        <tr class="row-obvious"><th>Session ID <span class="tag-auto" title="Always differs between runs">auto</span></th><td>e8f8fca4-483d-44a7-af7b-9393f998f564</td><td>a445b73b-f2bc-4540-b0a0-1f4dee8e34c2</td></tr>
+        <tr class="row-obvious"><th>Run name <span class="tag-auto" title="Always differs between runs">auto</span></th><td>cranky_lamport</td><td>sharp_blackwell</td></tr>
+        <tr class="row-obvious"><th>Session ID <span class="tag-auto" title="Always differs between runs">auto</span></th><td>c71e742a-4c08-469b-b24c-e0183ab9671f</td><td>9e342a97-4ecc-4de6-8a90-3e5b6248c0a1</td></tr>
         <tr><th>Status</th><td>SUCCEEDED</td><td>SUCCEEDED</td></tr>
         <tr><th>Revision</th><td>47e64accfc3825bf03ccb5e6f5c996d5</td><td>47e64accfc3825bf03ccb5e6f5c996d5</td></tr>
         <tr class="row-obvious"><th>Command <span class="tag-auto" title="Always differs between runs">auto</span></th><td>nextflow run main.nf -profile baseline</td><td>nextflow run main.nf -profile changed</td></tr>
-        <tr class="row-obvious"><th>Launched <span class="tag-auto" title="Always differs between runs">auto</span></th><td>Thu Sep 10 14:48:20 GMT-03:00 2026</td><td>Thu Sep 10 14:48:31 GMT-03:00 2026</td></tr>
-        <tr class="row-obvious"><th>Wall duration <span class="tag-auto" title="Always differs between runs">auto</span></th><td>7.6s</td><td>22.8s</td></tr>
-        <tr class="row-obvious"><th>Total task realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>11.7s</td><td>29.5s</td></tr>
+        <tr class="row-obvious"><th>Launched <span class="tag-auto" title="Always differs between runs">auto</span></th><td>Thu Sep 10 16:22:46 GMT-03:00 2026</td><td>Thu Sep 10 16:23:10 GMT-03:00 2026</td></tr>
+        <tr class="row-obvious"><th>Wall duration <span class="tag-auto" title="Always differs between runs">auto</span></th><td>18.7s</td><td>22.5s</td></tr>
+        <tr class="row-obvious"><th>Total task realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>34.3s</td><td>32.8s</td></tr>
         <tr class="row-changed"><th>Task count</th><td>8</td><td>11</td></tr>
         <tr><th>Cached tasks</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>Distinct processes</th><td>4</td><td>5</td></tr>
@@ -425,7 +429,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 <section id="config" class="section">
   <h2>Resolved configuration</h2>
   <p class="mode-note">Resolved from the current on-disk config files under ., applying each run&#39;s -profile/-c options — not a snapshot of the config at launch time.</p>
-  <p class="warn-note"><strong>⚠ Config provenance:</strong> The resolved configuration was rebuilt from the working tree at b480d119fd, but both runs were launched at a different git revision (A: 47e64accfc, B: 47e64accfc). Any config difference driven by code changes between those revisions is NOT visible here — both sides were resolved against the current checkout. The working tree has uncommitted changes, so the resolved configuration reflects local edits that may not match either run.</p>
+  <p class="warn-note"><strong>⚠ Config provenance:</strong> The resolved configuration was rebuilt from the working tree at 46a31ae581, but both runs were launched at a different git revision (A: 47e64accfc, B: 47e64accfc). Any config difference driven by code changes between those revisions is NOT visible here — both sides were resolved against the current checkout. The working tree has uncommitted changes, so the resolved configuration reflects local edits that may not match either run.</p>
   <table class="kv">
     <thead><tr><th>Key</th><th>Run A</th><th>Run B</th></tr></thead>
   <tbody>
@@ -470,22 +474,20 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
   <h2>Performance regressions</h2>
   <p class="mode-note">Task metrics that changed by &ge; 25% (positive = Run B slower/heavier), worst first. <em>Same work</em> marks tasks whose cache hash is identical, so the cost change is environmental rather than a different computation.</p>
   <div class="rp-plot">
-    <svg class="rp-svg" viewBox="0 0 814 226" width="814" height="226" role="img" aria-label="Regression magnitude chart">
+    <svg class="rp-svg" viewBox="0 0 814 198" width="814" height="198" role="img" aria-label="Regression magnitude chart">
       <text class="rp-axhdr" x="512" y="16" text-anchor="end">&#8592; faster / lighter</text>
       <text class="rp-axhdr" x="524" y="16" text-anchor="start">slower / heavier &#8594;</text>
-      <line class="rp-axis" x1="518" y1="26" x2="518" y2="204"/>
-      <text class="rp-lbl" x="226" y="54" text-anchor="end">ALIGN (sampleC) · Realtime</text>
-      <g class="rp-row"><title>ALIGN (sampleC) — Realtime: 2.2s → 8s (+269.0%)</title><rect class="rp-bar worse" x="518" y="42" width="220" height="16" rx="3"/><text class="rp-val" x="744" y="54" text-anchor="start">+269.0%</text></g>
-      <text class="rp-lbl" x="226" y="82" text-anchor="end">ALIGN (sampleA) · Realtime</text>
-      <g class="rp-row"><title>ALIGN (sampleA) — Realtime: 2.1s → 7.7s (+259.8%)</title><rect class="rp-bar worse" x="518" y="70" width="212" height="16" rx="3"/><text class="rp-val" x="736" y="82" text-anchor="start">+259.8%</text></g>
-      <text class="rp-lbl" x="226" y="110" text-anchor="end">ALIGN (sampleB) · Realtime</text>
-      <g class="rp-row"><title>ALIGN (sampleB) — Realtime: 2.2s → 7.7s (+246.8%)</title><rect class="rp-bar worse" x="518" y="98" width="201" height="16" rx="3"/><text class="rp-val" x="725" y="110" text-anchor="start">+246.8%</text></g>
-      <text class="rp-lbl" x="226" y="138" text-anchor="end">MULTIQC (aggregate) · Realtime</text>
-      <g class="rp-row"><title>MULTIQC (aggregate) — Realtime: 1s → 1.5s (+47.1%)</title><rect class="rp-bar worse" x="518" y="126" width="38" height="16" rx="3"/><text class="rp-val" x="562" y="138" text-anchor="start">+47.1%</text></g>
-      <text class="rp-lbl" x="226" y="166" text-anchor="end">QC (sampleA) · Realtime</text>
-      <g class="rp-row"><title>QC (sampleA) — Realtime: 829ms → 521ms (-37.2%)</title><rect class="rp-bar better" x="488" y="154" width="30" height="16" rx="3"/><text class="rp-val" x="482" y="166" text-anchor="end">-37.2%</text></g>
-      <text class="rp-lbl" x="226" y="194" text-anchor="end">INDEX_REF (GRCh38) · Realtime</text>
-      <g class="rp-row"><title>INDEX_REF (GRCh38) — Realtime: 1.7s → 587ms (-64.7%)</title><rect class="rp-bar better" x="466" y="182" width="52" height="16" rx="3"/><text class="rp-val" x="460" y="194" text-anchor="end">-64.7%</text></g>
+      <line class="rp-axis" x1="518" y1="26" x2="518" y2="176"/>
+      <text class="rp-lbl" x="226" y="54" text-anchor="end">MULTIQC (aggregate) · Realtime</text>
+      <g class="rp-row"><title>MULTIQC (aggregate) — Realtime: 1.2s → 1.6s (+35.5%)</title><rect class="rp-bar worse" x="518" y="42" width="101" height="16" rx="3"/><text class="rp-val" x="625" y="54" text-anchor="start">+35.5%</text></g>
+      <text class="rp-lbl" x="226" y="82" text-anchor="end">QC (sampleC) · Realtime</text>
+      <g class="rp-row"><title>QC (sampleC) — Realtime: 2.9s → 1.2s (-59.6%)</title><rect class="rp-bar better" x="348" y="70" width="170" height="16" rx="3"/><text class="rp-val" x="342" y="82" text-anchor="end">-59.6%</text></g>
+      <text class="rp-lbl" x="226" y="110" text-anchor="end">QC (sampleA) · Realtime</text>
+      <g class="rp-row"><title>QC (sampleA) — Realtime: 2.6s → 970ms (-62.7%)</title><rect class="rp-bar better" x="339" y="98" width="179" height="16" rx="3"/><text class="rp-val" x="333" y="110" text-anchor="end">-62.7%</text></g>
+      <text class="rp-lbl" x="226" y="138" text-anchor="end">QC (sampleB) · Realtime</text>
+      <g class="rp-row"><title>QC (sampleB) — Realtime: 2.7s → 671ms (-75.6%)</title><rect class="rp-bar better" x="302" y="126" width="216" height="16" rx="3"/><text class="rp-val" x="296" y="138" text-anchor="end">-75.6%</text></g>
+      <text class="rp-lbl" x="226" y="166" text-anchor="end">INDEX_REF (GRCh38) · Realtime</text>
+      <g class="rp-row"><title>INDEX_REF (GRCh38) — Realtime: 3.5s → 808ms (-76.7%)</title><rect class="rp-bar better" x="298" y="154" width="220" height="16" rx="3"/><text class="rp-val" x="292" y="166" text-anchor="end">-76.7%</text></g>
     </svg>
     <div class="rp-legend">
       <span class="lg"><span class="sw worse"></span>Regression (Run B worse)</span>
@@ -496,12 +498,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
   <table class="proc">
     <thead><tr><th>Task</th><th>Metric</th><th>Run A</th><th>Run B</th><th>Δ</th><th>Same work</th></tr></thead>
   <tbody>
-    <tr class="row-removed"><th class="mono">ALIGN (sampleC)</th><td>Realtime</td><td>2.2s</td><td>8s</td><td class="mono">+269.0%</td><td></td></tr>
-    <tr class="row-removed"><th class="mono">ALIGN (sampleA)</th><td>Realtime</td><td>2.1s</td><td>7.7s</td><td class="mono">+259.8%</td><td></td></tr>
-    <tr class="row-removed"><th class="mono">ALIGN (sampleB)</th><td>Realtime</td><td>2.2s</td><td>7.7s</td><td class="mono">+246.8%</td><td></td></tr>
-    <tr class="row-removed"><th class="mono">MULTIQC (aggregate)</th><td>Realtime</td><td>1s</td><td>1.5s</td><td class="mono">+47.1%</td><td></td></tr>
-    <tr class="row-added"><th class="mono">QC (sampleA)</th><td>Realtime</td><td>829ms</td><td>521ms</td><td class="mono">-37.2%</td><td></td></tr>
-    <tr class="row-added"><th class="mono">INDEX_REF (GRCh38)</th><td>Realtime</td><td>1.7s</td><td>587ms</td><td class="mono">-64.7%</td><td></td></tr>
+    <tr class="row-removed"><th class="mono">MULTIQC (aggregate)</th><td>Realtime</td><td>1.2s</td><td>1.6s</td><td class="mono">+35.5%</td><td></td></tr>
+    <tr class="row-added"><th class="mono">QC (sampleC)</th><td>Realtime</td><td>2.9s</td><td>1.2s</td><td class="mono">-59.6%</td><td></td></tr>
+    <tr class="row-added"><th class="mono">QC (sampleA)</th><td>Realtime</td><td>2.6s</td><td>970ms</td><td class="mono">-62.7%</td><td></td></tr>
+    <tr class="row-added"><th class="mono">QC (sampleB)</th><td>Realtime</td><td>2.7s</td><td>671ms</td><td class="mono">-75.6%</td><td></td></tr>
+    <tr class="row-added"><th class="mono">INDEX_REF (GRCh38)</th><td>Realtime</td><td>3.5s</td><td>808ms</td><td class="mono">-76.7%</td><td></td></tr>
   </tbody>
   </table>
 </section>
@@ -529,13 +530,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:27.80%"></div></div><span class="bar-val">2.1s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">7.7s</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:92.14%"></div></div><span class="bar-val">7.1s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">7.8s</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>52/d934ab</td><td>f4/9de455</td></tr>
+        <tr class="row-obvious"><th>hash <span class="tag-auto" title="Always differs between runs">auto</span></th><td>af/7fe40b</td><td>d2/c60840</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>container</th><td colspan="2">
@@ -580,7 +581,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr class="row-changed"><th>memory</th><td>4 GB</td><td>8 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>2.1s</td><td>7.7s</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>7.1s</td><td>7.8s</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -594,11 +595,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>inv_ctxt</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/52/d934ab237596d6a660a0dcffe29d49</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/f4/9de455c18d81686e61ea8cacb9398b</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/af/7fe40b59790d979431baa4671e9e70</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/d2/c608404d341ffcd6e39e92ba0ca80e</td></tr>
         <tr><th>tag</th><td>sampleA</td><td>sampleA</td></tr>
         <tr><th>cpu_model</th><td>-</td><td>-</td></tr>
         <tr><th>hostname</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>34183</td><td>34422</td></tr>
+        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>53239</td><td>53479</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -613,13 +614,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:28.84%"></div></div><span class="bar-val">2.2s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">7.7s</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:83.98%"></div></div><span class="bar-val">7.2s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">8.5s</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>4d/8142cf</td><td>f9/011958</td></tr>
+        <tr class="row-obvious"><th>hash <span class="tag-auto" title="Always differs between runs">auto</span></th><td>f1/b94aed</td><td>87/ca9606</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>container</th><td colspan="2">
@@ -664,7 +665,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr class="row-changed"><th>memory</th><td>4 GB</td><td>8 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>2.2s</td><td>7.7s</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>7.2s</td><td>8.5s</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -678,11 +679,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>inv_ctxt</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/4d/8142cfd44c14cb9dd80b8f6d3ec43b</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/f9/0119588c9b6f15c06aca63a1115590</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/f1/b94aed7301c402a47e25b841b8bf36</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/87/ca9606928344532863c834ad58761f</td></tr>
         <tr><th>tag</th><td>sampleB</td><td>sampleB</td></tr>
         <tr><th>cpu_model</th><td>-</td><td>-</td></tr>
         <tr><th>hostname</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>34207</td><td>34423</td></tr>
+        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>53245</td><td>53534</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -697,13 +698,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:27.10%"></div></div><span class="bar-val">2.2s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">8s</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:93.31%"></div></div><span class="bar-val">7.1s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">7.6s</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>26/bc249d</td><td>43/523d4d</td></tr>
+        <tr class="row-obvious"><th>hash <span class="tag-auto" title="Always differs between runs">auto</span></th><td>7b/4d3168</td><td>da/2ed120</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>container</th><td colspan="2">
@@ -748,7 +749,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr class="row-changed"><th>memory</th><td>4 GB</td><td>8 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>2.2s</td><td>8s</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>7.1s</td><td>7.6s</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -762,11 +763,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>inv_ctxt</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/26/bc249d705add32b71b5825e878c9b8</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/43/523d4d7ffea1745a9b775c11a8d4df</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/7b/4d31689ef93623fb5728b4e2e3ca29</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/da/2ed120b506316babd071c65b1446e5</td></tr>
         <tr><th>tag</th><td>sampleC</td><td>sampleC</td></tr>
         <tr><th>cpu_model</th><td>-</td><td>-</td></tr>
         <tr><th>hostname</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>34181</td><td>34473</td></tr>
+        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>53247</td><td>53480</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -781,13 +782,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">1.7s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:35.32%"></div></div><span class="bar-val">587ms</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">3.5s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:23.25%"></div></div><span class="bar-val">808ms</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>dc/ee0657</td><td>d7/ab58cd</td></tr>
+        <tr class="row-obvious"><th>hash <span class="tag-auto" title="Always differs between runs">auto</span></th><td>e3/9abee9</td><td>fc/9b108f</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>script</th><td colspan="2">
@@ -808,7 +809,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>1.7s</td><td>587ms</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>3.5s</td><td>808ms</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -822,11 +823,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>inv_ctxt</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/dc/ee0657f83caa2b328f181629f82702</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/d7/ab58cd58689926d33284694e7ad415</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/e3/9abee9e3dcec87cb8159cfc084e265</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/fc/9b108f275bcc9d9e8a640ee286eae3</td></tr>
         <tr><th>tag</th><td>GRCh38</td><td>GRCh38</td></tr>
         <tr><th>cpu_model</th><td>-</td><td>-</td></tr>
         <tr><th>hostname</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>34160</td><td>34401</td></tr>
+        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>53213</td><td>53460</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -841,13 +842,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:67.99%"></div></div><span class="bar-val">1s</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">1.5s</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:73.80%"></div></div><span class="bar-val">1.2s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:100.00%"></div></div><span class="bar-val">1.6s</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>d7/144409</td><td>68/4fbb03</td></tr>
+        <tr class="row-obvious"><th>hash <span class="tag-auto" title="Always differs between runs">auto</span></th><td>ff/903b32</td><td>27/3c0e7a</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>script</th><td colspan="2">
@@ -872,7 +873,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>1s</td><td>1.5s</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>1.2s</td><td>1.6s</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -886,11 +887,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>inv_ctxt</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/d7/14440974ec6f88a8019ee52cf89c36</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/68/4fbb037b111ba40fc37dd2d9000f6e</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/ff/903b3299f7199a1e221471f3ae7417</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/27/3c0e7a2907a02fe58b0378b73aa28a</td></tr>
         <tr><th>tag</th><td>aggregate</td><td>aggregate</td></tr>
         <tr><th>cpu_model</th><td>-</td><td>-</td></tr>
         <tr><th>hostname</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>34317</td><td>34641</td></tr>
+        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>53381</td><td>53700</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -905,13 +906,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">829ms</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:62.85%"></div></div><span class="bar-val">521ms</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">2.6s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:37.34%"></div></div><span class="bar-val">970ms</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>b9/bb316a</td><td>9c/b0a29c</td></tr>
+        <tr class="row-obvious"><th>hash <span class="tag-auto" title="Always differs between runs">auto</span></th><td>89/64ade5</td><td>1f/6d2c1a</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>container</th><td colspan="2">
@@ -964,7 +965,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>829ms</td><td>521ms</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>2.6s</td><td>970ms</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -978,11 +979,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>inv_ctxt</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/b9/bb316a19aaa6bde733b3f759ca1d7d</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/9c/b0a29c76c23234357165bcb251c62f</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/89/64ade53099e6ca795b6edff6619cd0</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/1f/6d2c1a5c47313dfee71010f2759d74</td></tr>
         <tr><th>tag</th><td>sampleA</td><td>sampleA</td></tr>
         <tr><th>cpu_model</th><td>-</td><td>-</td></tr>
         <tr><th>hostname</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>34250</td><td>34540</td></tr>
+        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>53321</td><td>53601</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -997,13 +998,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">777ms</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:79.79%"></div></div><span class="bar-val">620ms</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">2.7s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:24.44%"></div></div><span class="bar-val">671ms</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>3f/89cd5a</td><td>44/1bc236</td></tr>
+        <tr class="row-obvious"><th>hash <span class="tag-auto" title="Always differs between runs">auto</span></th><td>c7/e42927</td><td>7a/3e3b9b</td></tr>
         <tr class="row-changed"><th>status</th><td>COMPLETED</td><td>FAILED</td></tr>
         <tr class="row-changed"><th>exit</th><td>0</td><td>1</td></tr>
         <tr class="row-changed"><th>container</th><td colspan="2">
@@ -1058,7 +1059,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>777ms</td><td>620ms</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>2.7s</td><td>671ms</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -1072,11 +1073,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>inv_ctxt</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/3f/89cd5a663605c8c044313ac4a84414</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/44/1bc236c689e324d6f55b1e6a383263</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/c7/e42927c2c2a79f66606571f1acfe4d</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/7a/3e3b9b9d470b477b83ece5adfb2fce</td></tr>
         <tr><th>tag</th><td>sampleB</td><td>sampleB</td></tr>
         <tr><th>cpu_model</th><td>-</td><td>-</td></tr>
         <tr><th>hostname</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>34283</td><td>34533</td></tr>
+        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>53318</td><td>53682</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -1091,13 +1092,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
       <div class="metrics">
         <div class="metric"><div class="metric-label">Realtime</div>
         <div class="bars">
-          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">824ms</span></div>
-          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:78.16%"></div></div><span class="bar-val">644ms</span></div>
+          <div class="bar-row"><span class="bar-tag a">A</span><div class="bar-track"><div class="bar-fill a" style="width:100.00%"></div></div><span class="bar-val">2.9s</span></div>
+          <div class="bar-row"><span class="bar-tag b">B</span><div class="bar-track"><div class="bar-fill b" style="width:40.37%"></div></div><span class="bar-val">1.2s</span></div>
         </div>
         </div>
       </div>
       <table class="kv diff-table"><thead><tr><th>Field</th><th>Run A</th><th>Run B</th></tr></thead><tbody>
-        <tr class="row-changed"><th>hash</th><td>38/417de4</td><td>6a/79fc9f</td></tr>
+        <tr class="row-obvious"><th>hash <span class="tag-auto" title="Always differs between runs">auto</span></th><td>8d/09c0fd</td><td>68/e4073a</td></tr>
         <tr><th>status</th><td>COMPLETED</td><td>COMPLETED</td></tr>
         <tr><th>exit</th><td>0</td><td>0</td></tr>
         <tr class="row-changed"><th>container</th><td colspan="2">
@@ -1150,7 +1151,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td>1 GB</td><td>1 GB</td></tr>
         <tr><th>time</th><td>-</td><td>-</td></tr>
         <tr><th>disk</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>824ms</td><td>644ms</td></tr>
+        <tr class="row-obvious"><th>realtime <span class="tag-auto" title="Always differs between runs">auto</span></th><td>2.9s</td><td>1.2s</td></tr>
         <tr><th>%cpu</th><td>-</td><td>-</td></tr>
         <tr><th>peak_rss</th><td>-</td><td>-</td></tr>
         <tr><th>peak_vmem</th><td>-</td><td>-</td></tr>
@@ -1164,11 +1165,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>inv_ctxt</th><td>-</td><td>-</td></tr>
         <tr><th>attempt</th><td>1</td><td>1</td></tr>
         <tr><th>queue</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/38/417de4f268f1a822567271a7ce3d3f</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/6a/79fc9f9547d843ecaa0a5750927346</td></tr>
+        <tr class="row-obvious"><th>workdir <span class="tag-auto" title="Always differs between runs">auto</span></th><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/8d/09c0fdc7bf10f7f8b63ecff829a9f6</td><td>/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/68/e4073abd904e4951b1b9ebe830bad7</td></tr>
         <tr><th>tag</th><td>sampleC</td><td>sampleC</td></tr>
         <tr><th>cpu_model</th><td>-</td><td>-</td></tr>
         <tr><th>hostname</th><td>-</td><td>-</td></tr>
-        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>34253</td><td>34618</td></tr>
+        <tr class="row-obvious"><th>native_id <span class="tag-auto" title="Always differs between runs">auto</span></th><td>53309</td><td>53595</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -1182,7 +1183,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
     <div class="task-body">
       <p class="solo-note">Only present in Run B</p>
       <table class="kv"><tbody>
-        <tr><th>hash</th><td colspan="2">82/27bad0</td></tr>
+        <tr><th>hash</th><td colspan="2">98/ce7e70</td></tr>
         <tr><th>status</th><td colspan="2">COMPLETED</td></tr>
         <tr><th>exit</th><td colspan="2">0</td></tr>
         <tr><th>container</th><td colspan="2">quay.io/biocontainers/prinseq-plus-plus:1.2.3--hc90279e_1</td></tr>
@@ -1194,7 +1195,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td colspan="2">2 GB</td></tr>
         <tr><th>time</th><td colspan="2">-</td></tr>
         <tr><th>disk</th><td colspan="2">-</td></tr>
-        <tr><th>realtime</th><td colspan="2">655ms</td></tr>
+        <tr><th>realtime</th><td colspan="2">1.3s</td></tr>
         <tr><th>%cpu</th><td colspan="2">-</td></tr>
         <tr><th>peak_rss</th><td colspan="2">-</td></tr>
         <tr><th>peak_vmem</th><td colspan="2">-</td></tr>
@@ -1208,11 +1209,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>inv_ctxt</th><td colspan="2">-</td></tr>
         <tr><th>attempt</th><td colspan="2">1</td></tr>
         <tr><th>queue</th><td colspan="2">-</td></tr>
-        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/82/27bad01419953d3e57fa0e6343ae3c</td></tr>
+        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/98/ce7e7025184214c7638ae48599465f</td></tr>
         <tr><th>tag</th><td colspan="2">sampleA</td></tr>
         <tr><th>cpu_model</th><td colspan="2">-</td></tr>
         <tr><th>hostname</th><td colspan="2">-</td></tr>
-        <tr><th>native_id</th><td colspan="2">34482</td></tr>
+        <tr><th>native_id</th><td colspan="2">53551</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -1226,7 +1227,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
     <div class="task-body">
       <p class="solo-note">Only present in Run B</p>
       <table class="kv"><tbody>
-        <tr><th>hash</th><td colspan="2">74/283136</td></tr>
+        <tr><th>hash</th><td colspan="2">aa/42b7ab</td></tr>
         <tr><th>status</th><td colspan="2">COMPLETED</td></tr>
         <tr><th>exit</th><td colspan="2">0</td></tr>
         <tr><th>container</th><td colspan="2">quay.io/biocontainers/prinseq-plus-plus:1.2.3--hc90279e_1</td></tr>
@@ -1238,7 +1239,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td colspan="2">2 GB</td></tr>
         <tr><th>time</th><td colspan="2">-</td></tr>
         <tr><th>disk</th><td colspan="2">-</td></tr>
-        <tr><th>realtime</th><td colspan="2">629ms</td></tr>
+        <tr><th>realtime</th><td colspan="2">982ms</td></tr>
         <tr><th>%cpu</th><td colspan="2">-</td></tr>
         <tr><th>peak_rss</th><td colspan="2">-</td></tr>
         <tr><th>peak_vmem</th><td colspan="2">-</td></tr>
@@ -1252,11 +1253,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>inv_ctxt</th><td colspan="2">-</td></tr>
         <tr><th>attempt</th><td colspan="2">1</td></tr>
         <tr><th>queue</th><td colspan="2">-</td></tr>
-        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/74/28313641eb3bbf9c1b657359757b57</td></tr>
+        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/aa/42b7abf1f18220a13580f01d5fa731</td></tr>
         <tr><th>tag</th><td colspan="2">sampleB</td></tr>
         <tr><th>cpu_model</th><td colspan="2">-</td></tr>
         <tr><th>hostname</th><td colspan="2">-</td></tr>
-        <tr><th>native_id</th><td colspan="2">34480</td></tr>
+        <tr><th>native_id</th><td colspan="2">53658</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -1270,7 +1271,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
     <div class="task-body">
       <p class="solo-note">Only present in Run B</p>
       <table class="kv"><tbody>
-        <tr><th>hash</th><td colspan="2">a5/1c5724</td></tr>
+        <tr><th>hash</th><td colspan="2">8c/1bc175</td></tr>
         <tr><th>status</th><td colspan="2">COMPLETED</td></tr>
         <tr><th>exit</th><td colspan="2">0</td></tr>
         <tr><th>container</th><td colspan="2">quay.io/biocontainers/prinseq-plus-plus:1.2.3--hc90279e_1</td></tr>
@@ -1282,7 +1283,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>memory</th><td colspan="2">2 GB</td></tr>
         <tr><th>time</th><td colspan="2">-</td></tr>
         <tr><th>disk</th><td colspan="2">-</td></tr>
-        <tr><th>realtime</th><td colspan="2">882ms</td></tr>
+        <tr><th>realtime</th><td colspan="2">1.3s</td></tr>
         <tr><th>%cpu</th><td colspan="2">-</td></tr>
         <tr><th>peak_rss</th><td colspan="2">-</td></tr>
         <tr><th>peak_vmem</th><td colspan="2">-</td></tr>
@@ -1296,11 +1297,11 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
         <tr><th>inv_ctxt</th><td colspan="2">-</td></tr>
         <tr><th>attempt</th><td colspan="2">1</td></tr>
         <tr><th>queue</th><td colspan="2">-</td></tr>
-        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/a5/1c5724553cd460f6d741cdb7d66520</td></tr>
+        <tr><th>workdir</th><td colspan="2">/Users/mribeirodantas/dev/work/nf-diff/examples/rich-report/work/8c/1bc175d712e8b3ab0f52d4a4bb98db</td></tr>
         <tr><th>tag</th><td colspan="2">sampleC</td></tr>
         <tr><th>cpu_model</th><td colspan="2">-</td></tr>
         <tr><th>hostname</th><td colspan="2">-</td></tr>
-        <tr><th>native_id</th><td colspan="2">34591</td></tr>
+        <tr><th>native_id</th><td colspan="2">53549</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -1608,7 +1609,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 </main>
 </div>
 <footer class="foot">
-  Generated by <strong>nf-diff</strong> · Thu Sep 10 14:48:59 GMT-03:00 2026
+  Generated by <strong>nf-diff</strong> · Thu Sep 10 16:23:39 GMT-03:00 2026
   <div class="foot-sub">Compares run history and cache produced by <strong>Nextflow</strong>.</div>
   <div class="foot-sub"><a href="https://github.com/mribeirodantas/nf-diff" target="_blank" rel="noopener noreferrer">github.com/mribeirodantas/nf-diff</a></div>
 </footer>
