@@ -38,6 +38,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through `CompareOptions`, `DiffCommand`, and `RunComparator`, and rendered by
   all four output formats (HTML, JSON, Markdown, terminal).
 
+### Fixed
+
+- CommandParams.parse swallowed negative-number values (CommandParams.groovy)
+    A flag whose value was a negative number (--min_log2fc -1.5, --seed -42, --scale -1e-3) was misread — the parser saw the leading -, treated the number as another option, and recorded the flag as boolean true. Now isNumericValue() recognizes signed decimals/integers/scientific notation as legitimate values. Impact: high — silently wrong parameter diffs for any pipeline using signed numeric params.
+- DiffResult.failedExit counted the NO_EXIT sentinel as a failure (DiffResult.groovy)
+    Nextflow writes Integer.MAX_VALUE to a task's exit field when it never produced one. The old check only excluded 0, so 2147483647 was treated as a non-zero failure. Now it excludes the sentinel explicitly. Impact: high — false-positive failures in the log/failure layers.
+- Format.pctDelta dropped zero-baseline regressions (Format.groovy)
+    A 0 → N change (a metric appearing from nothing) returned null and was silently discarded instead of ranking as a regression. Now 0→0 is 0.0 and 0→N is ±Infinity, with signedPct rendering it as ±∞%. Verified the threshold check and worst-first sort in RunComparator handle infinity correctly. Impact: medium.
+- OutputComparator skipped nested files sharing a control-file name (OutputComparator.groovy)
+    Control files (.command.sh, etc.) were matched by leaf name anywhere in the tree, so a genuine output like results/.command.sh was dropped. Now only work-dir-root entries (nameCount == 1) are skipped. Impact: low–medium.
+- ConfigLoader.configFilesFrom could consume a following option as the -c path (ConfigLoader.groovy)
+    A bare -c followed by another flag mis-consumed it, which could drop a real later -c config. Now it only consumes a non-- token. Impact: low.
+- Duplicate java.nio.file.Path import (DagComparator.groovy) — cosmetic cleanup.
+    Each fix has a dedicated regression test (new DiffResultTest.groovy plus cases added to FormatTest, CommandParamsTest, ConfigLoaderTest, OutputComparatorTest), and the full suite passes. Nothing is committed — the changes are staged in your working tree for you to review.
+
+
 ## [0.6.0] - 2026-09-10
 
 ### Added
