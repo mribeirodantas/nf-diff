@@ -1,0 +1,11 @@
+/* nf-metro-inspired accent: a calm teal instead of Starlight's default purple */
+:root {
+  --sl-color-accent-low: #17322e;
+  --sl-color-accent: #2fb787;
+  --sl-color-accent-high: #b4f4de;
+}
+:root[data-theme='light'] {
+  --sl-color-accent-low: #d3f3e7;
+  --sl-color-accent: #1f9d73;
+  --sl-color-accent-high: #0f4a37;
+}
