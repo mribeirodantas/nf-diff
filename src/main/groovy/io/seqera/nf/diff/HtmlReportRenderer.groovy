@@ -67,6 +67,7 @@ class HtmlReportRenderer {
         renderEfficiency(sb, diff)
         renderTasks(sb, diff)
         renderOutputs(sb, diff)
+        renderPublished(sb, diff)
         renderLogs(sb, diff)
         renderDag(sb, diff)
         renderPager(sb)
@@ -162,6 +163,8 @@ ${details}        </dl>
         navLink(sb, '#tasks', 'Tasks', (diff.tasksChanged + diff.tasksAdded + diff.tasksRemoved) > 0, false)
         if( diff.diffOutputs )
             navLink(sb, '#outputs', 'Outputs', diff.hasOutputChanges(), false)
+        if( diff.diffPublished )
+            navLink(sb, '#published', 'Published', diff.hasPublishedChanges(), false)
         if( diff.diffLogs )
             navLink(sb, '#logs', 'Logs', diff.hasLogChanges(), false)
         if( diff.diffDag )
@@ -237,6 +240,8 @@ ${details}        </dl>
             cb << statCard('Over-provisioned (B)', diff.overProvisionedB(), 'removed')
         if( diff.diffOutputs )
             cb << statCard('Outputs changed', diff.outputsChangedCount(), 'changed')
+        if( diff.diffPublished )
+            cb << statCard('Published changed', diff.publishedChangedCount(), 'changed')
         if( diff.diffLogs )
             cb << statCard('Logs changed', diff.logsChangedCount(), 'changed')
         if( diff.diffDag )
@@ -679,6 +684,52 @@ ${recNote}  </div>
             }
             sb << '    </div>\n  </div>\n'
         }
+        sb << '</section>\n'
+    }
+
+    // ----------------------------------------------------------- published
+
+    /**
+     * Published-outputs section: a run-level comparison of the two
+     * {@code publishDir}/{@code outdir} trees. Unlike {@link #renderOutputs},
+     * published files are not grouped per task (they are not reliably
+     * attributable to one), so every changed file is listed in a single table.
+     */
+    private void renderPublished(StringBuilder sb, DiffResult diff) {
+        if( !diff.diffPublished )
+            return
+        sb << '<section id="published" class="section">\n'
+        sb << '  <h2>Published outputs</h2>\n'
+        if( diff.publishedNote )
+            sb << "  <p class=\"mode-note\">${esc(diff.publishedNote)}</p>\n"
+
+        final pd = diff.published
+        final changed = pd == null ? [] : pd.files.findAll { DiffResult.OutputFileDiff f -> f.kind != Kind.UNCHANGED }
+        if( changed.isEmpty() ) {
+            sb << '  <p class="mode-note">No published-output differences were detected between the two directories.</p>\n'
+            sb << '</section>\n'
+            return
+        }
+        sb << '  <div class="task changed">\n'
+        sb << '    <div class="task-body">\n'
+        sb << '      <table class="kv diff-table"><thead><tr><th>File</th><th>Run A</th><th>Run B</th></tr></thead><tbody>\n'
+        changed.each { DiffResult.OutputFileDiff f ->
+            final label = f.kind.name().toLowerCase()
+            sb << "        <tr class=\"row-changed\"><th class=\"mono\">${esc(f.path)} <span class=\"pill ${label}\">${label}</span></th>"
+            sb << "<td>${esc(sizeCell(f.sizeA, f.hashA))}</td>"
+            sb << "<td>${esc(sizeCell(f.sizeB, f.hashB))}</td></tr>\n"
+        }
+        sb << '      </tbody></table>\n'
+        // Line-level diff of each changed text file, below the size/hash summary.
+        changed.findAll { it.kind == Kind.CHANGED && it.hasLineDiff() }.each { DiffResult.OutputFileDiff f ->
+            sb << "      <div class=\"log-file\"><span class=\"mono\">${esc(f.path)}</span> "
+            sb << "<span class=\"pill changed\">+${f.linesAdded()} −${f.linesRemoved()}</span>"
+            if( f.truncated )
+                sb << ' <span class="tag-auto" title="Diff capped at the line limit">truncated</span>'
+            sb << "</div>\n"
+            sb << logDiffPre(f.ops)
+        }
+        sb << '    </div>\n  </div>\n'
         sb << '</section>\n'
     }
 

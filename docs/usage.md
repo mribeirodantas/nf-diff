@@ -53,6 +53,7 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 | `--diff-outputs`       | Compare the output files each matched task wrote to its work directory (by size, then SHA-256 for same-size files). Changed text files are additionally diffed line by line; binary files show a size/hash change only. Requires the tasks' work directories to still exist locally. When enabled, an output-file change counts toward `--fail-on-change`. |
 | `--outputs-max-bytes=<n>` | With `--diff-outputs`, skip hashing same-size files larger than `<n>` bytes (they are reported as content-unverified). Default `0` = no limit. |
 | `--outputs-max-lines=<n>` | With `--diff-outputs`, keep only the first `<n>` lines of each changed text file before line-diffing it. Default `1000`. |
+| `--published-a=<dir>` / `--published-b=<dir>` | Compare the two runs' published output directories (their `outdir` / `publishDir` trees) instead of — or in addition to — the per-task work-dir outputs. Give both: `--published-a` is run A's directory, `--published-b` run B's. Files are matched by their path relative to each root, then compared by size, then SHA-256, then a line-level diff for changed text files, exactly like `--diff-outputs` (and honouring `--outputs-max-bytes` / `--outputs-max-lines`). Symlinks are followed, so it works whether `publishDir` copied or symlinked. Unlike `--diff-outputs`, this reads the *durable* published results, so it still works after the work directories are gone. When set, a published-file change counts toward `--fail-on-change`. |
 | `--diff-logs`          | Compare the standard log files (`.command.out`/`.command.err`/`.command.log`) each matched task wrote to its work directory, line by line. Ideal for inspecting why a task's exit code changed. Requires the tasks' work directories to still exist locally. Informational only: never affects `--fail-on-change`. |
 | `--logs-max-lines=<n>` | With `--diff-logs`, keep only the last `<n>` lines of each log file before diffing. Default `200`. |
 | `--diff-dag`           | Reconstruct each run's process→process wiring and diff the two edge sets, surfacing added/removed edges (a rewired pipeline). Reads the authoritative `.lineage/` data-lineage store when present (`lineage.enabled = true`, no work dirs needed); otherwise infers edges from the input symlinks staged into task work directories, which must still exist locally (best-effort when some were cleaned up). Informational only: never affects `--fail-on-change`. |
@@ -96,6 +97,9 @@ nextflow plugin nf-diff:diff --last --perf-threshold=10
 
 # Also compare the files each task produced, and fail CI if any result changed
 nextflow plugin nf-diff:diff --last --diff-outputs --fail-on-change
+
+# Compare two runs' durable published result trees (works after the work dirs are gone)
+nextflow plugin nf-diff:diff --last --published-a=runA/results --published-b=runB/results
 
 # Inspect why a task's exit code changed by diffing its stdout/stderr
 nextflow plugin nf-diff:diff --last --diff-logs

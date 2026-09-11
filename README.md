@@ -26,6 +26,7 @@ nextflow plugin nf-diff:diff --last
 | **Performance** | Did any task get slower or heavier (`--perf-threshold`)? |
 | **Efficiency** | Was any process over- or under-provisioned? |
 | **Outputs** *(`--diff-outputs`)* | Did the files each task produced actually change (line-level)? |
+| **Published outputs** *(`--published-a` / `--published-b`)* | Did the durable published result trees (`outdir` / `publishDir`) change, even after the work dirs are gone? |
 | **Logs** *(`--diff-logs`)* | Why did a task's exit code change (stdout/stderr diff)? |
 | **DAG / wiring** *(`--diff-dag`)* | Was the pipeline rewired (edges added/removed)? |
 

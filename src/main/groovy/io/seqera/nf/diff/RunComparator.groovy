@@ -178,6 +178,13 @@ class RunComparator {
     /** When true, reconstruct and diff each run's process&#8594;process wiring. */
     private final boolean diffDag
 
+    /** When true, compare the two runs' published output directories. */
+    private final boolean diffPublished
+
+    /** Published output directory for run A / run B (only when {@link #diffPublished}). */
+    private final Path publishedDirA
+    private final Path publishedDirB
+
     RunComparator(CompareOptions opts = new CompareOptions()) {
         this.showObvious = opts.showObvious
         this.filter = opts.filter ?: ProcessFilter.of([], [])
@@ -192,6 +199,9 @@ class RunComparator {
         this.logsMaxLines = opts.logsMaxLines
         this.outputsMaxLines = opts.outputsMaxLines
         this.diffDag = opts.diffDag
+        this.diffPublished = opts.diffPublished
+        this.publishedDirA = opts.publishedDirA
+        this.publishedDirB = opts.publishedDirB
     }
 
     /** Absolute, normalised form of a directory for equality comparison; null-safe. */
@@ -313,7 +323,42 @@ class RunComparator {
         finally {
             pool?.shutdownNow()
         }
+        computePublished(result)
         return result
+    }
+
+    /**
+     * Populate the published-outputs layer: compare the two runs' published
+     * result directories ({@code --published-a} / {@code --published-b}).
+     * Skipped unless both directories were supplied. Unlike the work-dir output
+     * layer, this reads the durable published tree, so it works even after the
+     * work directories have been cleaned up or lived on remote storage. A
+     * published-file change counts toward {@link DiffResult#isIdentical()} and
+     * {@code --fail-on-change}, exactly like a work-dir output change.
+     */
+    private void computePublished(DiffResult result) {
+        if( !diffPublished )
+            return
+        result.diffPublished = true
+
+        final comparator = new PublishedComparator(outputsMaxBytes, outputsMaxLines)
+        final pd = comparator.compare(publishedDirA, publishedDirB)
+        result.published = pd
+
+        if( !pd.availableA || !pd.availableB )
+            result.publishedNote = pd.note
+        else if( pd.sameDir )
+            result.publishedNote = ('Both --published-a and --published-b point at the same directory, so there ' +
+                    'is nothing to compare.').toString()
+        else {
+            final capped = outputsMaxBytes > 0
+                    ? " Same-size files larger than ${outputsMaxBytes} bytes are left content-unverified." : ''
+            result.publishedNote = ("Published output files compared by size, then SHA-256 for same-size files, " +
+                    "from ${publishedDirA} (run A) and ${publishedDirB} (run B). Changed text files are additionally " +
+                    "diffed line by line (first ${outputsMaxLines} lines per file; binary files show a size/hash " +
+                    "change only). Symlinks are followed, so this works whether publishDir used copy or symlink " +
+                    "mode.${capped}").toString()
+        }
     }
 
     /**

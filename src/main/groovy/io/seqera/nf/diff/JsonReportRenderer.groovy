@@ -58,6 +58,7 @@ class JsonReportRenderer {
                         regressions    : diff.regressionCount(),
                         softwareChanged : diff.softwareChangedCount(),
                         outputsChanged : diff.outputsChangedCount(),
+                        publishedChanged: diff.publishedChangedCount(),
                         logsChanged    : diff.logsChangedCount(),
                         overProvisionedA: diff.overProvisionedA(),
                         overProvisionedB: diff.overProvisionedB(),
@@ -91,6 +92,9 @@ class JsonReportRenderer {
                 diffOutputs: diff.diffOutputs,
                 outputsNote: diff.outputsNote,
                 outputs    : diff.outputs.collect { outputModel(it) },
+                diffPublished: diff.diffPublished,
+                publishedNote: diff.publishedNote,
+                published  : diff.published != null ? publishedModel(diff.published) : null,
                 diffLogs   : diff.diffLogs,
                 logsNote   : diff.logsNote,
                 logs       : diff.logs.collect { logModel(it) },
@@ -156,6 +160,20 @@ class JsonReportRenderer {
                 hasChanges : od.hasChanges(),
                 note       : od.note,
                 files      : od.files.collect { outputFileModel(it) },
+        ] as Map<String,Object>
+    }
+
+    private Map<String,Object> publishedModel(DiffResult.PublishedDiff pd) {
+        return [
+                dirA        : pd.dirA,
+                dirB        : pd.dirB,
+                availableA  : pd.availableA,
+                availableB  : pd.availableB,
+                sameDir     : pd.sameDir,
+                hasChanges  : pd.hasChanges(),
+                changedCount: pd.changedCount(),
+                note        : pd.note,
+                files       : pd.files.collect { outputFileModel(it) },
         ] as Map<String,Object>
     }
 

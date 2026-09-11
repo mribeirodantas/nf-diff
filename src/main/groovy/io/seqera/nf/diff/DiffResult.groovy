@@ -514,6 +514,55 @@ class DiffResult {
     }
 
     /**
+     * Comparison of two runs' <em>published</em> output directories — the
+     * {@code publishDir} / {@code outdir} trees, given via {@code --published-a}
+     * and {@code --published-b}. Unlike {@link OutputDiff}, which reads each
+     * task's work directory (the first thing {@code nextflow clean} removes),
+     * this compares the durable results a run copied out, so it works for the
+     * majority of runs whose work dirs are long gone — including runs whose work
+     * dirs lived on remote object storage.
+     *
+     * <p>The two trees are walked recursively (following symlinks, since
+     * {@code publishDir} defaults to symlinking published files) and every file
+     * is classified by its path relative to its published root, reusing the same
+     * size / hash / line-diff engine as the work-dir outputs layer. This is a
+     * run-level comparison rather than a per-task one: published files are not
+     * reliably attributable to a single task without deeper lineage.
+     *
+     * <p>Because a changed result is a genuine correctness signal, a published
+     * file difference counts toward {@link #isIdentical()} and
+     * {@code --fail-on-change}, exactly like a work-dir output change.
+     */
+    @CompileStatic
+    static class PublishedDiff {
+        /** The two published directories that were compared. */
+        String dirA
+        String dirB
+        /** Whether each published directory existed and was readable. */
+        boolean availableA
+        boolean availableB
+        /** True when both sides resolved to the same physical directory (nothing to compare). */
+        boolean sameDir
+        /** Human note when the trees could not be compared (missing directory, etc.). */
+        String note
+        List<OutputFileDiff> files = []
+
+        List<OutputFileDiff> changedFiles() { files.findAll { it.kind == Kind.CHANGED } }
+        List<OutputFileDiff> addedFiles()   { files.findAll { it.kind == Kind.ADDED } }
+        List<OutputFileDiff> removedFiles()  { files.findAll { it.kind == Kind.REMOVED } }
+
+        /** True when any published file was added, removed, or changed. */
+        boolean hasChanges() {
+            return files.any { it.kind == Kind.ADDED || it.kind == Kind.REMOVED || it.kind == Kind.CHANGED }
+        }
+
+        /** Number of published files that were added, removed, or changed. */
+        int changedCount() {
+            return files.count { it.kind == Kind.ADDED || it.kind == Kind.REMOVED || it.kind == Kind.CHANGED } as int
+        }
+    }
+
+    /**
      * A single task log file ({@code .command.out}, {@code .command.err} or
      * {@code .command.log}) compared between the two matched tasks' work
      * directories. {@code kind} classifies it like everything else:
@@ -764,6 +813,40 @@ class DiffResult {
     int outputsChangedCount() { outputs.count { OutputDiff od -> od.hasChanges() } as int }
 
     /**
+     * Whether the published-outputs layer was computed. When false,
+     * {@link #published} is null and published content never affects
+     * {@link #isIdentical()}. Enabled by giving both {@code --published-a} and
+     * {@code --published-b}.
+     */
+    boolean diffPublished = false
+
+    /**
+     * Comparison of the two runs' published output directories ({@code outdir} /
+     * {@code publishDir} trees). Populated only when {@link #diffPublished} is
+     * set. When enabled, a published-file change breaks {@link #isIdentical()}.
+     * Null when the layer was not requested.
+     */
+    PublishedDiff published
+
+    /**
+     * Human-readable note about the published-outputs layer: how it was
+     * computed, or why it is empty/limited (e.g. a missing directory). Surfaced
+     * by renderers.
+     */
+    String publishedNote
+
+    /** True when the two published output trees differ (added/removed/changed files). */
+    boolean hasPublishedChanges() {
+        return diffPublished && published != null && published.hasChanges()
+    }
+
+    /**
+     * Number of published files that were added, removed, or changed. Single
+     * source of truth for the "Published changed" summary stat across renderers.
+     */
+    int publishedChangedCount() { published != null ? published.changedCount() : 0 }
+
+    /**
      * Whether the log-diff layer was computed. When false, {@link #logs} is
      * empty. This layer is always informational and never affects
      * {@link #isIdentical()}.
@@ -864,6 +947,7 @@ class DiffResult {
                 processes.every { it.unchanged } &&
                 !hasSoftwareChanges() &&
                 !hasOutputChanges() &&
+                !hasPublishedChanges() &&
                 (!showObvious || regressionCount() == 0)
     }
 }
