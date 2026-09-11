@@ -16,6 +16,20 @@ permissions:
   actions: write
 
 jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run actionlint
+        # Official install script (rhysd/actionlint); pinned to the tool's own
+        # release channel rather than a third-party wrapper action.
+        run: |
+          bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
+
   check:
     name: check (JDK ${{ matrix.java }}, NF ${{ matrix.nextflow }})
     runs-on: ubuntu-latest

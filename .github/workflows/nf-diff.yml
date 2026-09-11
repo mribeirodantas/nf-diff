@@ -1,0 +1,84 @@
+name: nf-diff (dogfood)
+
+# Exercises this repo's own composite action end-to-end: generate two real
+# Nextflow runs from a trivial demo pipeline, then compare them with the local
+# action (`uses: ./`).
+#
+# NOTE: the action resolves nf-diff from registry.nextflow.io, so this job
+# validates the *action wiring* against the published plugin — not the
+# working-tree build. The unit suite (`make check`) and `make smoke` cover the
+# current source; keep this as an integration check for action.yml itself.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write   # required for the PR comment
+
+concurrency:
+  group: nf-diff-dogfood-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dogfood:
+    name: Compare two demo runs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Nextflow
+        uses: nextflow-io/setup-nextflow@v2
+
+      - name: Produce two demo runs
+        run: |
+          set -euo pipefail
+          mkdir -p demo
+          cd demo
+          # A trivial pipeline that stays valid under the v2 strict parser
+          # (no implicit `it`, explicit channel factory). Mirrors e2e/smoke.sh.
+          cat > main.nf <<'NF'
+          process SAY {
+              input:
+              val message
+
+              output:
+              path 'out.txt'
+
+              script:
+              """
+              echo "${message}" > out.txt
+              """
+          }
+
+          workflow {
+              SAY(channel.of(params.message))
+          }
+          NF
+
+          # Two runs that differ only in a pipeline param, so nf-diff has a
+          # meaningful change to report.
+          nextflow run main.nf --message hello
+          nextflow run main.nf --message world
+
+      - name: Run nf-diff on the two demo runs
+        uses: ./
+        with:
+          dir: demo
+          last: 'true'
+          format: md
+          comment-pr: 'true'
+          # Nextflow + JDK are already installed above.
+          setup-java: 'false'
+          setup-nextflow: 'false'
+          # The two runs intentionally differ; don't fail the dogfood job on it.
+          fail-on-change: 'false'

@@ -153,3 +153,69 @@ The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark th
 | `1`  | Runtime error (e.g. run not found, ambiguous id, cache read failed) |
 | `2`  | Usage error (bad arguments, unknown option)                         |
 | `3`  | Runs differ **and** `--fail-on-change` was set                      |
+
+## GitHub Action
+
+This repository ships a composite action (`action.yml`) that wraps the
+`nf-diff:diff` verb for CI. It does **not** run your pipeline — run Nextflow in
+earlier steps (ideally twice, or a baseline vs. the PR) so a `.nextflow/history`
+exists, then point the action at two runs (or use `last`). The plugin resolves
+automatically from `registry.nextflow.io`.
+
+```yaml
+name: nf-diff on PR
+on: pull_request
+
+permissions:
+  contents: read
+  pull-requests: write   # required for the PR comment
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Produce two runs in .nextflow/history (baseline vs. this change).
+      - run: nextflow run . --input baseline.csv
+      - run: nextflow run . --input candidate.csv
+
+      - name: Compare the two most recent runs
+        uses: mribeirodantas/nf-diff@v0.6.0
+        with:
+          last: 'true'
+          format: md
+          comment-pr: 'true'
+          fail-on-change: 'true'
+```
+
+### Inputs
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `run-a` / `run-b` | — | Run names or session-id prefixes. Leave empty when using `last`. |
+| `last` | — | `true` compares the two most recent runs; any other value is passed as `--last=<value>` (e.g. `2`, `2:1`). |
+| `format` | `md` | Report format: `md`, `html`, or `json`. |
+| `output` | `nf-diff-report.<ext>` | Report output path. |
+| `fail-on-change` | `false` | Fail the action (exit 3) if the runs are not identical. |
+| `only` / `exclude` | — | Process-name globs to include / drop. |
+| `perf-threshold` | — | Percent change beyond which a task metric is flagged (plugin default: 25). |
+| `diff-outputs` / `diff-logs` / `diff-dag` / `diff-all` | `false` | Enable the work-dir layers (require work dirs to still exist). |
+| `verbose` | `false` | Also diff always-changing fields. |
+| `dir` | `.` | Project directory containing `.nextflow/`. |
+| `extra-args` | — | Raw arguments appended to the diff command verbatim. |
+| `nextflow-version` | — | Nextflow version to install (also exported as `NXF_VER`). |
+| `java-version` | `17` | Temurin JDK to set up. |
+| `setup-java` / `setup-nextflow` | `true` | Toggle the JDK / Nextflow install steps. |
+| `comment-pr` | `false` | Post the report as a PR comment (best with `format: md`). |
+| `github-token` | workflow token | Token used to post the PR comment. |
+| `upload-artifact` | `true` | Upload the report as a workflow artifact. |
+| `artifact-name` | `nf-diff-report` | Name for the uploaded artifact. |
+
+### Outputs
+
+| Output | Description |
+|--------|-------------|
+| `report-path` | Path to the generated report (relative to `dir`). |
+| `exit-code` | Exit code from the verb (`0` ok, `3` differ + fail-on-change). |
+| `identical` | `true`/`false` — only populated when `format: json`. |
