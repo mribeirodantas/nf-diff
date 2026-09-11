@@ -11,7 +11,6 @@ const destDir = join(websiteDir, 'public', 'examples');
 mkdirSync(destDir, { recursive: true });
 
 const files = [
-  [join(repoRoot, 'nf-diff-report.html'), join(destDir, 'nf-diff-report.html')],
   [join(repoRoot, 'examples', 'rich-report', 'report.html'), join(destDir, 'rich-report.html')],
 ];
 
