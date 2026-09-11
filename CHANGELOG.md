@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The HTML report's "Resolved configuration" section now offers a git-style
+  diff view alongside the table.** The section is now a tabset with three views
+  of the same resolved config: **Table** (the existing key / Run A / Run B
+  grid, still the default), **Full diff** (every key as `key = value` lines,
+  unchanged keys shown as context and changed keys shown as a `-` Run A / `+`
+  Run B pair — keys present on only one side render a lone `-`/`+`), and
+  **Changes** (the same diff with the unchanged context lines dropped). The diff
+  reuses the report's existing `.cl` line-diff styling, so it inherits the
+  colorblind-safe palette. The DAG section's tab machinery was generalized from
+  `.dag-tab*` / `data-dag` to shared `.tabset` / `.tab` / `.tab-panel` /
+  `data-tab` classes (with a single generic tab-switching script) so both
+  sections drive off the same code. `HtmlReportRenderer` only; the Markdown /
+  JSON / terminal renderers are unchanged.
+
 - **A new published-outputs layer compares two runs' result directories
   directly.** Pass `--published-a=<dir>` and `--published-b=<dir>` to diff each
   run's `outdir` / `publishDir` tree instead of — or alongside — the per-task

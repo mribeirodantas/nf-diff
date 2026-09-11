@@ -443,13 +443,67 @@ ${recNote}  </div>
             sb << '</section>\n'
             return
         }
-        sb << '  <table class="kv">\n'
-        sb << '    <thead><tr><th>Key</th><th>Run A</th><th>Run B</th></tr></thead>\n  <tbody>\n'
+        // Three views of the same resolved config: the key/Run A/Run B table
+        // (default), a full unified diff with unchanged keys as context, and a
+        // changed-only diff that drops the context lines.
+        sb << '  <div class="tabset">\n'
+        sb << '    <div class="tabs" role="tablist">\n'
+        sb << '      <button type="button" class="tab active" data-tab="table" role="tab" aria-selected="true">Table</button>\n'
+        sb << '      <button type="button" class="tab" data-tab="full" role="tab" aria-selected="false">Full diff</button>\n'
+        sb << '      <button type="button" class="tab" data-tab="changed" role="tab" aria-selected="false">Changes</button>\n'
+        sb << '    </div>\n'
+        sb << '    <div class="tab-panel is-active" data-tab="table">\n'
+        sb << '      <table class="kv">\n'
+        sb << '        <thead><tr><th>Key</th><th>Run A</th><th>Run B</th></tr></thead>\n      <tbody>\n'
         diff.config.each { FieldDiff fd ->
             sb << fieldRow(fd, diff.showObvious)
         }
-        sb << '  </tbody>\n  </table>\n'
+        sb << '      </tbody>\n      </table>\n'
+        sb << '    </div>\n'
+        sb << '    <div class="tab-panel" data-tab="full">\n'
+        sb << configDiffPanel(diff.config, false)
+        sb << '    </div>\n'
+        sb << '    <div class="tab-panel" data-tab="changed">\n'
+        sb << configDiffPanel(diff.config, true)
+        sb << '    </div>\n'
+        sb << '  </div>\n'
         sb << '</section>\n'
+    }
+
+    /**
+     * Render the resolved config as a unified, git-style +/- diff. Each key is
+     * emitted as {@code key = value} lines: unchanged keys are context lines,
+     * a changed key produces a {@code -} (Run A) then {@code +} (Run B) pair,
+     * and keys present on only one side produce a lone {@code -}/{@code +}. When
+     * {@code changedOnly} is set, context lines are dropped so only the hunks
+     * remain.
+     */
+    private String configDiffPanel(List<FieldDiff> config, boolean changedOnly) {
+        final body = new StringBuilder()
+        config.each { FieldDiff fd ->
+            final hasA = fd.valueA != null
+            final hasB = fd.valueB != null
+            if( fd.changed ) {
+                if( hasA ) body << diffLine('-', "${fd.field} = ${fd.valueA}", 'del')
+                if( hasB ) body << diffLine('+', "${fd.field} = ${fd.valueB}", 'ins')
+            }
+            else if( !changedOnly ) {
+                // unchanged: both sides equal (use A, falling back to B)
+                final v = hasA ? fd.valueA : fd.valueB
+                body << diffLine(' ', "${fd.field} = ${v}", 'eq')
+            }
+        }
+        if( body.length() == 0 )
+            return '      <p class="diff-empty">No configuration differences between the two runs.</p>\n'
+        return """\
+      <div class="code-diff unified">
+        <div class="code-col"><pre>${body}</pre></div>
+      </div>
+"""
+    }
+
+    private String diffLine(String gutter, String text, String cls) {
+        return "<span class=\"cl ${cls}\"><span class=\"gutter\">${esc(gutter)}</span>${esc(text)}</span>\n"
     }
 
     // ------------------------------------------------------------- processes
@@ -823,19 +877,19 @@ ${recNote}  </div>
         // carries the precise, per-edge detail (and is the large-graph fallback).
         final edgesA = runEdges(diff.dag, 'a')
         final edgesB = runEdges(diff.dag, 'b')
-        sb << '  <div class="dag-tabset">\n'
-        sb << '    <div class="dag-tabs" role="tablist">\n'
-        sb << '      <button type="button" class="dag-tab active" data-dag="union" role="tab" aria-selected="true">Changes</button>\n'
-        sb << '      <button type="button" class="dag-tab" data-dag="a" role="tab" aria-selected="false">Run A (before)</button>\n'
-        sb << '      <button type="button" class="dag-tab" data-dag="b" role="tab" aria-selected="false">Run B (after)</button>\n'
+        sb << '  <div class="tabset">\n'
+        sb << '    <div class="tabs" role="tablist">\n'
+        sb << '      <button type="button" class="tab active" data-tab="union" role="tab" aria-selected="true">Changes</button>\n'
+        sb << '      <button type="button" class="tab" data-tab="a" role="tab" aria-selected="false">Run A (before)</button>\n'
+        sb << '      <button type="button" class="tab" data-tab="b" role="tab" aria-selected="false">Run B (after)</button>\n'
         sb << '    </div>\n'
-        sb << '    <div class="dag-panel is-active" data-dag="union">\n'
+        sb << '    <div class="tab-panel is-active" data-tab="union">\n'
         sb << dagSvg(diff.dag)
         sb << '    </div>\n'
-        sb << '    <div class="dag-panel" data-dag="a">\n'
+        sb << '    <div class="tab-panel" data-tab="a">\n'
         sb << dagPanel(edgesA, 'Run A')
         sb << '    </div>\n'
-        sb << '    <div class="dag-panel" data-dag="b">\n'
+        sb << '    <div class="tab-panel" data-tab="b">\n'
         sb << dagPanel(edgesB, 'Run B')
         sb << '    </div>\n'
         sb << '  </div>\n'
@@ -1401,15 +1455,15 @@ html[data-cvd="on"] .cvd-toggle{background:var(--brand);color:var(--chip-ink);bo
 .rp-legend .sw.worse{background:var(--removed)}
 .rp-legend .sw.better{background:var(--added)}
 .rp-legend .sw.samework{background:transparent;border:1.5px dashed var(--txt)}
-.dag-tabset{margin-bottom:16px}
-.dag-tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--line)}
-.dag-tab{cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);background:none;border:none;
+.tabset{margin-bottom:16px}
+.tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+.tab{cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);background:none;border:none;
   padding:9px 16px;border-bottom:2px solid transparent;margin-bottom:-1px}
-.dag-tab:hover{color:var(--txt)}
-.dag-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
-.dag-panel{display:none}
-.dag-panel.is-active{display:block}
-.dag-panel .dag-graph{margin-bottom:0}
+.tab:hover{color:var(--txt)}
+.tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+.tab-panel{display:none}
+.tab-panel.is-active{display:block}
+.tab-panel .dag-graph{margin-bottom:0}
 .dag-graph{overflow-x:auto;border:1px solid var(--hair);border-radius:var(--radius);background:var(--panel);padding:16px;margin-bottom:16px;box-shadow:var(--elev)}
 .dag-svg{display:block;max-width:100%;height:auto}
 .dag-node rect{fill:var(--panel2);stroke:var(--line);stroke-width:1.5}
@@ -1485,6 +1539,13 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 .cl.del{background:color-mix(in srgb,var(--removed) 14%,transparent);border-left-color:var(--removed)}
 .cl.ins{background:color-mix(in srgb,var(--added) 14%,transparent);border-left-color:var(--added)}
 .cl.gap{background:repeating-linear-gradient(45deg,transparent,transparent 6px,var(--gap-stripe) 6px,var(--gap-stripe) 12px);min-height:1.4em}
+.code-diff.unified{display:block}
+.code-diff.unified .code-col{background:var(--bg2)}
+.code-diff.unified pre{margin:0;padding:0;overflow:auto;font-family:ui-monospace,monospace;font-size:12.5px}
+.code-diff.unified .cl{padding-left:0}
+.code-diff.unified .cl .gutter{display:inline-block;width:1.6em;text-align:center;color:var(--muted);user-select:none}
+.code-diff.unified .cl.del .gutter,.code-diff.unified .cl.ins .gutter{color:inherit;font-weight:700}
+.diff-empty{color:var(--muted);font-size:13px;padding:12px}
 .foot{text-align:center;color:var(--muted);padding:30px;border-top:1px solid var(--line);font-size:13px}
 .foot-sub{margin-top:6px;font-size:12px;color:var(--muted);opacity:.85}
 .foot-sub strong{color:var(--brand)}
@@ -1576,20 +1637,22 @@ function toggleTask(hdr){ hdr.parentElement.classList.toggle('open'); }
   window.addEventListener('hashchange', function(){ show(location.hash.slice(1), false); });
   show((location.hash && ids.indexOf(location.hash.slice(1)) >= 0) ? location.hash.slice(1) : ids[0], false);
 })();
-// DAG view tabs: switch between the union (Changes) diagram and each run's own.
+// Generic tabsets: switch panels within a .tabset by matching data-tab values.
+// Used by the DAG section (Changes / Run A / Run B) and the resolved-config
+// section (Table / Full diff / Changes).
 (function(){
-  document.querySelectorAll('.dag-tabset').forEach(function(set){
-    var tabs = Array.prototype.slice.call(set.querySelectorAll('.dag-tab'));
-    var panels = Array.prototype.slice.call(set.querySelectorAll('.dag-panel'));
+  document.querySelectorAll('.tabset').forEach(function(set){
+    var tabs = Array.prototype.slice.call(set.querySelectorAll('.tab'));
+    var panels = Array.prototype.slice.call(set.querySelectorAll('.tab-panel'));
     tabs.forEach(function(tab){
       tab.addEventListener('click', function(){
-        var which = tab.getAttribute('data-dag');
+        var which = tab.getAttribute('data-tab');
         tabs.forEach(function(t){
           var on = t === tab;
           t.classList.toggle('active', on);
           t.setAttribute('aria-selected', on ? 'true' : 'false');
         });
-        panels.forEach(function(p){ p.classList.toggle('is-active', p.getAttribute('data-dag') === which); });
+        panels.forEach(function(p){ p.classList.toggle('is-active', p.getAttribute('data-tab') === which); });
       });
     });
   });
