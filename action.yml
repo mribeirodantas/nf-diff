@@ -74,7 +74,7 @@ inputs:
     required: false
     default: 'false'
   dir:
-    description: 'Project directory containing .nextflow/ (passed as --dir and used as the working directory).'
+    description: 'Project directory containing .nextflow/. The action runs from here (used as the step working directory).'
     required: false
     default: '.'
   extra-args:
@@ -184,9 +184,10 @@ runs:
           args+=("$runa" "$runb")
         fi
 
-        # --dir is set explicitly so the plugin reads the intended history even
-        # though we also cd into it via working-directory.
-        args+=("--format=${fmt}" "--output=${out}" "--dir=${{ inputs.dir }}")
+        # The step already runs in `dir` (working-directory), so the plugin's
+        # default --dir=. resolves the right history. Passing --dir=${dir} here
+        # too would double-apply the prefix (dir/dir/.nextflow/history).
+        args+=("--format=${fmt}" "--output=${out}")
 
         [[ -n '${{ inputs.only }}' ]]           && args+=("--only=${{ inputs.only }}")
         [[ -n '${{ inputs.exclude }}' ]]        && args+=("--exclude=${{ inputs.exclude }}")
