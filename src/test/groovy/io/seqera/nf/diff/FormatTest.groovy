@@ -52,13 +52,16 @@ class FormatTest extends Specification {
         Format.pct(1.0d)  == '100%'
     }
 
-    def 'pctDelta computes signed relative change and guards divide-by-zero'() {
+    def 'pctDelta computes signed relative change and handles a zero baseline'() {
         expect:
         Format.pctDelta(100L, 150L) == 50.0d
         Format.pctDelta(100L, 50L)  == -50.0d
         Format.pctDelta(null, 50L)  == null
         Format.pctDelta(100L, null) == null
-        Format.pctDelta(0L, 50L)    == null
+        and: 'a zero baseline is not "not computable": 0->0 is no change, 0->N is unbounded growth'
+        Format.pctDelta(0L, 0L)     == 0.0d
+        Format.pctDelta(0L, 50L)    == Double.POSITIVE_INFINITY
+        Format.pctDelta(0L, -50L)   == Double.NEGATIVE_INFINITY
     }
 
     def 'signedPct prefixes a sign and one decimal'() {
@@ -67,5 +70,11 @@ class FormatTest extends Specification {
         Format.signedPct(12.5d)  == '+12.5%'
         Format.signedPct(-3.0d)  == '-3.0%'
         Format.signedPct(0.0d)   == '+0.0%'
+    }
+
+    def 'signedPct renders an infinite delta as an infinity symbol'() {
+        expect:
+        Format.signedPct(Double.POSITIVE_INFINITY) == '+∞%'
+        Format.signedPct(Double.NEGATIVE_INFINITY) == '−∞%'
     }
 }

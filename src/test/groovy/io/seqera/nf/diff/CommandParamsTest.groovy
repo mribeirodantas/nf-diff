@@ -66,6 +66,28 @@ class CommandParamsTest extends Specification {
         p['--note'] == 'a b c'
     }
 
+    def 'keeps a negative-number value instead of treating it as the next flag'() {
+        when:
+        def p = CommandParams.parse('nextflow run main.nf --min_log2fc -1.5 --seed -42 --scale -1e-3 --resume')
+
+        then: 'signed numbers (decimal, integer, scientific) are values, not options'
+        p['--min_log2fc'] == '-1.5'
+        p['--seed'] == '-42'
+        p['--scale'] == '-1e-3'
+        and: 'a real flag following still parses as a boolean'
+        p['--resume'] == 'true'
+    }
+
+    def 'a following option is not swallowed as the previous flag value'() {
+        when:
+        def p = CommandParams.parse('nextflow run main.nf --input x --verbose -profile docker')
+
+        then:
+        p['--input'] == 'x'
+        p['--verbose'] == 'true'
+        p['-profile'] == 'docker'
+    }
+
     def 'distinguishes pipeline params from nextflow options'() {
         expect:
         CommandParams.isPipelineParam('--input')

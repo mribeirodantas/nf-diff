@@ -106,6 +106,18 @@ class ConfigLoaderTest extends Specification {
         withC['process.cpus'] == '16'
     }
 
+    def 'does not mistake a following option for the -c config path'() {
+        given: 'a real extra config that only takes effect if -c parses correctly'
+        writeConfig('process.cpus = 1\n')
+        Files.write(projectDir.resolve('extra.config'), "process.cpus = 16\n".getBytes('UTF-8'))
+
+        when: 'a bare -c is immediately followed by another -c option, then the real path'
+        def cfg = loader.resolve('nextflow run main.nf -c -c extra.config', projectDir)
+
+        then: 'the first -c does not swallow the second, so extra.config still merges in'
+        cfg['process.cpus'] == '16'
+    }
+
     def 'resolves no user config keys when there is no config file'() {
         when: 'the project has no nextflow.config'
         def cfg = loader.resolve('nextflow run main.nf', projectDir)

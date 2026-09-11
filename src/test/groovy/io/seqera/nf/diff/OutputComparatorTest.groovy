@@ -117,6 +117,26 @@ class OutputComparatorTest extends Specification {
         !od.hasChanges()
     }
 
+    def 'keeps a nested output that shares a control-file name'() {
+        given: 'a genuine output at results/.command.sh — only the work-dir-root control files should be skipped'
+        def a = workdir('a', ['out': 'x'])
+        def b = workdir('b', ['out': 'x'])
+        Files.createDirectories(a.resolve('results'))
+        Files.createDirectories(b.resolve('results'))
+        Files.write(a.resolve('results/.command.sh'), 'nested-A'.bytes)
+        Files.write(b.resolve('results/.command.sh'), 'nested-B'.bytes)
+
+        when:
+        def od = new OutputComparator().compare(task(a.toString()), task(b.toString()))
+
+        then: 'the root control file is ignored, but the nested one is compared'
+        def paths = od.files*.path
+        !paths.contains('.command.sh')
+        paths.contains('results/.command.sh')
+        od.files.find { it.path == 'results/.command.sh' }.kind == DiffResult.Kind.CHANGED
+        od.hasChanges()
+    }
+
     def 'short-circuits when both tasks share the same work directory'() {
         given: 'a cached task in B points at the same work dir A produced'
         def dir = workdir('shared', [out: 'x']).toString()
