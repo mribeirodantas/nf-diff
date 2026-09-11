@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A new published-outputs layer compares two runs' result directories
+  directly.** Pass `--published-a=<dir>` and `--published-b=<dir>` to diff each
+  run's `outdir` / `publishDir` tree instead of — or alongside — the per-task
+  work-dir outputs (`--diff-outputs`). Files are keyed by their path relative to
+  each published root and classified by size, then SHA-256 for same-size files,
+  then a line-level diff for changed text files, reusing the same
+  `FileContentComparator` engine as the work-dir layer. Symlinks are followed,
+  so it works whether `publishDir` copied or symlinked. Unlike `--diff-outputs`,
+  this reads the *durable* published results, so it still works after the work
+  directories are gone (cleaned up, or on remote object storage). A published
+  file change counts as a difference for `isIdentical()` / `--fail-on-change`.
+  Implemented by `PublishedComparator` → `DiffResult.PublishedDiff`, wired
+  through `CompareOptions`, `DiffCommand`, and `RunComparator`, and rendered by
+  all four output formats (HTML, JSON, Markdown, terminal).
+
 ## [0.6.0] - 2026-09-10
 
 ### Added

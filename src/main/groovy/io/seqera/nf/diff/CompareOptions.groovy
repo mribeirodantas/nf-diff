@@ -76,4 +76,17 @@ class CompareOptions {
 
     /** When true, reconstruct and diff each run's process&#8594;process wiring. */
     boolean diffDag = false
+
+    /**
+     * When true, compare the two runs' published output directories
+     * ({@link #publishedDirA} / {@link #publishedDirB}). Set implicitly by
+     * {@link DiffCommand} when both directories are supplied.
+     */
+    boolean diffPublished = false
+
+    /** Published output directory for run A; required when {@link #diffPublished} is set. */
+    Path publishedDirA = null
+
+    /** Published output directory for run B; required when {@link #diffPublished} is set. */
+    Path publishedDirB = null
 }

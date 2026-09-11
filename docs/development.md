@@ -29,6 +29,8 @@ src/main/groovy/io/seqera/nf/diff/
   ConfigLoader.groovy       # resolves the effective nextflow.config (profiles + -c)
   GitProvenance.groovy      # inspects working-tree git HEAD + dirty state for the config caveat
   OutputComparator.groovy   # --diff-outputs: compares task work-dir output files
+  PublishedComparator.groovy # --published-a/--published-b: compares durable published result trees
+  FileContentComparator.groovy # shared size/SHA-256/line-diff engine for output + published layers
   LogComparator.groovy      # --diff-logs: diffs task .command.out/.err/.log files
   DagComparator.groovy      # --diff-dag: reconstructs process wiring (lineage store, else work-dir symlinks)
   LineageStore.groovy       # --diff-dag: reads the .lineage/ store for authoritative process wiring

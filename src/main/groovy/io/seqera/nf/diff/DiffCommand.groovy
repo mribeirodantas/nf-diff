@@ -124,6 +124,18 @@ class DiffCommand {
      */
     int logsMaxLines = LogComparator.DEFAULT_MAX_LINES
 
+    /**
+     * Run A's published output directory (its {@code outdir} / {@code publishDir}
+     * tree). When both this and {@link #publishedDirB} are set, the published-
+     * outputs layer compares the two trees. Unlike {@link #diffOutputs}, this
+     * reads the durable published results rather than the work directories, so
+     * it works after the work dirs are gone or lived on remote storage.
+     */
+    Path publishedDirA = null
+
+    /** Run B's published output directory; pairs with {@link #publishedDirA}. */
+    Path publishedDirB = null
+
     /** Exit code returned when {@link #failOnChange} is set and runs differ. */
     static final int EXIT_CHANGED = 3
 
@@ -175,6 +187,9 @@ class DiffCommand {
         opts.diffLogs = diffLogs
         opts.logsMaxLines = logsMaxLines
         opts.diffDag = diffDag
+        opts.diffPublished = diffPublished()
+        opts.publishedDirA = publishedDirA
+        opts.publishedDirB = publishedDirB
         final diff = new RunComparator(opts).compare(snapA, snapB)
 
         // --summary-only suppresses the report body entirely, so there is no
@@ -236,6 +251,15 @@ ${reportLine}"""
     /** True when the report should be written to stdout ({@code --output=-}). */
     protected boolean toStdout() {
         return outputFile.toString() == '-'
+    }
+
+    /**
+     * True when the published-outputs layer should run — i.e. both runs'
+     * published directories were supplied. {@link #parse} already rejects the
+     * one-sided case, so by the time this is read either both or neither is set.
+     */
+    protected boolean diffPublished() {
+        return publishedDirA != null && publishedDirB != null
     }
 
     /**
@@ -333,6 +357,12 @@ ${reportLine}"""
                 case '--logs-max-lines':
                     logsMaxLines = cur.intValue(1, 'an integer')
                     break
+                case '--published-a':
+                    publishedDirA = Paths.get(cur.requireValue())
+                    break
+                case '--published-b':
+                    publishedDirB = Paths.get(cur.requireValue())
+                    break
                 case '-d':
                 case '--dir':
                     baseDir = Paths.get(cur.requireValue())
@@ -371,6 +401,15 @@ ${reportLine}"""
                 throw new UsageException("expected exactly two run identifiers, got ${positional.size()} (or use --last)")
             runA = positional[0]
             runB = positional[1]
+        }
+
+        // The published-outputs layer needs both trees to have anything to
+        // compare; a lone --published-a/--published-b is almost certainly a
+        // mistake, so fail loudly rather than silently skipping the layer.
+        if( (publishedDirA != null) != (publishedDirB != null) ) {
+            final given = publishedDirA != null ? '--published-a' : '--published-b'
+            final missing = publishedDirA != null ? '--published-b' : '--published-a'
+            throw new UsageException("${given} requires ${missing}: both runs' published directories are needed to compare them")
         }
 
         format = format.toLowerCase()
@@ -621,6 +660,19 @@ Options:
                        When --diff-outputs is set, keep only the first <n> lines
                        of each changed text file before line-diffing it
                        (default: 1000).
+  --published-a=<dir>  Compare the two runs' published output directories
+  --published-b=<dir>  (their outdir / publishDir trees) instead of — or in
+                       addition to — the per-task work-dir outputs. Give both:
+                       --published-a is run A's directory, --published-b run B's.
+                       Files are matched by their path relative to each root and
+                       compared by size, then SHA-256, then a line-level diff for
+                       changed text files, exactly like --diff-outputs. Symlinks
+                       are followed, so it works whether publishDir used copy or
+                       symlink mode. Unlike --diff-outputs, this reads the durable
+                       published results, so it still works after the work
+                       directories are gone (cleaned up, or on remote storage).
+                       When set, a published-file change counts as a difference
+                       for --fail-on-change.
   --diff-logs          Compare the standard log files (.command.out/.err/.log)
                        each matched task wrote to its work directory, line by
                        line. Ideal for inspecting why a task's exit code changed.
@@ -682,6 +734,7 @@ Examples:
   nextflow plugin nf-diff:diff --last --format=md --output=diff.md
   nextflow plugin nf-diff:diff --last --only='ALIGN:*' --exclude='*:INDEX'
   nextflow plugin nf-diff:diff --last --diff-outputs --fail-on-change
+  nextflow plugin nf-diff:diff --last --published-a=runA/results --published-b=runB/results
   nextflow plugin nf-diff:diff --last --diff-logs
   nextflow plugin nf-diff:diff --last --diff-dag
   nextflow plugin nf-diff:diff --last --diff-all --output=compare.html

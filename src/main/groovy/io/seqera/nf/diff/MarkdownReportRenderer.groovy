@@ -50,6 +50,7 @@ class MarkdownReportRenderer {
         renderEfficiency(sb, diff)
         renderTasks(sb, diff)
         renderOutputs(sb, diff)
+        renderPublished(sb, diff)
         renderLogs(sb, diff)
         renderDag(sb, diff)
         return sb.toString()
@@ -288,6 +289,40 @@ class MarkdownReportRenderer {
     /** Byte size for a table cell, or an em dash when the file is absent on that side. */
     private static String sizeCell(Long size) {
         return size == null ? '—' : "${size} B".toString()
+    }
+
+    /**
+     * Published-outputs section: a run-level comparison of the two
+     * {@code publishDir}/{@code outdir} trees. Published files are not grouped
+     * per task, so every changed file is listed in one table.
+     */
+    private void renderPublished(StringBuilder sb, DiffResult diff) {
+        if( !diff.diffPublished )
+            return
+        sb << '## Published outputs\n\n'
+        if( diff.publishedNote )
+            sb << "> ${cell(diff.publishedNote)}\n\n"
+
+        final pd = diff.published
+        final changed = pd == null ? [] : pd.files.findAll { DiffResult.OutputFileDiff f -> f.kind != DiffResult.Kind.UNCHANGED }
+        if( changed.isEmpty() ) {
+            sb << '_No published-output differences detected._\n\n'
+            return
+        }
+        sb << '| File | Run A | Run B | Status |\n'
+        sb << '|---|---|---|---|\n'
+        changed.each { DiffResult.OutputFileDiff f ->
+            sb << "| ${cell(f.path)} | ${cell(sizeCell(f.sizeA))} | ${cell(sizeCell(f.sizeB))} | ${f.kind.name().toLowerCase()} |\n"
+        }
+        sb << '\n'
+        // Line-level diff of each changed text file, below the size summary.
+        changed.findAll { it.kind == DiffResult.Kind.CHANGED && it.hasLineDiff() }.each { DiffResult.OutputFileDiff f ->
+            sb << "**${cell(f.path)}** (+${f.linesAdded()} −${f.linesRemoved()}"
+            if( f.truncated )
+                sb << ', truncated'
+            sb << ")\n\n"
+            fencedDiff(sb, f.ops)
+        }
     }
 
     private void renderLogs(StringBuilder sb, DiffResult diff) {
