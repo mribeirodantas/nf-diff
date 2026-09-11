@@ -94,7 +94,7 @@ inputs:
     required: false
     default: 'true'
   setup-nextflow:
-    description: 'Install Nextflow via nextflow-io/setup-nextflow. Disable if it is already on PATH.'
+    description: 'Install Nextflow via nf-core/setup-nextflow. Disable if it is already on PATH.'
     required: false
     default: 'true'
   comment-pr:
@@ -137,7 +137,7 @@ runs:
 
     - name: Install Nextflow
       if: inputs.setup-nextflow == 'true'
-      uses: nextflow-io/setup-nextflow@v2
+      uses: nf-core/setup-nextflow@v2
       with:
         version: ${{ inputs.nextflow-version }}
 

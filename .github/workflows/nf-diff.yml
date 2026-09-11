@@ -37,7 +37,7 @@ jobs:
           java-version: '17'
 
       - name: Install Nextflow
-        uses: nextflow-io/setup-nextflow@v2
+        uses: nf-core/setup-nextflow@v2
 
       - name: Produce two demo runs
         run: |
