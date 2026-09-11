@@ -226,6 +226,10 @@ class HtmlReportRendererTest extends Specification {
 
         and: 'the theme toggle control is rendered'
         html.contains('id="theme-toggle"')
+
+        and: 'a colorblind-safe palette toggle is rendered with its overrides'
+        html.contains('id="cvd-toggle"')
+        html.contains('html[data-cvd="on"]')
     }
 
     // ----------------------------------------------------------- attribution
