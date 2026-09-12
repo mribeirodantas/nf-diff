@@ -18,8 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`last`, `run-a`/`run-b`, `format`, `fail-on-change`, `only`/`exclude`,
   `perf-threshold`, the `diff-*` work-dir layers, `verbose`, `dir`,
   `dir-a`/`dir-b`, and `published-a`/`published-b`) with an `extra-args`
-  passthrough, and it exposes `report-path`, `exit-code`, and
-  `identical` outputs. The action honours the plugin's launcher contract —
+  passthrough, and it exposes `report-path`, `html-report-path`, `artifact-url`,
+  `artifact-id`, `exit-code`, and `identical` outputs. When commenting on PRs
+  with Markdown, it automatically generates and uploads the standalone HTML
+  report dashboard and prepends a direct download link to the PR comment.
+  The action honours the plugin's launcher contract —
   bare id (`nf-diff:diff`, never pinned) and inline `--output=` — and maps its
   exit codes so `1`/`2` fail immediately while `3` (runs differ +
   `--fail-on-change`) is deferred until after the report is uploaded and

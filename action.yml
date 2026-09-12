@@ -134,6 +134,15 @@ outputs:
   report-path:
     description: 'Path to the generated report file (relative to dir).'
     value: ${{ steps.diff.outputs.report-path }}
+  html-report-path:
+    description: 'Path to the generated HTML report dashboard (relative to dir).'
+    value: ${{ steps.diff.outputs.html-report-path }}
+  artifact-url:
+    description: 'Direct download URL for the uploaded report artifact.'
+    value: ${{ steps.upload.outputs.artifact-url }}
+  artifact-id:
+    description: 'ID of the uploaded report artifact.'
+    value: ${{ steps.upload.outputs.artifact-id }}
   exit-code:
     description: 'Exit code from the nf-diff verb (0 = ok, 3 = differ + fail-on-change).'
     value: ${{ steps.diff.outputs.exit-code }}
@@ -179,16 +188,17 @@ runs:
           out="nf-diff-report.${ext}"
         fi
 
-        # Build the argument list. nf-diff must be invoked by its BARE id
-        # (`nf-diff:diff`), never pinned as `nf-diff@<version>:diff`.
-        args=(nf-diff:diff)
+        # Build base args (excluding format, output, and fail-on-change).
+        # nf-diff must be invoked by its BARE id (`nf-diff:diff`), never pinned
+        # as `nf-diff@<version>:diff`.
+        base_args=(nf-diff:diff)
 
         last='${{ inputs.last }}'
         if [[ -n "$last" ]]; then
           if [[ "$last" == "true" ]]; then
-            args+=(--last)
+            base_args+=(--last)
           else
-            args+=("--last=${last}")
+            base_args+=("--last=${last}")
           fi
         else
           runa='${{ inputs.run-a }}'
@@ -197,41 +207,51 @@ runs:
             echo "::error::nf-diff: provide both run-a and run-b, or set the 'last' input." >&2
             exit 2
           fi
-          args+=("$runa" "$runb")
+          base_args+=("$runa" "$runb")
         fi
 
-        # The step already runs in `dir` (working-directory), so the plugin's
-        # default --dir=. resolves the right history. Passing --dir=${dir} here
-        # too would double-apply the prefix (dir/dir/.nextflow/history).
-        args+=("--format=${fmt}" "--output=${out}")
-
-        [[ -n '${{ inputs.only }}' ]]           && args+=("--only=${{ inputs.only }}")
-        [[ -n '${{ inputs.exclude }}' ]]        && args+=("--exclude=${{ inputs.exclude }}")
-        [[ -n '${{ inputs.perf-threshold }}' ]] && args+=("--perf-threshold=${{ inputs.perf-threshold }}")
-        [[ '${{ inputs.diff-outputs }}' == 'true' ]] && args+=(--diff-outputs)
-        [[ '${{ inputs.diff-logs }}'    == 'true' ]] && args+=(--diff-logs)
-        [[ '${{ inputs.diff-dag }}'     == 'true' ]] && args+=(--diff-dag)
-        [[ '${{ inputs.diff-all }}'     == 'true' ]] && args+=(--diff-all)
-        [[ '${{ inputs.verbose }}'      == 'true' ]] && args+=(--verbose)
-        [[ '${{ inputs.fail-on-change }}' == 'true' ]] && args+=(--fail-on-change)
-        [[ -n '${{ inputs.dir-a }}' ]]          && args+=("--dir-a=${{ inputs.dir-a }}")
-        [[ -n '${{ inputs.dir-b }}' ]]          && args+=("--dir-b=${{ inputs.dir-b }}")
-        [[ -n '${{ inputs.published-a }}' ]]    && args+=("--published-a=${{ inputs.published-a }}")
-        [[ -n '${{ inputs.published-b }}' ]]    && args+=("--published-b=${{ inputs.published-b }}")
+        [[ -n '${{ inputs.only }}' ]]           && base_args+=("--only=${{ inputs.only }}")
+        [[ -n '${{ inputs.exclude }}' ]]        && base_args+=("--exclude=${{ inputs.exclude }}")
+        [[ -n '${{ inputs.perf-threshold }}' ]] && base_args+=("--perf-threshold=${{ inputs.perf-threshold }}")
+        [[ '${{ inputs.diff-outputs }}' == 'true' ]] && base_args+=(--diff-outputs)
+        [[ '${{ inputs.diff-logs }}'    == 'true' ]] && base_args+=(--diff-logs)
+        [[ '${{ inputs.diff-dag }}'     == 'true' ]] && base_args+=(--diff-dag)
+        [[ '${{ inputs.diff-all }}'     == 'true' ]] && base_args+=(--diff-all)
+        [[ '${{ inputs.verbose }}'      == 'true' ]] && base_args+=(--verbose)
+        [[ -n '${{ inputs.dir-a }}' ]]          && base_args+=("--dir-a=${{ inputs.dir-a }}")
+        [[ -n '${{ inputs.dir-b }}' ]]          && base_args+=("--dir-b=${{ inputs.dir-b }}")
+        [[ -n '${{ inputs.published-a }}' ]]    && base_args+=("--published-a=${{ inputs.published-a }}")
+        [[ -n '${{ inputs.published-b }}' ]]    && base_args+=("--published-b=${{ inputs.published-b }}")
 
         extra='${{ inputs.extra-args }}'
         if [[ -n "$extra" ]]; then
           # shellcheck disable=SC2206
-          args+=($extra)
+          base_args+=($extra)
         fi
+
+        # Primary command invocation (runs in inputs.dir)
+        args=("${base_args[@]}" "--format=${fmt}" "--output=${out}")
+        [[ '${{ inputs.fail-on-change }}' == 'true' ]] && args+=(--fail-on-change)
 
         echo "+ nextflow plugin ${args[*]}"
         nextflow plugin "${args[@]}"
         code=$?
 
-        echo "exit-code=${code}"     >> "$GITHUB_OUTPUT"
-        echo "report-path=${out}"    >> "$GITHUB_OUTPUT"
-        echo "deferred-exit=${code}" >> "$GITHUB_OUTPUT"
+        html_out="nf-diff-report.html"
+        if [[ "$fmt" == "html" || "$fmt" == "HTML" ]]; then
+          html_out="$out"
+        elif [[ $code -eq 0 || $code -eq 3 ]]; then
+          # If primary format is not HTML and the diff succeeded/deferred,
+          # also render the standalone HTML report dashboard for artifact upload.
+          html_args=("${base_args[@]}" "--format=html" "--output=${html_out}")
+          echo "+ nextflow plugin ${html_args[*]}"
+          nextflow plugin "${html_args[@]}" || true
+        fi
+
+        echo "exit-code=${code}"            >> "$GITHUB_OUTPUT"
+        echo "report-path=${out}"           >> "$GITHUB_OUTPUT"
+        echo "html-report-path=${html_out}" >> "$GITHUB_OUTPUT"
+        echo "deferred-exit=${code}"        >> "$GITHUB_OUTPUT"
 
         identical=""
         if [[ "$fmt" == "json" && -f "$out" ]]; then
@@ -249,11 +269,14 @@ runs:
         exit 0
 
     - name: Upload report artifact
+      id: upload
       if: always() && inputs.upload-artifact == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.artifact-name }}
-        path: ${{ inputs.dir }}/${{ steps.diff.outputs.report-path }}
+        path: |
+          ${{ inputs.dir }}/${{ steps.diff.outputs.report-path }}
+          ${{ inputs.dir }}/${{ steps.diff.outputs.html-report-path }}
         if-no-files-found: warn
 
     - name: Comment on pull request
@@ -262,6 +285,7 @@ runs:
       working-directory: ${{ inputs.dir }}
       env:
         GH_TOKEN: ${{ inputs.github-token }}
+        ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
       run: |
         set -uo pipefail
         report='${{ steps.diff.outputs.report-path }}'
@@ -276,6 +300,11 @@ runs:
           echo '<!-- nf-diff -->'
           echo '## nf-diff report'
           echo
+          if [[ -n "${ARTIFACT_URL:-}" ]]; then
+            echo "> 📊 **[Download interactive HTML report](${ARTIFACT_URL})**"
+            echo "> _Download and open in your browser for the full interactive dashboard (charts, DAG diff, and per-task details)._"
+            echo
+          fi
           case "$fmt" in
             md|markdown) cat "$report" ;;
             *)

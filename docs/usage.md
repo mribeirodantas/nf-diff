@@ -361,6 +361,9 @@ jobs:
 
 | Output | Description |
 |--------|-------------|
-| `report-path` | Path to the generated report (relative to `dir`). |
+| `report-path` | Path to the generated primary report (relative to `dir`). |
+| `html-report-path` | Path to the generated standalone HTML report dashboard (relative to `dir`). |
+| `artifact-url` | Direct download URL for the uploaded report artifact. |
+| `artifact-id` | ID of the uploaded report artifact. |
 | `exit-code` | Exit code from the verb (`0` ok, `3` differ + fail-on-change). |
 | `identical` | `true`/`false` — only populated when `format: json`. |
