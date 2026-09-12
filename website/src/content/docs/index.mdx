@@ -6,7 +6,7 @@ hero:
   tagline: "My pipeline behaved differently this time — what actually changed?"
   actions:
     - text: Get started
-      link: /usage/
+      link: usage/
       icon: right-arrow
       variant: primary
     - text: View on GitHub
@@ -51,13 +51,13 @@ nextflow plugin nf-diff:diff --last
   </Card>
 </CardGrid>
 
-By default the report highlights **meaningful** changes and treats always-differing fields (run name, session id, launch time, cache hash, wall time, resource usage) as context. Use `--verbose` to flag everything. See [Comparison layers](/layers/) for what each layer detects.
+By default the report highlights **meaningful** changes and treats always-differing fields (run name, session id, launch time, cache hash, wall time, resource usage) as context. Use `--verbose` to flag everything. See [Comparison layers](layers/) for what each layer detects.
 
 ## Output
 
 A single, standalone HTML document — inline CSS/JS/SVG, no network access, light/dark theme — that you can open in a browser or email to a colleague. It's paginated behind a vertical sidebar, and the performance page leads with a diverging-bar chart of the biggest movers. For CI and scripting, `--format=json` and `--format=md` emit the same comparison, and `--fail-on-change` turns any difference into a non-zero exit code.
 
-See it in action in the [Gallery](/gallery/).
+See it in action in the [Gallery](gallery/).
 
 ## Quick start
 
@@ -75,4 +75,4 @@ nextflow plugin nf-diff:diff --last --format=md --output=diff.md
 nextflow plugin nf-diff:diff --last --fail-on-change
 ```
 
-Continue with the full [Usage](/usage/) reference for installation and every option.
+Continue with the full [Usage](usage/) reference for installation and every option.
