@@ -63,6 +63,8 @@ nextflow plugin nf-diff:diff --last --fail-on-change
 
 `nf-diff` includes a composite GitHub Action to compare runs on Pull Requests and post rich Markdown summary comments:
 
+For a working example, see the [`nf-diff` workflow in demo-nf-pipeline](https://github.com/mribeirodantas/demo-nf-pipeline/pull/1).
+
 ```yaml
 - name: Compare PR run with baseline
   uses: mribeirodantas/nf-diff@main
