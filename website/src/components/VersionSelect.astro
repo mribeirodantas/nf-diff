@@ -1,0 +1,171 @@
+---
+import { versions, getCurrentVersion } from '../config/versions';
+
+const currentVersion = getCurrentVersion(import.meta.env.BASE_URL);
+---
+
+<div class="version-select-wrapper">
+  <label for="doc-version-select" class="sr-only">Documentation version</label>
+  <div class="select-container">
+    <select id="doc-version-select" class="version-select" aria-label="Documentation version">
+      {versions.map((v) => (
+        <option value={v.path} selected={v.version === currentVersion}>
+          {v.label}
+        </option>
+      ))}
+    </select>
+    <svg aria-hidden="true" class="select-icon" viewBox="0 0 20 20" fill="currentColor">
+      <path
+        fill-rule="evenodd"
+        d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+        clip-rule="evenodd"
+      />
+    </svg>
+  </div>
+</div>
+
+<script>
+  import { versions } from '../config/versions';
+
+  function initVersionSelect() {
+    const select = document.getElementById('doc-version-select') as HTMLSelectElement | null;
+    if (!select) return;
+
+    // Sync select value with current pathname on client side
+    const currentPath = window.location.pathname;
+    const currentMatch = versions.find((v) => {
+      if (currentPath.startsWith(v.path)) return true;
+      const shortPath = v.path.replace(/^\/[^/]+/, '');
+      return shortPath && shortPath !== '/' && currentPath.startsWith(shortPath);
+    });
+    if (currentMatch && select.value !== currentMatch.path) {
+      select.value = currentMatch.path;
+    }
+
+    select.addEventListener('change', async (e) => {
+      const target = e.target as HTMLSelectElement;
+      const targetBase = target.value;
+      const pathname = window.location.pathname;
+
+      const allPaths = versions.map((v) => v.path);
+      let matchedVersionPath: string | null = null;
+
+      for (const p of allPaths) {
+        if (pathname.startsWith(p)) {
+          matchedVersionPath = p;
+          break;
+        }
+        const shortPath = p.replace(/^\/[^/]+/, '');
+        if (shortPath && shortPath !== '/' && pathname.startsWith(shortPath)) {
+          matchedVersionPath = shortPath;
+          break;
+        }
+      }
+
+      let subPath = '';
+      if (matchedVersionPath) {
+        subPath = pathname.slice(matchedVersionPath.length);
+      } else {
+        subPath = pathname.replace(/^\//, '');
+      }
+
+      const relativeTargetPath =
+        targetBase.replace(/\/$/, '') +
+        '/' +
+        subPath.replace(/^\//, '') +
+        window.location.search +
+        window.location.hash;
+
+      const isLocalhost =
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname === '0.0.0.0';
+
+      if (isLocalhost) {
+        // Test if the local server serves this version path (e.g. multi-version preview)
+        try {
+          const res = await fetch(relativeTargetPath, { method: 'HEAD' });
+          if (res.ok) {
+            window.location.href = relativeTargetPath;
+            return;
+          }
+        } catch {
+          // Fall through to production URL
+        }
+
+        // When running in a single-version dev server (`npm run dev`), the path is not served locally.
+        // Redirect to the published version on GitHub Pages:
+        const prodUrl =
+          'https://mribeirodantas.github.io' +
+          relativeTargetPath;
+        window.location.href = prodUrl;
+      } else {
+        window.location.href = relativeTargetPath;
+      }
+    });
+  }
+
+  initVersionSelect();
+  document.addEventListener('astro:page-load', initVersionSelect);
+</script>
+
+<style>
+  .version-select-wrapper {
+    display: inline-flex;
+    align-items: center;
+    margin-inline-start: 0.25rem;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .select-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .version-select {
+    appearance: none;
+    background-color: var(--sl-color-gray-6, rgba(255, 255, 255, 0.05));
+    color: var(--sl-color-white, #e2e8f0);
+    border: 1px solid var(--sl-color-gray-5, rgba(255, 255, 255, 0.15));
+    border-radius: 0.375rem;
+    padding: 0.18rem 1.6rem 0.18rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.25;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+  }
+
+  :root[data-theme='light'] .version-select {
+    background-color: var(--sl-color-gray-6, #f8fafc);
+    color: var(--sl-color-gray-1, #1e293b);
+    border-color: var(--sl-color-gray-5, #cbd5e1);
+  }
+
+  .version-select:hover,
+  .version-select:focus {
+    border-color: var(--sl-color-accent, #2fb787);
+    outline: none;
+  }
+
+  .select-icon {
+    position: absolute;
+    right: 0.35rem;
+    width: 0.8rem;
+    height: 0.8rem;
+    pointer-events: none;
+    color: var(--sl-color-gray-3, #94a3b8);
+  }
+</style>

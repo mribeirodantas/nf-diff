@@ -187,7 +187,11 @@ class CommandParams {
                 }
                 else {
                     final next = (i + 1 < tokens.size()) ? tokens[i + 1] : null
-                    if( next != null && !isFlag(next) ) {
+                    // The following token is this flag's value when it is not
+                    // itself a flag — or when it only looks like a flag because
+                    // it is a negative number (e.g. `--min_log2fc -1.5`), which
+                    // is a legitimate value, not another option.
+                    if( next != null && (!isFlag(next) || isNumericValue(next)) ) {
                         out[tok] = next
                         i++
                     }
@@ -246,6 +250,16 @@ class CommandParams {
     /** A token is a flag when it starts with '-' and is not a bare '-' or '--'. */
     private static boolean isFlag(String tok) {
         return tok.length() > 1 && tok.charAt(0) == ('-' as char) && tok != '--'
+    }
+
+    /**
+     * True when a token is a plain number — optionally signed, decimal, or in
+     * scientific notation (e.g. {@code -1.5}, {@code -1e-5}, {@code 42}). Used
+     * to tell a negative-number <em>value</em> apart from a following option so
+     * {@code --flag -1.5} keeps {@code -1.5} as the flag's value.
+     */
+    private static boolean isNumericValue(String tok) {
+        return tok ==~ /-?\d+(\.\d+)?([eE][-+]?\d+)?/
     }
 
     /**

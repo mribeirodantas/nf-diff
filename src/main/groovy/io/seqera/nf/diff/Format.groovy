@@ -63,10 +63,18 @@ class Format {
         return "${Math.round(fraction * 100.0d)}%".toString()
     }
 
-    /** Signed percentage delta of b relative to a, or null when not computable. */
+    /**
+     * Signed percentage delta of b relative to a, or null when either operand
+     * is null. A zero baseline is not "not computable": {@code 0 → 0} is no
+     * change (0.0), while {@code 0 → N} is unbounded growth — returned as
+     * {@code ±Infinity} so a metric that appeared from nothing still ranks and
+     * displays as the most extreme regression rather than being silently dropped.
+     */
     static Double pctDelta(Long a, Long b) {
-        if( a == null || b == null || a == 0L )
+        if( a == null || b == null )
             return null
+        if( a == 0L )
+            return (b == 0L) ? 0.0d : (b > 0L ? Double.POSITIVE_INFINITY : Double.NEGATIVE_INFINITY)
         return ((b - a) / (double) a) * 100.0d
     }
 
@@ -74,6 +82,8 @@ class Format {
     static String signedPct(Double pct) {
         if( pct == null )
             return NA
+        if( pct.isInfinite() )
+            return pct > 0 ? '+∞%' : '−∞%'
         final sign = pct >= 0 ? '+' : ''
         return "${sign}${String.format(Locale.ROOT, '%.1f', pct)}%".toString()
     }

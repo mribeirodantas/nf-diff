@@ -4,6 +4,8 @@
 [![Latest release](https://img.shields.io/github/v/release/mribeirodantas/nf-diff?sort=semver&label=release)](https://github.com/mribeirodantas/nf-diff/releases/latest)
 [![License](https://img.shields.io/github/license/mribeirodantas/nf-diff)](LICENSE)
 
+**[Documentation site](https://mribeirodantas.github.io/nf-diff/)**
+
 > **My pipeline behaved differently this time — what actually changed?**
 
 `nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history — or just say `--last` — and it reconstructs both entirely from Nextflow's own history and cache (no re-execution) and renders a self-contained HTML report of everything that changed between them.
@@ -79,17 +81,9 @@ See **[docs/usage.md (GitHub Action)](docs/usage.md#github-action)** for complet
 
 ## Documentation
 
-Full reference lives in **[`docs/`](docs/README.md)**:
+The full reference is published at **[mribeirodantas.github.io/nf-diff](https://mribeirodantas.github.io/nf-diff/)**, built from the Markdown in **[`docs/`](docs/README.md)**:
 
 - **[Usage](docs/usage.md)** — installation, every option, examples, sample output, exit codes.
 - **[Comparison layers](docs/layers.md)** — what each layer detects and the meaningful-vs-everything verdict.
 - **[How it works](docs/how-it-works.md)** — how a run is reconstructed and compared internally.
 - **[Development](docs/development.md)** — building, layout, CI, and releasing.
-
-## License
-
-Licensed under the [Apache License, Version 2.0](LICENSE).
-
-## Author
-
-Marcel Ribeiro-Dantas — Seqera

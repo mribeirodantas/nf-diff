@@ -138,11 +138,13 @@ class OutputComparator {
                     // Skip staged inputs (symlinks) and directory entries.
                     if( attrs.isSymbolicLink() || Files.isSymbolicLink(file) || !attrs.isRegularFile() )
                         return FileVisitResult.CONTINUE
-                    final rel = dir.relativize(file).toString()
-                    // Control files live at the work-dir root; match on the leaf name.
-                    if( CONTROL_FILES.contains(file.fileName.toString()) )
+                    final relPath = dir.relativize(file)
+                    // Control files live at the work-dir root; only skip them
+                    // there so a genuine nested output that happens to share a
+                    // control-file name (e.g. results/.command.sh) is preserved.
+                    if( relPath.nameCount == 1 && CONTROL_FILES.contains(relPath.toString()) )
                         return FileVisitResult.CONTINUE
-                    out.put(rel, attrs.size())
+                    out.put(relPath.toString(), attrs.size())
                     return FileVisitResult.CONTINUE
                 }
 

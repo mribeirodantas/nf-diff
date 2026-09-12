@@ -45,10 +45,13 @@ class HtmlReportRenderer {
         sb << '<meta charset="utf-8">\n'
         sb << '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         sb << "<title>nf-diff · ${esc(diff.runA.label())} vs ${esc(diff.runB.label())}</title>\n"
-        // Set the theme before first paint to avoid a flash of the wrong palette.
+        // Set the theme (and colorblind-safe palette) before first paint to
+        // avoid a flash of the wrong palette.
         sb << '<script>(function(){try{var k="nf-diff-theme",s=localStorage.getItem(k),' +
                 't=s||((window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark");' +
-                'document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>\n'
+                'document.documentElement.setAttribute("data-theme",t);' +
+                'if(localStorage.getItem("nf-diff-cvd")==="on")' +
+                'document.documentElement.setAttribute("data-cvd","on");}catch(e){}})();</script>\n'
         sb << '<style>\n' << css() << '\n</style>\n'
         sb << '</head>\n<body>\n'
 
@@ -84,6 +87,8 @@ class HtmlReportRenderer {
 
     private void renderHeader(StringBuilder sb, DiffResult diff) {
         sb << '<header class="hero">\n'
+        sb << '  <button class="theme-toggle cvd-toggle" id="cvd-toggle" type="button" title="Toggle colorblind-safe palette" aria-label="Toggle colorblind-safe palette" aria-pressed="false">'
+        sb << '<span class="ti-glyph">👁</span></button>\n'
         sb << '  <button class="theme-toggle" id="theme-toggle" type="button" title="Toggle light/dark theme" aria-label="Toggle light/dark theme">'
         sb << '<span class="ti-dark">🌙</span><span class="ti-light">☀️</span></button>\n'
         sb << '  <div class="hero-inner">\n'
@@ -438,13 +443,67 @@ ${recNote}  </div>
             sb << '</section>\n'
             return
         }
-        sb << '  <table class="kv">\n'
-        sb << '    <thead><tr><th>Key</th><th>Run A</th><th>Run B</th></tr></thead>\n  <tbody>\n'
+        // Three views of the same resolved config: the key/Run A/Run B table
+        // (default), a full unified diff with unchanged keys as context, and a
+        // changed-only diff that drops the context lines.
+        sb << '  <div class="tabset">\n'
+        sb << '    <div class="tabs" role="tablist">\n'
+        sb << '      <button type="button" class="tab active" data-tab="table" role="tab" aria-selected="true">Table</button>\n'
+        sb << '      <button type="button" class="tab" data-tab="full" role="tab" aria-selected="false">Full diff</button>\n'
+        sb << '      <button type="button" class="tab" data-tab="changed" role="tab" aria-selected="false">Changes</button>\n'
+        sb << '    </div>\n'
+        sb << '    <div class="tab-panel is-active" data-tab="table">\n'
+        sb << '      <table class="kv">\n'
+        sb << '        <thead><tr><th>Key</th><th>Run A</th><th>Run B</th></tr></thead>\n      <tbody>\n'
         diff.config.each { FieldDiff fd ->
             sb << fieldRow(fd, diff.showObvious)
         }
-        sb << '  </tbody>\n  </table>\n'
+        sb << '      </tbody>\n      </table>\n'
+        sb << '    </div>\n'
+        sb << '    <div class="tab-panel" data-tab="full">\n'
+        sb << configDiffPanel(diff.config, false)
+        sb << '    </div>\n'
+        sb << '    <div class="tab-panel" data-tab="changed">\n'
+        sb << configDiffPanel(diff.config, true)
+        sb << '    </div>\n'
+        sb << '  </div>\n'
         sb << '</section>\n'
+    }
+
+    /**
+     * Render the resolved config as a unified, git-style +/- diff. Each key is
+     * emitted as {@code key = value} lines: unchanged keys are context lines,
+     * a changed key produces a {@code -} (Run A) then {@code +} (Run B) pair,
+     * and keys present on only one side produce a lone {@code -}/{@code +}. When
+     * {@code changedOnly} is set, context lines are dropped so only the hunks
+     * remain.
+     */
+    private String configDiffPanel(List<FieldDiff> config, boolean changedOnly) {
+        final body = new StringBuilder()
+        config.each { FieldDiff fd ->
+            final hasA = fd.valueA != null
+            final hasB = fd.valueB != null
+            if( fd.changed ) {
+                if( hasA ) body << diffLine('-', "${fd.field} = ${fd.valueA}", 'del')
+                if( hasB ) body << diffLine('+', "${fd.field} = ${fd.valueB}", 'ins')
+            }
+            else if( !changedOnly ) {
+                // unchanged: both sides equal (use A, falling back to B)
+                final v = hasA ? fd.valueA : fd.valueB
+                body << diffLine(' ', "${fd.field} = ${v}", 'eq')
+            }
+        }
+        if( body.length() == 0 )
+            return '      <p class="diff-empty">No configuration differences between the two runs.</p>\n'
+        return """\
+      <div class="code-diff unified">
+        <div class="code-col"><pre>${body}</pre></div>
+      </div>
+"""
+    }
+
+    private String diffLine(String gutter, String text, String cls) {
+        return "<span class=\"cl ${cls}\"><span class=\"gutter\">${esc(gutter)}</span>${esc(text)}</span>\n"
     }
 
     // ------------------------------------------------------------- processes
@@ -818,19 +877,19 @@ ${recNote}  </div>
         // carries the precise, per-edge detail (and is the large-graph fallback).
         final edgesA = runEdges(diff.dag, 'a')
         final edgesB = runEdges(diff.dag, 'b')
-        sb << '  <div class="dag-tabset">\n'
-        sb << '    <div class="dag-tabs" role="tablist">\n'
-        sb << '      <button type="button" class="dag-tab active" data-dag="union" role="tab" aria-selected="true">Changes</button>\n'
-        sb << '      <button type="button" class="dag-tab" data-dag="a" role="tab" aria-selected="false">Run A (before)</button>\n'
-        sb << '      <button type="button" class="dag-tab" data-dag="b" role="tab" aria-selected="false">Run B (after)</button>\n'
+        sb << '  <div class="tabset">\n'
+        sb << '    <div class="tabs" role="tablist">\n'
+        sb << '      <button type="button" class="tab active" data-tab="union" role="tab" aria-selected="true">Changes</button>\n'
+        sb << '      <button type="button" class="tab" data-tab="a" role="tab" aria-selected="false">Run A (before)</button>\n'
+        sb << '      <button type="button" class="tab" data-tab="b" role="tab" aria-selected="false">Run B (after)</button>\n'
         sb << '    </div>\n'
-        sb << '    <div class="dag-panel is-active" data-dag="union">\n'
+        sb << '    <div class="tab-panel is-active" data-tab="union">\n'
         sb << dagSvg(diff.dag)
         sb << '    </div>\n'
-        sb << '    <div class="dag-panel" data-dag="a">\n'
+        sb << '    <div class="tab-panel" data-tab="a">\n'
         sb << dagPanel(edgesA, 'Run A')
         sb << '    </div>\n'
-        sb << '    <div class="dag-panel" data-dag="b">\n'
+        sb << '    <div class="tab-panel" data-tab="b">\n'
         sb << dagPanel(edgesB, 'Run B')
         sb << '    </div>\n'
         sb << '  </div>\n'
@@ -1265,6 +1324,13 @@ html[data-theme="light"]{
   --elev-hover:0 2px 8px rgba(15,23,42,.09),0 16px 34px rgba(15,23,42,.11);
   --hero-scrim:rgba(248,250,252,.80);
 }
+/* Colorblind-safe palette (Okabe-Ito). Overrides the red/green/yellow diff
+   status tokens with hues that stay distinguishable under the common forms of
+   color-vision deficiency; applies on top of either theme. */
+html[data-cvd="on"]{
+  --added:#009e73; --removed:#d55e00; --changed:#e69f00;
+  --a:#009e73; --a2:#007a59; --b:#0072b2; --b2:#005a8c;
+}
 *{box-sizing:border-box}
 body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   background:var(--bg);color:var(--txt);line-height:1.625;
@@ -1277,6 +1343,9 @@ body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFo
 .theme-toggle .ti-light{display:none}
 html[data-theme="light"] .theme-toggle .ti-dark{display:none}
 html[data-theme="light"] .theme-toggle .ti-light{display:inline}
+/* colorblind-mode toggle sits just left of the light/dark toggle */
+.cvd-toggle{right:60px}
+html[data-cvd="on"] .cvd-toggle{background:var(--brand);color:var(--chip-ink);border-color:var(--brand)}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .wrap{max-width:1100px;margin:0 auto;padding:24px}
 .hero{position:relative;padding:36px 24px 28px;background:var(--panel);border-bottom:1px solid var(--line)}
@@ -1299,8 +1368,8 @@ html[data-theme="light"] .theme-toggle .ti-light{display:inline}
 .run-fact-path{color:var(--muted);font-size:11px;word-break:break-all;margin-top:2px;font-weight:400}
 .vs{font-weight:700;color:var(--muted);font-size:15px}
 .verdict{display:inline-block;padding:8px 14px;border-radius:8px;font-weight:600;font-size:14px}
-.verdict.same{background:var(--brand-soft);color:var(--brand);border:1px solid rgba(13,192,157,.4)}
-.verdict.diff{background:rgba(234,179,8,.12);color:var(--changed);border:1px solid rgba(234,179,8,.4)}
+.verdict.same{background:var(--brand-soft);color:var(--brand);border:1px solid color-mix(in srgb,var(--brand) 40%,transparent)}
+.verdict.diff{background:color-mix(in srgb,var(--changed) 12%,transparent);color:var(--changed);border:1px solid color-mix(in srgb,var(--changed) 40%,transparent)}
 .layout{display:flex;align-items:flex-start;max-width:1340px;margin:0 auto;gap:0}
 .sidenav{position:sticky;top:0;align-self:flex-start;flex:0 0 220px;display:flex;flex-direction:column;gap:2px;
   padding:22px 14px;max-height:100vh;overflow-y:auto;background:var(--tabs-bg);backdrop-filter:blur(10px);border-right:1px solid var(--line)}
@@ -1386,15 +1455,15 @@ html[data-theme="light"] .theme-toggle .ti-light{display:inline}
 .rp-legend .sw.worse{background:var(--removed)}
 .rp-legend .sw.better{background:var(--added)}
 .rp-legend .sw.samework{background:transparent;border:1.5px dashed var(--txt)}
-.dag-tabset{margin-bottom:16px}
-.dag-tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--line)}
-.dag-tab{cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);background:none;border:none;
+.tabset{margin-bottom:16px}
+.tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+.tab{cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);background:none;border:none;
   padding:9px 16px;border-bottom:2px solid transparent;margin-bottom:-1px}
-.dag-tab:hover{color:var(--txt)}
-.dag-tab.active{color:var(--brand);border-bottom-color:var(--brand)}
-.dag-panel{display:none}
-.dag-panel.is-active{display:block}
-.dag-panel .dag-graph{margin-bottom:0}
+.tab:hover{color:var(--txt)}
+.tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+.tab-panel{display:none}
+.tab-panel.is-active{display:block}
+.tab-panel .dag-graph{margin-bottom:0}
 .dag-graph{overflow-x:auto;border:1px solid var(--hair);border-radius:var(--radius);background:var(--panel);padding:16px;margin-bottom:16px;box-shadow:var(--elev)}
 .dag-svg{display:block;max-width:100%;height:auto}
 .dag-node rect{fill:var(--panel2);stroke:var(--line);stroke-width:1.5}
@@ -1417,27 +1486,27 @@ thead th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spaci
 tbody tr:hover{background:var(--panel2)}
 tbody tr:last-child th,tbody tr:last-child td{border-bottom:none}
 table.kv th{width:180px;color:var(--muted);font-weight:600}
-.row-changed{background:rgba(234,179,8,.10)}
+.row-changed{background:color-mix(in srgb,var(--changed) 10%,transparent)}
 .row-changed th{color:var(--changed)}
 .row-obvious th{color:var(--muted)}
 .tag-auto{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);vertical-align:middle}
 .src{display:inline-block;padding:1px 7px;border-radius:6px;font-size:10px;font-weight:700;letter-spacing:.3px;border:1px solid var(--line)}
-.src-cli{color:var(--b);background:rgba(59,130,246,.14)}
-.src-file{color:var(--brand);background:rgba(13,192,157,.14)}
-.src-both{color:var(--changed);background:rgba(234,179,8,.16)}
+.src-cli{color:var(--b);background:color-mix(in srgb,var(--b) 14%,transparent)}
+.src-file{color:var(--brand);background:color-mix(in srgb,var(--brand) 14%,transparent)}
+.src-both{color:var(--changed);background:color-mix(in srgb,var(--changed) 16%,transparent)}
 .src-na{color:var(--muted)}
 .mode-note{color:var(--muted);font-size:13px;margin:0 0 14px;line-height:1.6}
 .mode-note code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px}
-.warn-note{color:var(--changed);font-size:13px;margin:0 0 14px;line-height:1.6;background:rgba(234,179,8,.10);border:1px solid var(--hair);border-radius:var(--radius);padding:10px 14px}
+.warn-note{color:var(--changed);font-size:13px;margin:0 0 14px;line-height:1.6;background:color-mix(in srgb,var(--changed) 10%,transparent);border:1px solid var(--hair);border-radius:var(--radius);padding:10px 14px}
 .warn-note strong{color:var(--changed)}
-.row-added{background:rgba(34,197,94,.08)} .row-removed{background:rgba(239,68,68,.08)}
+.row-added{background:color-mix(in srgb,var(--added) 8%,transparent)} .row-removed{background:color-mix(in srgb,var(--removed) 8%,transparent)}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-.pill.added{background:rgba(34,197,94,.15);color:var(--added)}
-.pill.removed{background:rgba(239,68,68,.15);color:var(--removed)}
-.pill.changed{background:rgba(234,179,8,.18);color:var(--changed)}
+.pill.added{background:color-mix(in srgb,var(--added) 15%,transparent);color:var(--added)}
+.pill.removed{background:color-mix(in srgb,var(--removed) 15%,transparent);color:var(--removed)}
+.pill.changed{background:color-mix(in srgb,var(--changed) 18%,transparent);color:var(--changed)}
 .pill.unchanged{background:rgba(100,116,139,.2);color:var(--muted)}
-.pill.status-ok{background:rgba(34,197,94,.15);color:var(--added)}
-.pill.status-err{background:rgba(239,68,68,.15);color:var(--removed)}
+.pill.status-ok{background:color-mix(in srgb,var(--added) 15%,transparent);color:var(--added)}
+.pill.status-err{background:color-mix(in srgb,var(--removed) 15%,transparent);color:var(--removed)}
 .pill.status-unknown{background:rgba(100,116,139,.2);color:var(--muted)}
 .tasks-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
 .filters label{color:var(--muted);font-size:14px;cursor:pointer;user-select:none}
@@ -1467,9 +1536,16 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 .code-col-hdr{padding:6px 12px;font-size:12px;color:var(--muted);background:var(--panel2);border-bottom:1px solid var(--line)}
 .code-col pre{margin:0;padding:0;overflow:auto;font-family:ui-monospace,monospace;font-size:12.5px}
 .cl{display:block;padding:1px 12px;white-space:pre-wrap;word-break:break-word;border-left:3px solid transparent}
-.cl.del{background:rgba(239,68,68,.14);border-left-color:var(--removed)}
-.cl.ins{background:rgba(34,197,94,.14);border-left-color:var(--added)}
+.cl.del{background:color-mix(in srgb,var(--removed) 14%,transparent);border-left-color:var(--removed)}
+.cl.ins{background:color-mix(in srgb,var(--added) 14%,transparent);border-left-color:var(--added)}
 .cl.gap{background:repeating-linear-gradient(45deg,transparent,transparent 6px,var(--gap-stripe) 6px,var(--gap-stripe) 12px);min-height:1.4em}
+.code-diff.unified{display:block}
+.code-diff.unified .code-col{background:var(--bg2)}
+.code-diff.unified pre{margin:0;padding:0;overflow:auto;font-family:ui-monospace,monospace;font-size:12.5px}
+.code-diff.unified .cl{padding-left:0}
+.code-diff.unified .cl .gutter{display:inline-block;width:1.6em;text-align:center;color:var(--muted);user-select:none}
+.code-diff.unified .cl.del .gutter,.code-diff.unified .cl.ins .gutter{color:inherit;font-weight:700}
+.diff-empty{color:var(--muted);font-size:13px;padding:12px}
 .foot{text-align:center;color:var(--muted);padding:30px;border-top:1px solid var(--line);font-size:13px}
 .foot-sub{margin-top:6px;font-size:12px;color:var(--muted);opacity:.85}
 .foot-sub strong{color:var(--brand)}
@@ -1488,6 +1564,19 @@ function toggleTask(hdr){ hdr.parentElement.classList.toggle('open'); }
     var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
     root.setAttribute('data-theme', next);
     try{ localStorage.setItem(KEY, next); }catch(e){}
+  });
+})();
+// colorblind-safe palette toggle (initial state already applied by the head script)
+(function(){
+  var root = document.documentElement, KEY = 'nf-diff-cvd';
+  var btn = document.getElementById('cvd-toggle');
+  if(!btn) return;
+  btn.setAttribute('aria-pressed', root.getAttribute('data-cvd') === 'on' ? 'true' : 'false');
+  btn.addEventListener('click', function(){
+    var on = root.getAttribute('data-cvd') !== 'on';
+    if(on){ root.setAttribute('data-cvd', 'on'); } else { root.removeAttribute('data-cvd'); }
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    try{ localStorage.setItem(KEY, on ? 'on' : 'off'); }catch(e){}
   });
 })();
 (function(){
@@ -1548,20 +1637,22 @@ function toggleTask(hdr){ hdr.parentElement.classList.toggle('open'); }
   window.addEventListener('hashchange', function(){ show(location.hash.slice(1), false); });
   show((location.hash && ids.indexOf(location.hash.slice(1)) >= 0) ? location.hash.slice(1) : ids[0], false);
 })();
-// DAG view tabs: switch between the union (Changes) diagram and each run's own.
+// Generic tabsets: switch panels within a .tabset by matching data-tab values.
+// Used by the DAG section (Changes / Run A / Run B) and the resolved-config
+// section (Table / Full diff / Changes).
 (function(){
-  document.querySelectorAll('.dag-tabset').forEach(function(set){
-    var tabs = Array.prototype.slice.call(set.querySelectorAll('.dag-tab'));
-    var panels = Array.prototype.slice.call(set.querySelectorAll('.dag-panel'));
+  document.querySelectorAll('.tabset').forEach(function(set){
+    var tabs = Array.prototype.slice.call(set.querySelectorAll('.tab'));
+    var panels = Array.prototype.slice.call(set.querySelectorAll('.tab-panel'));
     tabs.forEach(function(tab){
       tab.addEventListener('click', function(){
-        var which = tab.getAttribute('data-dag');
+        var which = tab.getAttribute('data-tab');
         tabs.forEach(function(t){
           var on = t === tab;
           t.classList.toggle('active', on);
           t.setAttribute('aria-selected', on ? 'true' : 'false');
         });
-        panels.forEach(function(p){ p.classList.toggle('is-active', p.getAttribute('data-dag') === which); });
+        panels.forEach(function(p){ p.classList.toggle('is-active', p.getAttribute('data-tab') === which); });
       });
     });
   });

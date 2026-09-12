@@ -621,25 +621,19 @@ class DiffResult {
 
         boolean isExitChanged()   { (exitA ?: '') != (exitB ?: '') }
         boolean isStatusChanged() { (statusA ?: '') != (statusB ?: '') }
-        /** True when either side failed (non-zero, numeric exit code). */
-        boolean isFailure()       { failed(exitA) || failed(exitB) }
+        /**
+         * True when either side failed with a non-zero, numeric exit code. Uses
+         * the shared {@link DiffResult#failedExit} so the {@link #NO_EXIT}
+         * sentinel (a task that never produced a code) is not mistaken for a
+         * failure.
+         */
+        boolean isFailure()       { DiffResult.failedExit(exitA) || DiffResult.failedExit(exitB) }
 
         List<LogFileDiff> changedLogs() { logs.findAll { it.kind != Kind.UNCHANGED } }
 
         /** True when any log file differs, or the exit/status changed. */
         boolean hasChanges() {
             return exitChanged || statusChanged || logs.any { it.kind != Kind.UNCHANGED }
-        }
-
-        private static boolean failed(String exit) {
-            if( !exit )
-                return false
-            try {
-                return Integer.parseInt(exit.trim()) != 0
-            }
-            catch( NumberFormatException ignored ) {
-                return false
-            }
         }
     }
 

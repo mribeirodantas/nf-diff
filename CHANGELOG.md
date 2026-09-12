@@ -30,6 +30,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   end-to-end against the published plugin.
 - **An `actionlint` job in CI** that lints every workflow (and shellchecks the
   embedded run-step scripts) via rhysd's official install script.
+- **The HTML report's "Resolved configuration" section now offers a git-style
+  diff view alongside the table.** The section is now a tabset with three views
+  of the same resolved config: **Table** (the existing key / Run A / Run B
+  grid, still the default), **Full diff** (every key as `key = value` lines,
+  unchanged keys shown as context and changed keys shown as a `-` Run A / `+`
+  Run B pair — keys present on only one side render a lone `-`/`+`), and
+  **Changes** (the same diff with the unchanged context lines dropped). The diff
+  reuses the report's existing `.cl` line-diff styling, so it inherits the
+  colorblind-safe palette. The DAG section's tab machinery was generalized from
+  `.dag-tab*` / `data-dag` to shared `.tabset` / `.tab` / `.tab-panel` /
+  `data-tab` classes (with a single generic tab-switching script) so both
+  sections drive off the same code. `HtmlReportRenderer` only; the Markdown /
+  JSON / terminal renderers are unchanged.
+
+- **A new published-outputs layer compares two runs' result directories
+  directly.** Pass `--published-a=<dir>` and `--published-b=<dir>` to diff each
+  run's `outdir` / `publishDir` tree instead of — or alongside — the per-task
+  work-dir outputs (`--diff-outputs`). Files are keyed by their path relative to
+  each published root and classified by size, then SHA-256 for same-size files,
+  then a line-level diff for changed text files, reusing the same
+  `FileContentComparator` engine as the work-dir layer. Symlinks are followed,
+  so it works whether `publishDir` copied or symlinked. Unlike `--diff-outputs`,
+  this reads the *durable* published results, so it still works after the work
+  directories are gone (cleaned up, or on remote object storage). A published
+  file change counts as a difference for `isIdentical()` / `--fail-on-change`.
+  Implemented by `PublishedComparator` → `DiffResult.PublishedDiff`, wired
+  through `CompareOptions`, `DiffCommand`, and `RunComparator`, and rendered by
+  all four output formats (HTML, JSON, Markdown, terminal).
+
+### Fixed
+
+- CommandParams.parse swallowed negative-number values (CommandParams.groovy)
+    A flag whose value was a negative number (--min_log2fc -1.5, --seed -42, --scale -1e-3) was misread — the parser saw the leading -, treated the number as another option, and recorded the flag as boolean true. Now isNumericValue() recognizes signed decimals/integers/scientific notation as legitimate values. Impact: high — silently wrong parameter diffs for any pipeline using signed numeric params.
+- DiffResult.failedExit counted the NO_EXIT sentinel as a failure (DiffResult.groovy)
+    Nextflow writes Integer.MAX_VALUE to a task's exit field when it never produced one. The old check only excluded 0, so 2147483647 was treated as a non-zero failure. Now it excludes the sentinel explicitly. Impact: high — false-positive failures in the log/failure layers.
+- Format.pctDelta dropped zero-baseline regressions (Format.groovy)
+    A 0 → N change (a metric appearing from nothing) returned null and was silently discarded instead of ranking as a regression. Now 0→0 is 0.0 and 0→N is ±Infinity, with signedPct rendering it as ±∞%. Verified the threshold check and worst-first sort in RunComparator handle infinity correctly. Impact: medium.
+- OutputComparator skipped nested files sharing a control-file name (OutputComparator.groovy)
+    Control files (.command.sh, etc.) were matched by leaf name anywhere in the tree, so a genuine output like results/.command.sh was dropped. Now only work-dir-root entries (nameCount == 1) are skipped. Impact: low–medium.
+- ConfigLoader.configFilesFrom could consume a following option as the -c path (ConfigLoader.groovy)
+    A bare -c followed by another flag mis-consumed it, which could drop a real later -c config. Now it only consumes a non-- token. Impact: low.
+- Duplicate java.nio.file.Path import (DagComparator.groovy) — cosmetic cleanup.
+    Each fix has a dedicated regression test (new DiffResultTest.groovy plus cases added to FormatTest, CommandParamsTest, ConfigLoaderTest, OutputComparatorTest), and the full suite passes. Nothing is committed — the changes are staged in your working tree for you to review.
+
 
 ## [0.6.0] - 2026-09-10
 

@@ -97,8 +97,14 @@ class ConfigLoader {
             final tok = tokens[i]
             String value = null
             if( tok == '-c' || tok == '-config' ) {
-                value = (i + 1 < tokens.size()) ? tokens[i + 1] : null
-                i++
+                // Consume the following token as the config path only when it is
+                // not itself an option — otherwise `-c -resume` would misread
+                // `-resume` as a filename (and then silently drop it).
+                final nxt = (i + 1 < tokens.size()) ? tokens[i + 1] : null
+                if( nxt != null && !nxt.startsWith('-') ) {
+                    value = nxt
+                    i++
+                }
             }
             else if( tok?.startsWith('-c=') ) {
                 value = tok.substring('-c='.length())

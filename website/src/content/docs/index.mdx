@@ -1,0 +1,78 @@
+---
+title: nf-diff
+description: A Nextflow plugin that diffs two pipeline runs and renders a self-contained HTML report of everything that changed.
+template: splash
+hero:
+  tagline: "My pipeline behaved differently this time — what actually changed?"
+  actions:
+    - text: Get started
+      link: usage/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/mribeirodantas/nf-diff
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+`nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history — or just say `--last` — and it reconstructs both entirely from Nextflow's own history and cache (no re-execution) and renders a self-contained HTML report of everything that changed between them.
+
+```bash
+nextflow plugin nf-diff:diff --last
+```
+
+## What it compares
+
+<CardGrid>
+  <Card title="Metadata & parameters" icon="setting">
+    Were the runs launched differently? Flag-by-flag diff of launch options and `-params-file` values, tagged by source.
+  </Card>
+  <Card title="Configuration" icon="document">
+    Did the resolved `nextflow.config` change once profiles are applied?
+  </Card>
+  <Card title="Processes & tasks" icon="puzzle">
+    Which processes gained or lost tasks, and how did each task's status, exit code, script, and resource usage change?
+  </Card>
+  <Card title="Software & versions" icon="seti:lock">
+    Did a container image or Conda pin change?
+  </Card>
+  <Card title="Failures" icon="error">
+    What failed, and is it new, resolved, or persistent across the two runs?
+  </Card>
+  <Card title="Performance & efficiency" icon="rocket">
+    Did any task get slower or heavier, or was it over- or under-provisioned?
+  </Card>
+  <Card title="Outputs & published results" icon="open-book">
+    Did the files each task produced actually change, line by line?
+  </Card>
+  <Card title="Logs & DAG" icon="list-format">
+    Why did a task's exit code change, and was the pipeline rewired?
+  </Card>
+</CardGrid>
+
+By default the report highlights **meaningful** changes and treats always-differing fields (run name, session id, launch time, cache hash, wall time, resource usage) as context. Use `--verbose` to flag everything. See [Comparison layers](layers/) for what each layer detects.
+
+## Output
+
+A single, standalone HTML document — inline CSS/JS/SVG, no network access, light/dark theme — that you can open in a browser or email to a colleague. It's paginated behind a vertical sidebar, and the performance page leads with a diverging-bar chart of the biggest movers. For CI and scripting, `--format=json` and `--format=md` emit the same comparison, and `--fail-on-change` turns any difference into a non-zero exit code.
+
+See it in action in the [Gallery](gallery/).
+
+## Quick start
+
+```bash
+# Compare the two most recent runs
+nextflow plugin nf-diff:diff --last
+
+# Compare two runs by name (or session-id prefix)
+nextflow plugin nf-diff:diff tender_euler happy_curie
+
+# Emit Markdown for a PR comment
+nextflow plugin nf-diff:diff --last --format=md --output=diff.md
+
+# CI gate: fail if anything meaningful changed
+nextflow plugin nf-diff:diff --last --fail-on-change
+```
+
+Continue with the full [Usage](usage/) reference for installation and every option.

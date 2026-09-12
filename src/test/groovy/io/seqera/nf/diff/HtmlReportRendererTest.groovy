@@ -226,6 +226,10 @@ class HtmlReportRendererTest extends Specification {
 
         and: 'the theme toggle control is rendered'
         html.contains('id="theme-toggle"')
+
+        and: 'a colorblind-safe palette toggle is rendered with its overrides'
+        html.contains('id="cvd-toggle"')
+        html.contains('html[data-cvd="on"]')
     }
 
     // ----------------------------------------------------------- attribution
@@ -371,6 +375,81 @@ class HtmlReportRendererTest extends Specification {
 
         and: 'the union view keeps the legend'
         new HtmlReportRenderer().dagSvg(edges).contains('dag-legend')
+    }
+
+    // -------------------------------------------------------------- config
+
+    private DiffResult.FieldDiff cfg(String key, String a, String b) {
+        return new DiffResult.FieldDiff(field: key, valueA: a, valueB: b)
+    }
+
+    private List<DiffResult.FieldDiff> sampleConfig() {
+        return [
+                cfg('process.cpus',    '1',   '1'),      // unchanged (context)
+                cfg('process.memory',  '1.GB', '2.GB'),  // changed both sides
+                cfg('docker.enabled',  'true', null),    // only in Run A
+                cfg('conda.enabled',   null,  'true') ]  // only in Run B
+    }
+
+    def 'resolved-config section renders a generic tabset with table + two diff views'() {
+        given: 'a diff whose config layer carries changed and side-only keys'
+        def t = task(process: 'FOO', name: 'FOO (1)', display: [status: 'COMPLETED', script: 'x'])
+        def diff = new RunComparator().compare(snap('runA', [t]), snap('runB', [t]))
+        diff.config = sampleConfig()
+
+        when:
+        def html = new HtmlReportRenderer().render(diff)
+
+        then: 'the section uses the shared, generalized tab classes (not dag-specific)'
+        html.contains('class="tabset"')
+        html.contains('class="tab active" data-tab="table"')
+        html.contains('data-tab="full"')
+        html.contains('data-tab="changed"')
+        !html.contains('dag-tabset')
+
+        and: 'the original key/Run A/Run B table survives as the default panel'
+        html.contains('class="tab-panel is-active" data-tab="table"')
+        html.contains('process.memory')
+    }
+
+    def 'full config diff keeps unchanged keys as context; changed-only drops them'() {
+        given:
+        def renderer = new HtmlReportRenderer()
+        def config = sampleConfig()
+
+        when: 'the full unified diff (context on)'
+        def full = renderer.configDiffPanel(config, false)
+
+        then: 'unchanged keys appear as context (eq) lines'
+        full.contains('class="cl eq"')
+        full.contains('process.cpus = 1')
+
+        and: 'changed keys produce a - (Run A) then + (Run B) pair'
+        full.contains('class="cl del"')
+        full.contains('process.memory = 1.GB')
+        full.contains('class="cl ins"')
+        full.contains('process.memory = 2.GB')
+
+        and: 'side-only keys produce a lone -/+ line'
+        full.contains('docker.enabled = true')
+        full.contains('conda.enabled = true')
+
+        when: 'the changed-only view (context off)'
+        def changed = renderer.configDiffPanel(config, true)
+
+        then: 'the changes remain but the unchanged context is gone'
+        changed.contains('process.memory = 2.GB')
+        !changed.contains('class="cl eq"')
+        !changed.contains('process.cpus = 1')
+    }
+
+    def 'config diff shows an empty note when nothing changed'() {
+        given:
+        def renderer = new HtmlReportRenderer()
+        def config = [cfg('process.cpus', '1', '1')]
+
+        expect: 'the changed-only view reports no differences'
+        renderer.configDiffPanel(config, true).contains('No configuration differences')
     }
 
     // --------------------------------------------------------------- params
