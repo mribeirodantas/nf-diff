@@ -1,0 +1,306 @@
+name: 'nf-diff'
+description: 'Compare two Nextflow runs and report what changed, using the nf-diff plugin from registry.nextflow.io.'
+author: 'Marcel Ribeiro-Dantas'
+branding:
+  icon: 'git-commit'
+  color: 'green'
+
+# ---------------------------------------------------------------------------
+# This action does NOT run your pipeline. Run your Nextflow pipeline (ideally
+# twice, or a baseline vs. the PR) in earlier steps so a `.nextflow/history`
+# exists in `dir`, then point this action at two runs (or use `last`).
+# nf-diff resolves automatically from registry.nextflow.io — no plugin build
+# or `plugins {}` config is needed.
+# ---------------------------------------------------------------------------
+
+inputs:
+  run-a:
+    description: 'Run name or session-id prefix for run A (from .nextflow/history). Leave empty when using `last`.'
+    required: false
+    default: ''
+  run-b:
+    description: 'Run name or session-id prefix for run B. Leave empty when using `last`.'
+    required: false
+    default: ''
+  last:
+    description: >-
+      Compare recent runs instead of naming them. `true` compares the two most
+      recent runs; any other value is passed through as `--last=<value>`
+      (e.g. `2` or `2:1`). Cannot be combined with run-a/run-b.
+    required: false
+    default: ''
+  format:
+    description: 'Report format: md (markdown, default), html, or json.'
+    required: false
+    default: 'md'
+  output:
+    description: 'Report output path. Defaults to nf-diff-report.<ext> for the chosen format.'
+    required: false
+    default: ''
+  fail-on-change:
+    description: 'Fail the action (exit 3) if the two runs are not identical.'
+    required: false
+    default: 'false'
+  only:
+    description: 'Comma-separated process-name globs to include.'
+    required: false
+    default: ''
+  exclude:
+    description: 'Comma-separated process-name globs to drop (applied after `only`).'
+    required: false
+    default: ''
+  perf-threshold:
+    description: 'Percent change beyond which a task metric is flagged (plugin default: 25).'
+    required: false
+    default: ''
+  diff-outputs:
+    description: 'Compare the output files each matched task wrote to its work dir.'
+    required: false
+    default: 'false'
+  diff-logs:
+    description: 'Compare per-task .command.out/.err/.log line by line.'
+    required: false
+    default: 'false'
+  diff-dag:
+    description: 'Diff the two runs'' process-to-process wiring.'
+    required: false
+    default: 'false'
+  diff-all:
+    description: 'Enable all three work-dir layers at once (outputs + logs + dag).'
+    required: false
+    default: 'false'
+  verbose:
+    description: 'Also diff fields that always change between runs (session id, times, resources).'
+    required: false
+    default: 'false'
+  dir:
+    description: 'Project directory containing .nextflow/. The action runs from here (used as the step working directory).'
+    required: false
+    default: '.'
+  dir-a:
+    description: 'Per-run project directory for run A. Falls back to `dir`.'
+    required: false
+    default: ''
+  dir-b:
+    description: 'Per-run project directory for run B. Falls back to `dir`.'
+    required: false
+    default: ''
+  published-a:
+    description: 'Run A published output directory (its outdir/publishDir tree).'
+    required: false
+    default: ''
+  published-b:
+    description: 'Run B published output directory (its outdir/publishDir tree).'
+    required: false
+    default: ''
+  extra-args:
+    description: 'Additional raw arguments appended to the diff command verbatim.'
+    required: false
+    default: ''
+  nextflow-version:
+    description: 'Nextflow version to install (also exported as NXF_VER). Empty = setup-nextflow default.'
+    required: false
+    default: ''
+  java-version:
+    description: 'Temurin JDK version to set up (nf-diff requires 17+).'
+    required: false
+    default: '17'
+  setup-java:
+    description: 'Set up a JDK via actions/setup-java. Disable if the runner already has a suitable JDK.'
+    required: false
+    default: 'true'
+  setup-nextflow:
+    description: 'Install Nextflow via nf-core/setup-nextflow. Disable if it is already on PATH.'
+    required: false
+    default: 'true'
+  comment-pr:
+    description: 'Post the report as a pull-request comment (best with format=md). Requires a token.'
+    required: false
+    default: 'false'
+  github-token:
+    description: 'Token used to post the PR comment. Defaults to the workflow token.'
+    required: false
+    default: ${{ github.token }}
+  upload-artifact:
+    description: 'Upload the report as a workflow artifact.'
+    required: false
+    default: 'true'
+  artifact-name:
+    description: 'Name for the uploaded report artifact.'
+    required: false
+    default: 'nf-diff-report'
+
+outputs:
+  report-path:
+    description: 'Path to the generated report file (relative to dir).'
+    value: ${{ steps.diff.outputs.report-path }}
+  exit-code:
+    description: 'Exit code from the nf-diff verb (0 = ok, 3 = differ + fail-on-change).'
+    value: ${{ steps.diff.outputs.exit-code }}
+  identical:
+    description: 'Whether the two runs were identical (true/false); only populated when format=json.'
+    value: ${{ steps.diff.outputs.identical }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up JDK ${{ inputs.java-version }}
+      if: inputs.setup-java == 'true'
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+
+    - name: Install Nextflow
+      if: inputs.setup-nextflow == 'true'
+      uses: nf-core/setup-nextflow@v2
+      with:
+        version: ${{ inputs.nextflow-version }}
+
+    - name: Run nf-diff
+      id: diff
+      shell: bash
+      working-directory: ${{ inputs.dir }}
+      env:
+        # get.nextflow.io / the runtime honour NXF_VER; keep it aligned with
+        # the installed version when the caller pinned one.
+        NXF_VER: ${{ inputs.nextflow-version }}
+      run: |
+        set -uo pipefail
+
+        fmt='${{ inputs.format }}'
+        out='${{ inputs.output }}'
+        if [[ -z "$out" ]]; then
+          case "$fmt" in
+            md|markdown) ext='md' ;;
+            json)        ext='json' ;;
+            *)           ext='html' ;;
+          esac
+          out="nf-diff-report.${ext}"
+        fi
+
+        # Build the argument list. nf-diff must be invoked by its BARE id
+        # (`nf-diff:diff`), never pinned as `nf-diff@<version>:diff`.
+        args=(nf-diff:diff)
+
+        last='${{ inputs.last }}'
+        if [[ -n "$last" ]]; then
+          if [[ "$last" == "true" ]]; then
+            args+=(--last)
+          else
+            args+=("--last=${last}")
+          fi
+        else
+          runa='${{ inputs.run-a }}'
+          runb='${{ inputs.run-b }}'
+          if [[ -z "$runa" || -z "$runb" ]]; then
+            echo "::error::nf-diff: provide both run-a and run-b, or set the 'last' input." >&2
+            exit 2
+          fi
+          args+=("$runa" "$runb")
+        fi
+
+        # The step already runs in `dir` (working-directory), so the plugin's
+        # default --dir=. resolves the right history. Passing --dir=${dir} here
+        # too would double-apply the prefix (dir/dir/.nextflow/history).
+        args+=("--format=${fmt}" "--output=${out}")
+
+        [[ -n '${{ inputs.only }}' ]]           && args+=("--only=${{ inputs.only }}")
+        [[ -n '${{ inputs.exclude }}' ]]        && args+=("--exclude=${{ inputs.exclude }}")
+        [[ -n '${{ inputs.perf-threshold }}' ]] && args+=("--perf-threshold=${{ inputs.perf-threshold }}")
+        [[ '${{ inputs.diff-outputs }}' == 'true' ]] && args+=(--diff-outputs)
+        [[ '${{ inputs.diff-logs }}'    == 'true' ]] && args+=(--diff-logs)
+        [[ '${{ inputs.diff-dag }}'     == 'true' ]] && args+=(--diff-dag)
+        [[ '${{ inputs.diff-all }}'     == 'true' ]] && args+=(--diff-all)
+        [[ '${{ inputs.verbose }}'      == 'true' ]] && args+=(--verbose)
+        [[ '${{ inputs.fail-on-change }}' == 'true' ]] && args+=(--fail-on-change)
+        [[ -n '${{ inputs.dir-a }}' ]]          && args+=("--dir-a=${{ inputs.dir-a }}")
+        [[ -n '${{ inputs.dir-b }}' ]]          && args+=("--dir-b=${{ inputs.dir-b }}")
+        [[ -n '${{ inputs.published-a }}' ]]    && args+=("--published-a=${{ inputs.published-a }}")
+        [[ -n '${{ inputs.published-b }}' ]]    && args+=("--published-b=${{ inputs.published-b }}")
+
+        extra='${{ inputs.extra-args }}'
+        if [[ -n "$extra" ]]; then
+          # shellcheck disable=SC2206
+          args+=($extra)
+        fi
+
+        echo "+ nextflow plugin ${args[*]}"
+        nextflow plugin "${args[@]}"
+        code=$?
+
+        echo "exit-code=${code}"     >> "$GITHUB_OUTPUT"
+        echo "report-path=${out}"    >> "$GITHUB_OUTPUT"
+        echo "deferred-exit=${code}" >> "$GITHUB_OUTPUT"
+
+        identical=""
+        if [[ "$fmt" == "json" && -f "$out" ]]; then
+          identical=$(grep -oE '"identical" *: *(true|false)' "$out" | grep -oE '(true|false)' | head -1)
+        fi
+        echo "identical=${identical}" >> "$GITHUB_OUTPUT"
+
+        # Exit 1 (runtime error) / 2 (usage error) are hard failures with no
+        # useful report — fail the action immediately. Exit 3 (runs differ +
+        # fail-on-change) is deferred so the report can still be uploaded and
+        # commented before the gate step re-raises it.
+        if [[ $code -eq 1 || $code -eq 2 ]]; then
+          exit $code
+        fi
+        exit 0
+
+    - name: Upload report artifact
+      if: always() && inputs.upload-artifact == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.dir }}/${{ steps.diff.outputs.report-path }}
+        if-no-files-found: warn
+
+    - name: Comment on pull request
+      if: always() && inputs.comment-pr == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      working-directory: ${{ inputs.dir }}
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -uo pipefail
+        report='${{ steps.diff.outputs.report-path }}'
+        fmt='${{ inputs.format }}'
+
+        if [[ ! -f "$report" ]]; then
+          echo "::warning::nf-diff report not found at $report; skipping PR comment."
+          exit 0
+        fi
+
+        {
+          echo '<!-- nf-diff -->'
+          echo '## nf-diff report'
+          echo
+          case "$fmt" in
+            md|markdown) cat "$report" ;;
+            *)
+              echo "_Report format is \`$fmt\`; rendered below as text. Use \`format: md\` for a native comment._"
+              echo
+              echo '```'
+              cat "$report"
+              echo '```'
+              ;;
+          esac
+        } > nf-diff-comment.md
+
+        pr='${{ github.event.pull_request.number }}'
+        repo='${{ github.repository }}'
+        # Prefer editing our previous comment for idempotency; fall back to
+        # creating a fresh one on older gh versions or when none exists yet.
+        gh pr comment "$pr" --repo "$repo" --edit-last --body-file nf-diff-comment.md \
+          || gh pr comment "$pr" --repo "$repo" --body-file nf-diff-comment.md
+
+    - name: Enforce fail-on-change
+      if: always()
+      shell: bash
+      run: |
+        code='${{ steps.diff.outputs.deferred-exit }}'
+        if [[ "$code" == "3" ]]; then
+          echo "::error::nf-diff: the two runs differ and fail-on-change is set (exit 3)."
+          exit 3
+        fi

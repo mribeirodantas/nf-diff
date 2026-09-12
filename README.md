@@ -59,6 +59,21 @@ nextflow plugin nf-diff:diff --last --format=md --output=diff.md
 nextflow plugin nf-diff:diff --last --fail-on-change
 ```
 
+## GitHub Action for CI
+
+`nf-diff` includes a composite GitHub Action to compare runs on Pull Requests and post rich Markdown summary comments:
+
+```yaml
+- name: Compare PR run with baseline
+  uses: mribeirodantas/nf-diff@main
+  with:
+    last: 'true'
+    format: md
+    comment-pr: 'true'
+```
+
+See **[docs/usage.md (GitHub Action)](docs/usage.md#github-action)** for complete workflows, including the **cache-backed baseline pattern** that compares PR runs against `main` without running the pipeline twice.
+
 > **Local / unpublished builds:** run `make dev-repo` and
 > `export NXF_PLUGINS_TEST_REPOSITORY="file://$PWD/build/plugin-repo/plugins.json"`
 > first, then invoke the **bare id** `nf-diff:diff` (not a pinned version). See

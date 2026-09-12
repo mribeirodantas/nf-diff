@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A reusable composite GitHub Action (`action.yml`) that wraps the
+  `nf-diff:diff` verb for CI.** It resolves the plugin from
+  `registry.nextflow.io` (no build or `plugins {}` config needed), optionally
+  sets up a JDK and Nextflow, runs the comparison against a project's existing
+  `.nextflow/history`, uploads the report as an artifact, and can post/edit a
+  Markdown pull-request comment. Typed inputs surface the common flags
+  (`last`, `run-a`/`run-b`, `format`, `fail-on-change`, `only`/`exclude`,
+  `perf-threshold`, the `diff-*` work-dir layers, `verbose`, `dir`,
+  `dir-a`/`dir-b`, and `published-a`/`published-b`) with an `extra-args`
+  passthrough, and it exposes `report-path`, `exit-code`, and
+  `identical` outputs. The action honours the plugin's launcher contract —
+  bare id (`nf-diff:diff`, never pinned) and inline `--output=` — and maps its
+  exit codes so `1`/`2` fail immediately while `3` (runs differ +
+  `--fail-on-change`) is deferred until after the report is uploaded and
+  commented.
+- **A dogfood workflow (`.github/workflows/nf-diff.yml`)** that generates two
+  real runs from a trivial demo pipeline and compares them with the local
+  action (`uses: ./`) on pull requests, exercising the action wiring
+  end-to-end against the published plugin.
+- **An `actionlint` job in CI** that lints every workflow (and shellchecks the
+  embedded run-step scripts) via rhysd's official install script.
 - **The HTML report's "Resolved configuration" section now offers a git-style
   diff view alongside the table.** The section is now a tabset with three views
   of the same resolved config: **Table** (the existing key / Run A / Run B
