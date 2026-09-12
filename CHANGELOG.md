@@ -16,8 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.nextflow/history`, uploads the report as an artifact, and can post/edit a
   Markdown pull-request comment. Typed inputs surface the common flags
   (`last`, `run-a`/`run-b`, `format`, `fail-on-change`, `only`/`exclude`,
-  `perf-threshold`, the `diff-*` work-dir layers, `verbose`, `dir`) with an
-  `extra-args` passthrough, and it exposes `report-path`, `exit-code`, and
+  `perf-threshold`, the `diff-*` work-dir layers, `verbose`, `dir`,
+  `dir-a`/`dir-b`, and `published-a`/`published-b`) with an `extra-args`
+  passthrough, and it exposes `report-path`, `exit-code`, and
   `identical` outputs. The action honours the plugin's launcher contract —
   bare id (`nf-diff:diff`, never pinned) and inline `--output=` — and maps its
   exit codes so `1`/`2` fail immediately while `3` (runs differ +

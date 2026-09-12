@@ -77,6 +77,22 @@ inputs:
     description: 'Project directory containing .nextflow/. The action runs from here (used as the step working directory).'
     required: false
     default: '.'
+  dir-a:
+    description: 'Per-run project directory for run A. Falls back to `dir`.'
+    required: false
+    default: ''
+  dir-b:
+    description: 'Per-run project directory for run B. Falls back to `dir`.'
+    required: false
+    default: ''
+  published-a:
+    description: 'Run A published output directory (its outdir/publishDir tree).'
+    required: false
+    default: ''
+  published-b:
+    description: 'Run B published output directory (its outdir/publishDir tree).'
+    required: false
+    default: ''
   extra-args:
     description: 'Additional raw arguments appended to the diff command verbatim.'
     required: false
@@ -198,6 +214,10 @@ runs:
         [[ '${{ inputs.diff-all }}'     == 'true' ]] && args+=(--diff-all)
         [[ '${{ inputs.verbose }}'      == 'true' ]] && args+=(--verbose)
         [[ '${{ inputs.fail-on-change }}' == 'true' ]] && args+=(--fail-on-change)
+        [[ -n '${{ inputs.dir-a }}' ]]          && args+=("--dir-a=${{ inputs.dir-a }}")
+        [[ -n '${{ inputs.dir-b }}' ]]          && args+=("--dir-b=${{ inputs.dir-b }}")
+        [[ -n '${{ inputs.published-a }}' ]]    && args+=("--published-a=${{ inputs.published-a }}")
+        [[ -n '${{ inputs.published-b }}' ]]    && args+=("--published-b=${{ inputs.published-b }}")
 
         extra='${{ inputs.extra-args }}'
         if [[ -n "$extra" ]]; then
