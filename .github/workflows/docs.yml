@@ -1,9 +1,8 @@
 name: Docs site
 
 # Builds the Astro + Starlight site in website/ and publishes it to the
-# gh-pages branch. A push to main keeps /latest/ in sync with the tip of
-# main; a published release additionally snapshots /<version>/ so older
-# docs stay reachable (mirrors nf-metro's versioned docs layout).
+# gh-pages branch. Builds /latest/ and all defined version snapshots
+# (e.g. /0.6.0/, /0.5.0/) so versioned docs stay reachable.
 
 on:
   push:
@@ -30,8 +29,6 @@ jobs:
     defaults:
       run:
         working-directory: website
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,52 +43,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # build.gradle is the single source of truth for the plugin version;
-      # release.yml already enforces that tags (`v<version>`) match it.
-      - name: Read version from build.gradle
-        id: version
-        working-directory: .
-        run: |
-          VERSION=$(awk -F"'" '/^version[[:space:]]*=/{print $2}' build.gradle)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Build latest
-        run: npm run build
-        env:
-          PUBLIC_BASE_PATH: /nf-diff/latest/
-
-      - name: Stage latest
-        run: |
-          mkdir -p ../site-output
-          cp -r dist ../site-output/latest
-
-      - name: Build versioned snapshot
-        if: github.event_name == 'release'
-        run: npm run build
-        env:
-          PUBLIC_BASE_PATH: /nf-diff/${{ steps.version.outputs.version }}/
-
-      - name: Stage versioned snapshot
-        if: github.event_name == 'release'
-        run: cp -r dist "../site-output/${{ steps.version.outputs.version }}"
-
-      - name: Create root redirect
-        working-directory: .
-        run: |
-          mkdir -p site-output/root
-          cat > site-output/root/index.html <<'EOF'
-          <!doctype html>
-          <meta charset="utf-8">
-          <meta http-equiv="refresh" content="0; url=./latest/">
-          <link rel="canonical" href="./latest/">
-          <p><a href="./latest/">Continue to the nf-diff docs</a></p>
-          EOF
+      - name: Build all versions
+        run: npm run build:all
 
       - name: Upload site output
         uses: actions/upload-artifact@v4
         with:
           name: site-output
-          path: site-output
+          path: website/dist
 
   deploy:
     needs: build
@@ -101,29 +60,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: site-output
-          path: site-output
+          path: dist
 
-      - name: Publish root redirect
+      - name: Publish to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: site-output/root
-          destination_dir: .
-          keep_files: true
-
-      - name: Publish latest
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: site-output/latest
-          destination_dir: latest
-          keep_files: true
-
-      - name: Publish versioned snapshot
-        if: github.event_name == 'release'
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: site-output/${{ needs.build.outputs.version }}
-          destination_dir: ${{ needs.build.outputs.version }}
+          publish_dir: dist
           keep_files: true

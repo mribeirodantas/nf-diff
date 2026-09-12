@@ -1,0 +1,47 @@
+---
+import type { Props } from '@astrojs/starlight/props';
+import Default from '@astrojs/starlight/components/Banner.astro';
+import { getCurrentVersion } from '../config/versions';
+
+const currentVersion = getCurrentVersion(import.meta.env.BASE_URL);
+const isLatest = currentVersion === 'latest';
+---
+
+{
+  !isLatest && (
+    <div class="version-banner" role="alert">
+      <span>
+        You are viewing documentation for release <strong>v{currentVersion}</strong>.{' '}
+        <a href="/nf-diff/latest/">Switch to latest docs →</a>
+      </span>
+    </div>
+  )
+}
+<Default {...Astro.props}><slot /></Default>
+
+<style>
+  .version-banner {
+    background-color: var(--sl-color-amber-low, #451a03);
+    color: var(--sl-color-amber-high, #fef3c7);
+    border-bottom: 1px solid var(--sl-color-amber, #d97706);
+    padding: 0.5rem 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+  }
+
+  :root[data-theme='light'] .version-banner {
+    background-color: #fffbeb;
+    color: #92400e;
+    border-bottom: 1px solid #fcd34d;
+  }
+
+  .version-banner a {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+
+  .version-banner a:hover {
+    color: var(--sl-color-accent, #2fb787);
+  }
+</style>

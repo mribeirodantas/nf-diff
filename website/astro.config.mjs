@@ -19,6 +19,10 @@ export default defineConfig({
       editLink: {
         baseUrl: 'https://github.com/mribeirodantas/nf-diff/edit/main/docs/',
       },
+      components: {
+        SiteTitle: './src/components/SiteTitle.astro',
+        Banner: './src/components/Banner.astro',
+      },
       sidebar: [
         { label: 'Home', link: '/' },
         { label: 'Usage', slug: 'usage' },

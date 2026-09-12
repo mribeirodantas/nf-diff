@@ -9,7 +9,8 @@
     "dev": "astro dev",
     "start": "astro dev",
     "build": "astro build",
-    "preview": "astro preview",
+    "build:all": "node scripts/build-all.mjs",
+    "preview": "node scripts/preview.mjs",
     "astro": "astro"
   },
   "dependencies": {
