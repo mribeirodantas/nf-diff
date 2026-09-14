@@ -162,6 +162,8 @@ The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark th
 
 This repository ships a composite action (`action.yml`) that wraps the `nf-diff:diff` verb for CI.
 
+The Action enables `diff-all` by default, so it compares task outputs, logs, and DAG wiring when the required work directories are available. Set `diff-all: 'false'` to disable this behavior.
+
 For a working example, see the [`nf-diff` workflow in demo-nf-pipeline](https://github.com/mribeirodantas/demo-nf-pipeline/pull/1).
 
 ### How it works in CI
@@ -345,7 +347,8 @@ jobs:
 | `fail-on-change` | `false` | Fail the action (exit 3) if the runs are not identical. |
 | `only` / `exclude` | — | Process-name globs to include / drop. |
 | `perf-threshold` | — | Percent change beyond which a task metric is flagged (plugin default: 25). |
-| `diff-outputs` / `diff-logs` / `diff-dag` / `diff-all` | `false` | Enable the work-dir layers (require work dirs to still exist). |
+| `diff-outputs` / `diff-logs` / `diff-dag` | `false` | Enable individual work-dir layers (require work dirs to still exist). |
+| `diff-all` | `true` | Enable all three work-dir layers (outputs + logs + DAG; require work dirs to still exist). |
 | `verbose` | `false` | Also diff always-changing fields. |
 | `dir` | `.` | Project directory containing `.nextflow/`. |
 | `dir-a` / `dir-b` | — | Per-run project directory for run A / run B (falls back to `dir`). |

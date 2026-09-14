@@ -68,7 +68,7 @@ inputs:
   diff-all:
     description: 'Enable all three work-dir layers at once (outputs + logs + dag).'
     required: false
-    default: 'false'
+    default: 'true'
   verbose:
     description: 'Also diff fields that always change between runs (session id, times, resources).'
     required: false
