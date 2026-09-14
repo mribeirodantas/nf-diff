@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The GitHub Action now enables `diff-all` by default.** Action users get
+  task output, log, and DAG-wiring comparisons without adding the flag;
+  setting `diff-all: 'false'` restores the opt-out behavior.
+
+### Documentation
+
+- **GitHub Action examples now link to a working demo pull request** in the
+  `demo-nf-pipeline` repository, making the CI integration easier to try and
+  verify.
+
 ## [0.7.0] - 2026-09-12
 
 ### Added
