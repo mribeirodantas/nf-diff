@@ -65,7 +65,7 @@ nextflow plugin nf-diff:diff --last --fail-on-change
 
 The GitHub Action enables `diff-all` by default, so it compares task outputs, logs, and DAG wiring when the required work directories are available. Set `diff-all: 'false'` to disable this behavior.
 
-For working examples, see PR [#1](https://github.com/mribeirodantas/demo-nf-pipeline/pull/1) and [#2](https://github.com/mribeirodantas/demo-nf-pipeline/pull/2) in the [`nf-diff` workflow in demo-nf-pipeline](https://github.com/mribeirodantas/demo-nf-pipeline).
+For working examples, see PR [#1](https://github.com/mribeirodantas/demo-nf-pipeline/pull/1) in the [`nf-diff` workflow in demo-nf-pipeline](https://github.com/mribeirodantas/demo-nf-pipeline).
 
 ```yaml
 - name: Compare PR run with baseline

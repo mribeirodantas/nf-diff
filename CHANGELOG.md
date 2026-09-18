@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-18
+
 ### Added
 
 - **The GitHub Action now enables `diff-all` by default.** Action users get
@@ -28,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dual-run example enables lineage for both directories, and the documentation
   explains that lineage must be enabled before execution for authoritative DAG
   and runtime metadata comparison.
+- **Documented that Nextflow lineage is optional.** When no `.lineage` store is
+  available, `nf-diff` falls back to work-directory symlinks where needed; the
+  documentation also explains when to enable lineage and that cache-backed
+  workflows should preserve `.lineage` alongside `.nextflow`.
 
 ## [0.7.0] - 2026-09-12
 
