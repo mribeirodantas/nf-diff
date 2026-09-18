@@ -402,7 +402,7 @@
 <tr>
 <td><code dir="auto">comment-pr</code></td>
 <td><code dir="auto">false</code></td>
-<td>Post the report as a PR comment (best with <code dir="auto">format: md</code>).</td>
+<td>Post the report as a PR comment (best with <code dir="auto">format: md</code>). Falls back to a short summary + artifact link if the full report would exceed GitHub’s 65,536-character comment limit.</td>
 </tr>
 <tr>
 <td><code dir="auto">github-token</code></td>
