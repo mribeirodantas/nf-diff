@@ -65,9 +65,7 @@ jobs:
           }
           NF
 
-            cat > lineage.config <<'CFG'
-            lineage.enabled = true
-            CFG
+          printf '%s\n' 'lineage.enabled = true' > lineage.config
 
           # Two runs that differ only in a pipeline param, so nf-diff has a
           # meaningful change to report.
