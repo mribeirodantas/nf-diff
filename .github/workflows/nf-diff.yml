@@ -65,10 +65,14 @@ jobs:
           }
           NF
 
+            cat > lineage.config <<'CFG'
+            lineage.enabled = true
+            CFG
+
           # Two runs that differ only in a pipeline param, so nf-diff has a
           # meaningful change to report.
-          nextflow run main.nf --message hello
-          nextflow run main.nf --message world
+            nextflow run main.nf -c lineage.config --message hello
+            nextflow run main.nf -c lineage.config --message world
 
       - name: Run nf-diff on the two demo runs
         uses: ./
