@@ -357,7 +357,7 @@ jobs:
 | `nextflow-version` | — | Nextflow version to install (also exported as `NXF_VER`). |
 | `java-version` | `17` | Temurin JDK to set up. |
 | `setup-java` / `setup-nextflow` | `true` | Toggle the JDK / Nextflow install steps. |
-| `comment-pr` | `false` | Post the report as a PR comment (best with `format: md`). |
+| `comment-pr` | `false` | Post the report as a PR comment (best with `format: md`). Falls back to a short summary + artifact link if the full report would exceed GitHub's 65,536-character comment limit. |
 | `github-token` | workflow token | Token used to post the PR comment. |
 | `upload-artifact` | `true` | Upload the report as a workflow artifact. |
 | `artifact-name` | `nf-diff-report` | Name for the uploaded artifact. |

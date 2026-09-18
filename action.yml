@@ -114,7 +114,11 @@ inputs:
     required: false
     default: 'true'
   comment-pr:
-    description: 'Post the report as a pull-request comment (best with format=md). Requires a token.'
+    description: >-
+      Post the report as a pull-request comment (best with format=md). Requires a
+      token. If the rendered comment would exceed GitHub's 65,536-character
+      comment limit, a shortened summary is posted instead, with a link to the
+      full HTML report artifact.
     required: false
     default: 'false'
   github-token:
@@ -316,6 +320,37 @@ runs:
               ;;
           esac
         } > nf-diff-comment.md
+
+        # GitHub rejects issue/PR comment bodies over 65536 characters. Leave
+        # headroom for the fallback notice itself, then fall back to a short
+        # summary (plus a pointer to the HTML report) instead of failing to post.
+        github_comment_limit=65536
+        comment_limit=$((github_comment_limit - 2000))
+        size=$(wc -c < nf-diff-comment.md | tr -d ' ')
+        if [[ "$size" -gt "$comment_limit" ]]; then
+          echo "::warning::nf-diff report is ${size} characters, exceeding GitHub's ${github_comment_limit}-character comment limit; posting a shortened summary instead."
+          {
+            echo '<!-- nf-diff -->'
+            echo '## nf-diff report'
+            echo
+            echo "> ⚠️ **The full report (${size} characters) is too large for a PR comment** (GitHub's limit is ${github_comment_limit} characters)."
+            if [[ -n "${ARTIFACT_URL:-}" ]]; then
+              echo "> 📊 **[Download the full interactive HTML report](${ARTIFACT_URL})** for the complete comparison."
+            else
+              echo '> 📊 Check the uploaded workflow artifact for the complete comparison.'
+            fi
+            echo
+            if [[ "$fmt" == "md" || "$fmt" == "markdown" ]]; then
+              echo '### Summary'
+              echo
+              awk '/^## Summary/{flag=1; next} /^## /{flag=0} flag' "$report"
+              echo '### Runs'
+              echo
+              awk '/^## Runs/{flag=1; next} /^## /{flag=0} flag' "$report"
+            fi
+            echo '_Preview only — download the full report above for the complete diff._'
+          } > nf-diff-comment.md
+        fi
 
         pr='${{ github.event.pull_request.number }}'
         repo='${{ github.repository }}'
