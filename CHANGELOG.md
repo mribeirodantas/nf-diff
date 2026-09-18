@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The GitHub Action now enables `diff-all` by default.** Action users get
   task output, log, and DAG-wiring comparisons without adding the flag;
   setting `diff-all: 'false'` restores the opt-out behavior.
+- **The GitHub Action's PR comment now falls back to a short summary when the
+  full report would exceed GitHub's 65,536-character comment limit.** The
+  fallback keeps the summary/runs tables and links to the uploaded HTML
+  report artifact for the complete diff, instead of failing to post.
 
 ### Documentation
 
