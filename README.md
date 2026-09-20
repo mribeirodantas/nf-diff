@@ -6,6 +6,8 @@
 
 **[Documentation site](https://mribeirodantas.github.io/nf-diff/)**
 
+## Summary
+
 > **My pipeline behaved differently this time — what actually changed?**
 
 `nf-diff` is a [Nextflow plugin](https://www.nextflow.io/docs/latest/plugins.html) that adds a `diff` CLI verb. Point it at two runs from your local run history — or just say `--last` — and it reconstructs both entirely from Nextflow's own history and cache (no re-execution) and renders a self-contained HTML report of everything that changed between them.
@@ -38,12 +40,14 @@ By default the report highlights **meaningful** changes and treats always-differ
 
 A single, standalone HTML document — inline CSS/JS/SVG, no network access, light/dark theme — that you can open in a browser or email to a colleague. It's paginated behind a vertical sidebar, and the performance page leads with a diverging-bar chart of the biggest movers. For CI and scripting, `--format=json` and `--format=md` emit the same comparison, and `--fail-on-change` turns any difference into a non-zero exit code.
 
-## Requirements
+## Get Started
+
+Use the published plugin directly with Nextflow, or configure the local repository described below when testing an unpublished build.
 
 - **Nextflow** `>= 25.04.0`, **Java** 17+
 - Two runs present in the local `.nextflow/history` of the project you're inspecting
 
-## Quick start
+## Examples
 
 ```bash
 # Compare the two most recent runs
@@ -91,3 +95,7 @@ The full reference is published at **[mribeirodantas.github.io/nf-diff](https://
 - **[Comparison layers](docs/layers.md)** — what each layer detects and the meaningful-vs-everything verdict.
 - **[How it works](docs/how-it-works.md)** — how a run is reconstructed and compared internally.
 - **[Development](docs/development.md)** — building, layout, CI, and releasing.
+
+## License
+
+`nf-diff` is licensed under the [Apache License 2.0](LICENSE).
