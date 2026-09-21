@@ -22,6 +22,7 @@ import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.cache.CacheDB
 import nextflow.cache.DefaultCacheStore
+import nextflow.exception.AbortOperationException
 import nextflow.trace.TraceRecord
 import nextflow.util.HistoryFile
 
@@ -37,24 +38,76 @@ class RunLoader {
     /** Project directory that contains the {@code .nextflow/} folder. */
     private final Path nextflowDir
 
+    /**
+     * Central archive consulted when a run is not present in the local history/
+     * cache — e.g. the project folder that produced it was deleted, but the run
+     * was archived (via {@code diff.archive.enabled}). Defaults to the standard
+     * location; override with {@link #withArchiveDir} to read a custom store.
+     */
+    private Path archiveDir = ArchiveStore.defaultDir()
+
     RunLoader(Path baseDir) {
         this.nextflowDir = baseDir.resolve('.nextflow')
     }
 
+    /** Point the archive fallback at a specific directory; returns {@code this}. */
+    RunLoader withArchiveDir(Path dir) {
+        if( dir != null )
+            this.archiveDir = dir
+        return this
+    }
+
     /**
-     * Resolve {@code idOrName} against the history file and hydrate a full
-     * snapshot including every cached task.
+     * Resolve {@code idOrName} to a full snapshot. The local {@code .nextflow}
+     * history + cache is authoritative; when the run is not found there, the
+     * central archive is consulted so a run whose project folder was deleted can
+     * still be compared (provided it was archived). The original local error is
+     * preserved when neither source has the run.
      *
-     * @throws IllegalArgumentException if the run cannot be found.
+     * @throws IllegalArgumentException if the run cannot be found in either source.
      */
     RunSnapshot load(String idOrName) {
+        try {
+            return loadFromLocal(idOrName)
+        }
+        catch( AmbiguousRunException ambiguous ) {
+            // The run exists locally but the id matched several entries. Surface
+            // that immediately rather than silently substituting an archived run
+            // that happens to share the same name/prefix.
+            throw ambiguous
+        }
+        catch( IllegalArgumentException localErr ) {
+            final store = new ArchiveStore(archiveDir)
+            if( store.has(idOrName) ) {
+                log.debug "nf-diff: run '${idOrName}' not in local history; loading from archive ${archiveDir}"
+                return store.load(idOrName)
+            }
+            throw localErr
+        }
+    }
+
+    /**
+     * Raised when {@code idOrName} matches more than one local run. Distinct
+     * from a plain "not found" so {@link #load} can surface the ambiguity
+     * instead of falling through to the archive.
+     */
+    @groovy.transform.InheritConstructors
+    static class AmbiguousRunException extends IllegalArgumentException { }
+
+    /**
+     * Resolve {@code idOrName} against the local history file and hydrate a full
+     * snapshot including every cached task.
+     *
+     * @throws IllegalArgumentException if the run cannot be found locally.
+     */
+    private RunSnapshot loadFromLocal(String idOrName) {
         final history = openHistory()
-        final matches = history.findByIdOrName(idOrName)
+        final matches = findMatches(history, idOrName)
         if( !matches )
             throw new IllegalArgumentException("Run '${idOrName}' not found in ${historyPath()}. Recent runs: ${recentNamesHint(history)}")
         if( matches.size() > 1 ) {
             final labels = matches.collect { HistoryFile.Record r -> "${r.runName} (${shortId(r.sessionId)})" }.join(', ')
-            throw new IllegalArgumentException("Run '${idOrName}' is ambiguous — matched ${matches.size()} entries: ${labels}. Use a longer session id.")
+            throw new AmbiguousRunException("Run '${idOrName}' is ambiguous — matched ${matches.size()} entries: ${labels}. Use a longer session id.")
         }
 
         final record = matches.first()
@@ -77,6 +130,26 @@ class RunLoader {
             snapshot.pipeline = CommandParams.projectName(record.command)
         log.debug "nf-diff: loaded ${snapshot.tasks.size()} task(s) for run '${record.runName}' (${record.sessionId})"
         return snapshot
+    }
+
+    /**
+     * Look up matching history records, translating {@link HistoryFile}'s own
+     * ambiguity signal into our {@link AmbiguousRunException} sentinel.
+     *
+     * <p>When a session-id prefix matches several distinct sessions,
+     * {@code HistoryFile.findById} throws {@link AbortOperationException}
+     * ("Which session ID do you mean?"). We convert it to
+     * {@code AmbiguousRunException} so {@link #load} surfaces the ambiguity to
+     * the user instead of falling through to the archive and silently comparing
+     * an unrelated archived run that happens to share the prefix.
+     */
+    private List<HistoryFile.Record> findMatches(HistoryFile history, String idOrName) {
+        try {
+            return history.findByIdOrName(idOrName)
+        }
+        catch( AbortOperationException ambiguous ) {
+            throw new AmbiguousRunException("Run '${idOrName}' is ambiguous — ${ambiguous.message?.trim()}. Use a longer session id.")
+        }
     }
 
     /**
@@ -260,7 +333,14 @@ class RunLoader {
         return false
     }
 
-    private static TaskInfo toTaskInfo(TraceRecord trace) {
+    /**
+     * Convert a Nextflow {@link TraceRecord} into a {@link TaskInfo}. Shared by
+     * the cache-reading load path here and by {@link DiffObserver}, which
+     * collects live {@code TraceRecord}s during a run and archives them — so
+     * both paths produce byte-for-byte identical task snapshots. Package-visible
+     * for that reuse (and for direct unit testing).
+     */
+    static TaskInfo toTaskInfo(TraceRecord trace) {
         final store = trace.getStore()
 
         final display = new LinkedHashMap<String,String>()

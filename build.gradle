@@ -12,7 +12,12 @@ nextflowPlugin {
 
     provider = 'nextflow'
     className = 'io.seqera.nf.diff.DiffPlugin'
-    // nf-diff exposes a CLI verb (`nextflow plugin nf-diff:diff`) rather than
-    // pipeline extension points, so no extensionPoints are declared here.
-    extensionPoints = []
+    // nf-diff's primary interface is a CLI verb (`nextflow plugin nf-diff:diff`).
+    // It also registers a trace-observer factory so that, when a pipeline sets
+    // `diff.archive.enabled = true`, each run is archived to a central store on
+    // completion (see DiffObserverFactory). The factory is inert unless that
+    // option is set, so the extension point adds no overhead by default.
+    extensionPoints = [
+            'io.seqera.nf.diff.DiffObserverFactory',
+    ]
 }

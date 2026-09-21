@@ -199,4 +199,61 @@ class RunLoaderTest extends Specification {
         then:
         thrown(IllegalArgumentException)
     }
+
+    // ---- archive fallback --------------------------------------------------
+
+    def 'load falls back to the archive when the run is absent locally'() {
+        given: 'an empty project dir (no .nextflow history) and an archived run'
+        def project = Files.createDirectories(tmp.resolve('project'))
+        def archiveDir = tmp.resolve('archive')
+        def sid = UUID.fromString('deadbeef-0000-0000-0000-000000000000')
+        def snap = new RunSnapshot(runName: 'archived_run', sessionId: sid, status: 'OK')
+        snap.tasks = [new TaskInfo(process: 'FOO', name: 'FOO (1)', exit: '0')]
+        new ArchiveStore(archiveDir).save(snap, false)
+
+        when: 'the loader cannot find the run locally but the archive has it'
+        def loaded = new RunLoader(project).withArchiveDir(archiveDir).load('archived_run')
+
+        then:
+        loaded.runName == 'archived_run'
+        loaded.sessionId == sid
+        loaded.tasks.size() == 1
+        loaded.tasks[0].matchKey() == 'FOO (1)'
+    }
+
+    def 'load surfaces the local error when neither history nor archive has the run'() {
+        given:
+        def project = Files.createDirectories(tmp.resolve('project2'))
+        def archiveDir = tmp.resolve('archive2')
+
+        when:
+        new RunLoader(project).withArchiveDir(archiveDir).load('missing')
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
+    def 'a locally ambiguous id is surfaced, not masked by an archived run sharing the prefix'() {
+        given: 'two local runs whose session ids share the queried prefix'
+        def dir = Files.createDirectories(tmp.resolve('.nextflow'))
+        def rev = 'afff16a9b45c8e8a4f5a3743780ac13a541762f8'
+        def rows = [
+            [ '2026-09-08 12:00:00', '1.5s', 'run_a', 'OK', rev, 'aaaaaaaa-1111-0000-0000-000000000000', 'nextflow run hello' ],
+            [ '2026-09-08 12:01:00', '1.5s', 'run_b', 'OK', rev, 'aaaaaaaa-2222-0000-0000-000000000000', 'nextflow run hello' ],
+        ].collect { it.join('\t') }
+        Files.write(dir.resolve('history'), (rows.join('\n') + '\n').bytes)
+        def loader = new RunLoader(tmp)
+
+        and: 'an archived run that also matches the prefix (so it would be a tempting substitute)'
+        def archiveDir = tmp.resolve('archive3')
+        def snap = new RunSnapshot(runName: 'archived', sessionId: UUID.fromString('aaaaaaaa-9999-0000-0000-000000000000'), status: 'OK')
+        snap.tasks = [new TaskInfo(process: 'FOO', name: 'FOO (1)', exit: '0')]
+        new ArchiveStore(archiveDir).save(snap, false)
+
+        when: 'the queried id is locally ambiguous'
+        loader.withArchiveDir(archiveDir).load('aaaaaaaa')
+
+        then: 'the ambiguity is raised rather than silently returning the archived run'
+        thrown(RunLoader.AmbiguousRunException)
+    }
 }

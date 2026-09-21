@@ -62,6 +62,7 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 | `-q`, `--quiet`, `--summary-only` | Print only the summary block (the `N changed, …` line); skip rendering and writing the full report. Handy for CI logs where the report body is noise. Exit-code behaviour (including `--fail-on-change`) is unaffected. |
 | `--dir=<dir>`          | Project directory containing `.nextflow/` (default: `.`). Used for both runs unless overridden per-run below. |
 | `--dir-a=<dir>` / `--dir-b=<dir>` | Per-run project directory for run A / run B (its `.nextflow/` history, cache, config and params). Use these to compare a run from one project or checkout against a run from another ("same pipeline, two directories"). Each falls back to `--dir` when omitted. Cannot be combined with `--last`, which needs a single history. |
+| `--archive-dir=<dir>` | Directory of the central run archive to consult when a run is no longer in the local `.nextflow/` history (e.g. its project directory was deleted). Runs land there automatically when a pipeline sets `diff.archive.enabled = true` (see [Central run archive](#central-run-archive)). Defaults to `$NXF_HOME/nf-diff/archive` (or the `NXF_DIFF_ARCHIVE_DIR` environment variable). The local history always takes precedence; the archive is only a fallback. |
 | `-v`, `--verbose`, `--all` | Also diff fields that always change between runs (run name, session id, launch time, work dir, wall/real time, resource usage) |
 | `-h`, `--help`         | Show help                                                                                        |
 
@@ -116,6 +117,9 @@ nextflow plugin nf-diff:diff runA runB --dir=/path/to/project --verbose
 # Compare the same pipeline across two checkouts/projects (run per directory)
 nextflow plugin nf-diff:diff runA runB --dir-a=/path/to/checkout-v1 --dir-b=/path/to/checkout-v2
 
+# Compare two archived runs after their project dirs are gone (needs diff.archive.enabled)
+nextflow plugin nf-diff:diff run_one run_two --archive-dir=/shared/nf-diff-archive
+
 # CI-friendly: emit JSON and fail the step if anything changed
 nextflow plugin nf-diff:diff --last --format=json --fail-on-change
 
@@ -157,6 +161,39 @@ The HTML report is fully self-contained (inline CSS/JS/SVG) with a light/dark th
 | `1`  | Runtime error (e.g. run not found, ambiguous id, cache read failed) |
 | `2`  | Usage error (bad arguments, unknown option)                         |
 | `3`  | Runs differ **and** `--fail-on-change` was set                      |
+
+## Central run archive
+
+By default `nf-diff` is entirely passive: it does nothing at the end of a pipeline run and only acts when you invoke `nextflow plugin nf-diff:diff`, reading the local `.nextflow/history` and `.nextflow/cache/` of the project. That works only as long as those directories survive — once a project directory (or a CI runner's workspace) is deleted, the run is gone and can no longer be compared.
+
+The central run archive lifts that limitation. When a pipeline **opts in** via config, `nf-diff` registers an end-of-run trace observer that snapshots each finished run into a shared archive directory. Later, `diff` transparently falls back to that archive whenever a requested run is no longer in the local history — so you can still compare runs long after their working directories are gone.
+
+Enable it in the pipeline's `nextflow.config`:
+
+```groovy
+diff {
+    archive {
+        enabled = true          // off by default — nothing is archived unless this is true
+        mode    = 'lightweight' // 'lightweight' (default) = run + task metadata only;
+                                //  'complete' = also copy each task's output and .command.* log files
+        dir     = '/shared/nf-diff-archive'   // optional; see resolution order below
+    }
+}
+```
+
+- **`enabled`** — When `false` (the default) the observer is never registered and nothing happens at the end of a run. Existing users see no behaviour change.
+- **`mode`** — `'lightweight'` stores only run-level metadata and per-task trace fields (enough for the summary, performance, and resource layers). `'complete'` additionally copies each task's output files and `.command.out`/`.command.err`/`.command.log` into the archive, so the output- and log-diff layers keep working after the work directories are deleted. Staged **input** symlinks are intentionally *not* copied, to avoid dragging large upstream inputs into the archive.
+- **`dir`** — Where snapshots are written. Resolution order (shared by the writer and the `diff` reader, so a custom location stays consistent): the explicit config value / `--archive-dir`, then the `NXF_DIFF_ARCHIVE_DIR` environment variable, then the default `$NXF_HOME/nf-diff/archive` (falling back to `~/.nextflow/nf-diff/archive` when `NXF_HOME` is unset).
+
+Each run is stored as `<sessionId>.json`; in `complete` mode its task files live alongside under `<sessionId>/tasks/`. Reading is automatic — `diff` checks the local history first and only consults the archive as a fallback — but you can point at a non-default location explicitly with `--archive-dir=<dir>`:
+
+```bash
+# On the machine that ran the pipeline (with diff.archive.enabled = true), the run
+# is written to the archive automatically. Later, even after the project is deleted:
+nextflow plugin nf-diff:diff run_one run_two --archive-dir=/shared/nf-diff-archive
+```
+
+The observer is best-effort and never fails the pipeline: if archiving hits an error it is logged to `.nextflow.log` (grep for `nf-diff`) rather than aborting the run.
 
 ## GitHub Action
 

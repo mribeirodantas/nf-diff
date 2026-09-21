@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Central run archive for comparing runs after their project directories are
+  gone.** When a pipeline opts in with `diff.archive.enabled = true`, an
+  end-of-run trace observer snapshots each finished run into a shared archive
+  directory, and `diff` transparently falls back to that archive whenever a
+  requested run is no longer in the local `.nextflow/history`. The observer is
+  off by default and inert unless enabled, so existing users see no behaviour
+  change. `mode = 'lightweight'` (default) stores run and per-task metadata;
+  `mode = 'complete'` also copies each task's output and `.command.*` log files
+  (staged input symlinks are skipped). The archive location resolves from
+  `diff.archive.dir` / `--archive-dir`, then `NXF_DIFF_ARCHIVE_DIR`, then the
+  default `$NXF_HOME/nf-diff/archive`. Archiving is best-effort and never fails
+  the pipeline run.
+
+### Documentation
+
+- **Documented the central run archive** (`diff.archive.*` config, the
+  `--archive-dir` option, `NXF_DIFF_ARCHIVE_DIR`, and the lightweight/complete
+  modes) in the usage guide and website docs.
+
 ## [0.8.0] - 2026-09-18
 
 ### Added

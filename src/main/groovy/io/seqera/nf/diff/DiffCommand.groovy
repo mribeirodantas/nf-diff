@@ -136,6 +136,16 @@ class DiffCommand {
     /** Run B's published output directory; pairs with {@link #publishedDirA}. */
     Path publishedDirB = null
 
+    /**
+     * Directory of the central run archive to consult when a run identifier is
+     * not found in the local {@code .nextflow} history/cache. Used to compare
+     * runs whose project folder was deleted after they were archived (via
+     * {@code diff.archive.enabled}). When null, {@link ArchiveStore}'s default
+     * location ({@code $NXF_HOME/nf-diff/archive}, or {@code NXF_DIFF_ARCHIVE_DIR})
+     * is used, matching where the observer writes.
+     */
+    Path archiveDir = null
+
     /** Exit code returned when {@link #failOnChange} is set and runs differ. */
     static final int EXIT_CHANGED = 3
 
@@ -167,8 +177,11 @@ class DiffCommand {
         log.debug "nf-diff: run B directory = ${dirB.toAbsolutePath()}"
         log.debug "nf-diff: report output  = ${outputFile.toAbsolutePath()}"
 
-        final snapA = new RunLoader(dirA).load(runA)
-        final snapB = new RunLoader(dirB).load(runB)
+        // Resolve the archive location once (flag > NXF_DIFF_ARCHIVE_DIR > default)
+        // so the reader consults the same store the observer writes to.
+        final resolvedArchive = ArchiveStore.resolveDir(archiveDir?.toString())
+        final snapA = new RunLoader(dirA).withArchiveDir(resolvedArchive).load(runA)
+        final snapB = new RunLoader(dirB).withArchiveDir(resolvedArchive).load(runB)
 
         final filter = ProcessFilter.of(onlyGlobs, excludeGlobs)
         // Set each knob by name (property assignment compiles cleanly under
@@ -372,6 +385,9 @@ ${reportLine}"""
                     break
                 case '--dir-b':
                     baseDirB = Paths.get(cur.requireValue())
+                    break
+                case '--archive-dir':
+                    archiveDir = Paths.get(cur.requireValue())
                     break
                 case '-v':
                 case '--verbose':
@@ -700,6 +716,12 @@ Options:
                        another ("same pipeline, two directories"). Each falls
                        back to --dir when omitted. Cannot be combined with
                        --last, which needs a single history.
+  --archive-dir=<dir>  Directory of the central run archive to consult when a
+                       run id is not in the local .nextflow history/cache. Lets
+                       you compare runs whose project folder was deleted after
+                       they were archived (see diff.archive.enabled). Defaults to
+                       $NXF_HOME/nf-diff/archive (or $NXF_DIFF_ARCHIVE_DIR),
+                       matching where the archiver writes.
   -v, --verbose, --all Also diff fields that always change between runs
                        (run name, session id, launch time, work dir, wall/real
                        time, and resource usage). By default these are shown for
