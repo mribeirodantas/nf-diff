@@ -119,15 +119,20 @@ class FileContentComparator {
             return fd
         }
 
-        fd.hashA = sha256(fileA)
-        fd.hashB = sha256(fileB)
-        if( fd.hashA == null || fd.hashB == null ) {
+        // Compare the FULL digests to decide identity; two same-size files
+        // could otherwise collide on a truncated prefix and be misreported as
+        // UNCHANGED. The short prefix is kept only for display (hashA/hashB).
+        final fullA = sha256(fileA)
+        final fullB = sha256(fileB)
+        if( fullA == null || fullB == null ) {
             fd.kind = Kind.UNCHANGED
             fd.verified = false
             fd.note = 'same size; content hash could not be computed'
             return fd
         }
-        fd.kind = (fd.hashA == fd.hashB) ? Kind.UNCHANGED : Kind.CHANGED
+        fd.hashA = shortHash(fullA)
+        fd.hashB = shortHash(fullB)
+        fd.kind = (fullA == fullB) ? Kind.UNCHANGED : Kind.CHANGED
         if( fd.kind == Kind.CHANGED )
             attachLineDiff(fd, fileA, fileB)
         return fd
@@ -216,7 +221,7 @@ class FileContentComparator {
         }
     }
 
-    /** Streamed SHA-256 of a file, returned as a short hex prefix, or null on error. */
+    /** Streamed SHA-256 of a file, returned as the full hex digest, or null on error. */
     private static String sha256(Path file) {
         try {
             final md = MessageDigest.getInstance('SHA-256')
@@ -228,11 +233,16 @@ class FileContentComparator {
             }
             final hex = new StringBuilder()
             md.digest().each { byte x -> hex << String.format('%02x', x) }
-            return hex.toString().substring(0, SHORT_HASH_LEN)
+            return hex.toString()
         }
         catch( Exception e ) {
             log.debug "nf-diff: could not hash '${file}': ${e.message}"
             return null
         }
+    }
+
+    /** Short hex prefix of a full digest, kept for compact display only. */
+    private static String shortHash(String fullHex) {
+        return fullHex.length() > SHORT_HASH_LEN ? fullHex.substring(0, SHORT_HASH_LEN) : fullHex
     }
 }
