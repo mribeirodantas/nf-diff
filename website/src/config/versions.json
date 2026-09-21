@@ -5,6 +5,11 @@
     "path": "/nf-diff/latest/"
   },
   {
+    "version": "0.9.1",
+    "label": "v0.9.1",
+    "path": "/nf-diff/0.9.1/"
+  },
+  {
     "version": "0.9.0",
     "label": "v0.9.0",
     "path": "/nf-diff/0.9.0/"
