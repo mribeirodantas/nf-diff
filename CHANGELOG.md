@@ -22,11 +22,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default `$NXF_HOME/nf-diff/archive`. Archiving is best-effort and never fails
   the pipeline run.
 
+### Fixed
+
+- **File-content comparison now decides identity on the full SHA-256 digest,
+  not a truncated 12-character prefix.** Two same-size files that differed only
+  beyond the first 48 bits of their digest could previously collide and be
+  misreported as `UNCHANGED` — and such a change would not count toward
+  `--fail-on-change`. The equality decision now compares full digests; the
+  12-character prefix is retained only for compact display in the report, so
+  HTML/JSON output is unchanged. Affects `--diff-outputs` and the
+  `--published-a`/`--published-b` comparison.
+
 ### Documentation
 
 - **Documented the central run archive** (`diff.archive.*` config, the
   `--archive-dir` option, `NXF_DIFF_ARCHIVE_DIR`, and the lightweight/complete
   modes) in the usage guide and website docs.
+- **Documented that archiving requires the plugin to be active for the run.**
+  The archive section now shows the `plugins { id 'nf-diff@<version>' }`
+  declaration (or `-plugins nf-diff@<version>`) needed so the end-of-run
+  observer is loaded — `diff.archive.enabled = true` alone has no effect unless
+  the pipeline loads the plugin.
 
 ## [0.8.0] - 2026-09-18
 

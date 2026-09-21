@@ -168,9 +168,13 @@ By default `nf-diff` is entirely passive: it does nothing at the end of a pipeli
 
 The central run archive lifts that limitation. When a pipeline **opts in** via config, `nf-diff` registers an end-of-run trace observer that snapshots each finished run into a shared archive directory. Later, `diff` transparently falls back to that archive whenever a requested run is no longer in the local history — so you can still compare runs long after their working directories are gone.
 
-Enable it in the pipeline's `nextflow.config`:
+Enable it in the pipeline's `nextflow.config`. Archiving runs during a normal `nextflow run`, so the pipeline must **load the plugin** — the `diff.archive.*` settings alone do nothing unless `nf-diff` is an active plugin for that run. Declare it in the `plugins` block (or pass `-plugins nf-diff@<version>` on the command line):
 
 ```groovy
+plugins {
+    id 'nf-diff@0.9.0'   // required so the end-of-run archive observer is loaded
+}
+
 diff {
     archive {
         enabled = true          // off by default — nothing is archived unless this is true
@@ -180,6 +184,8 @@ diff {
     }
 }
 ```
+
+> The bare-id caveat for the `nextflow plugin nf-diff:diff` CLI verb does **not** apply here: in a `plugins` block you pin an explicit version (`nf-diff@<version>`), exactly like any other Nextflow plugin.
 
 - **`enabled`** — When `false` (the default) the observer is never registered and nothing happens at the end of a run. Existing users see no behaviour change.
 - **`mode`** — `'lightweight'` stores only run-level metadata and per-task trace fields (enough for the summary, performance, and resource layers). `'complete'` additionally copies each task's output files and `.command.out`/`.command.err`/`.command.log` into the archive, so the output- and log-diff layers keep working after the work directories are deleted. Staged **input** symlinks are intentionally *not* copied, to avoid dragging large upstream inputs into the archive.
