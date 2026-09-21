@@ -1,6 +1,8 @@
 # Gradle
 .gradle
 build
+# Eclipse/IDE compiled-output dir (Gradle's `eclipse`/buildship layout)
+bin
 
 # Nextflow
 .nextflow*
