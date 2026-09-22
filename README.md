@@ -1,5 +1,6 @@
 # nf-diff
 
+[![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A525.04.0-brightgreen.svg)](https://www.nextflow.io/)
 [![CI](https://github.com/mribeirodantas/nf-diff/actions/workflows/ci.yml/badge.svg)](https://github.com/mribeirodantas/nf-diff/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/mribeirodantas/nf-diff?sort=semver&label=release)](https://github.com/mribeirodantas/nf-diff/releases/latest)
 [![License](https://img.shields.io/github/license/mribeirodantas/nf-diff)](LICENSE)
