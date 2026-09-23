@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CI: pipeline logs are uploaded as a downloadable artifact when the nf-diff
+  dogfood workflow fails.** On failure, the workflow now collects the top-level
+  `.nextflow.log` and each task's `.command.log`/`.command.err`/`.command.out`
+  (flattened with the work-dir hash in the filename) and uploads them as the
+  `pipeline-logs-<run_id>` artifact (14-day retention), making failed PR-diff
+  runs easier to debug.
+
 ## [0.9.1] - 2026-09-21
 
 ### Fixed

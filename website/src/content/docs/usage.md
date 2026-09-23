@@ -403,6 +403,93 @@ jobs:
 
 ---
 
+### Collecting pipeline logs on failure
+
+`nf-diff` inspects a run after the fact — it does not run your pipeline. If one
+of the `nextflow run` steps (or the diff itself) fails, the most useful
+artifacts for debugging are Nextflow's own logs. Add these steps to your
+PR-diff workflow (adjust the working directory to wherever your pipeline runs)
+so that, **on failure only**, the top-level `.nextflow.log` and every task's
+`.command.log`/`.command.err`/`.command.out` are gathered and uploaded as a
+downloadable artifact, and a sticky PR comment links straight to it:
+
+```yaml
+      # On failure, collect logs and upload as a downloadable artifact
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          mkdir -p pipeline-logs
+          # Top-level Nextflow log
+          cp -f .nextflow.log pipeline-logs/ 2>/dev/null || true
+          # Per-task command logs, flattened with the work hash in the filename
+          find work -type f \( -name '.command.log' -o -name '.command.err' -o -name '.command.out' \) 2>/dev/null | while read -r f; do
+            hash=$(basename "$(dirname "$f")")
+            cp -f "$f" "pipeline-logs/${hash}_$(basename "$f")"
+          done
+
+      - name: Upload logs artifact
+        if: failure()
+        id: upload-logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-logs-${{ github.run_id }}
+          path: pipeline-logs
+          if-no-files-found: warn
+          retention-days: 14
+
+      # On failure, post/update a sticky PR comment linking to the logs
+      - name: Comment on PR with failure logs link
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const artifactUrl = `${{ steps.upload-logs.outputs.artifact-url }}`;
+            const marker = '<!-- nf-diff-failure -->';
+            const body = [
+              marker,
+              '### ❌ nf-diff pipeline run failed',
+              '',
+              'The pipeline run on this PR did not complete, so no baseline diff could be produced.',
+              '',
+              `📦 **Logs:** \`pipeline-logs-${context.runId}\`` +
+                (artifactUrl ? ` — [download](${artifactUrl})` : ''),
+              `🔎 **Run summary:** [view logs & artifacts](${runUrl})`,
+            ].join('\n');
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+```
+
+All three steps are guarded by `if: failure()`, so they add nothing to green
+runs. The upload step carries `id: upload-logs` so the comment step can link to
+the artifact via `steps.upload-logs.outputs.artifact-url`. The task logs are
+flattened with the work-dir hash prefixed to each filename so they stay distinct
+once collected into a single directory. If your pipeline runs in a subdirectory
+(as in this repo's own dogfood workflow, which runs in `demo/`), set
+`working-directory:` on the collect step and point the upload `path:` at that
+subdirectory (e.g. `demo/pipeline-logs`).
+
+---
+
 ### Inputs
 
 | Input | Default | Description |
