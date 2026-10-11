@@ -115,7 +115,7 @@
 <tbody>
 <tr>
 <td><code dir="auto">-l</code>, <code dir="auto">--last[=N|A:B]</code></td>
-<td>Compare recent runs from history. Bare <code dir="auto">--last</code> compares the two most recent runs. <code dir="auto">--last=N</code> compares the run <em>N</em> positions before the latest (A) against the latest (B) — note this <strong>skips</strong> the runs in between. Use the explicit <code dir="auto">--last=A:B</code> form to name an exact pair by their offsets back from the latest (<code dir="auto">0</code> = latest, <code dir="auto">A &gt; B &gt;= 0</code>); e.g. <code dir="auto">--last=2:1</code> compares the run two back against the run one back. Cannot be combined with explicit run identifiers.</td>
+<td>Compare recent runs from history. Bare <code dir="auto">--last</code> compares the two most recent runs. <code dir="auto">--last=N</code> compares the run <em>N</em> positions before the latest (A) against the latest (B) — note this <strong>skips</strong> the runs in between. Use the explicit <code dir="auto">--last=A:B</code> form to name an exact pair by their offsets back from the latest (<code dir="auto">0</code> = latest, <code dir="auto">A &gt; B &gt;= 0</code>); e.g. <code dir="auto">--last=2:1</code> compares the run two back against the run one back. Offsets count <strong>finished</strong> runs only: runs still in progress or killed (no <code dir="auto">OK</code>/<code dir="auto">ERR</code> status in history) are skipped. Cannot be combined with explicit run identifiers.</td>
 </tr>
 <tr>
 <td><code dir="auto">--format=&lt;fmt&gt;</code></td>
