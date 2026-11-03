@@ -18,7 +18,8 @@ package io.seqera.nf.diff
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
-import nextflow.cli.PluginAbstractExec
+import nextflow.cli.Launcher
+import nextflow.cli.PluginExecAware
 import nextflow.plugin.BasePlugin
 import org.pf4j.PluginWrapper
 
@@ -38,18 +39,52 @@ import org.pf4j.PluginWrapper
  */
 @Slf4j
 @CompileStatic
-class DiffPlugin extends BasePlugin implements PluginAbstractExec {
+class DiffPlugin extends BasePlugin implements PluginExecAware {
 
     DiffPlugin(PluginWrapper wrapper) {
         super(wrapper)
     }
 
-    @Override
+    /*
+     * Launcher entry points.
+     *
+     * We implement PluginExecAware directly instead of the PluginAbstractExec
+     * trait. A Groovy trait's methods are woven into this class at *compile*
+     * time, so the binary only carried the entry-point signature of the
+     * Nextflow version it was built against (25.04). Nextflow 26.10 changed
+     * the launcher contract from
+     *     exec(Launcher, String, String, List)            // 25.04 – 26.04
+     * to
+     *     exec(String, String, List[, Map])               // 26.10+
+     * and re-declared the new methods abstract in the trait, so a 25.04-built
+     * plugin failed on 26.10 with "does not define or inherit an
+     * implementation of the resolved method 'int exec(String, String, List,
+     * Map)'". Declaring every known signature explicitly here keeps one
+     * binary working across all supported Nextflow lines; the JVM simply
+     * ignores the overloads an older/newer interface doesn't declare.
+     * (The trait also built a nextflow.Session we never used.)
+     */
+
+    // Nextflow 25.04 – 26.04. No @Override on any overload, so the class
+    // compiles against every supported line (CI builds with NXF_VER=26.x).
+    int exec(Launcher launcher, String pluginId, String cmd, List<String> args) {
+        return exec(cmd, args)
+    }
+
+    // Nextflow 26.10+ (abstract in PluginExecAware)
+    int exec(String pluginId, String cmd, List<String> args) {
+        return exec(cmd, args)
+    }
+
+    // Nextflow 26.10+ (invoked by CmdPlugin; config map is not needed)
+    int exec(String pluginId, String cmd, List<String> args, Map config) {
+        return exec(cmd, args)
+    }
+
     List<String> getCommands() {
         return ['diff']
     }
 
-    @Override
     int exec(String cmd, List<String> args) {
         final code = dispatch(cmd, args)
         // The `nextflow plugin <id>:<cmd>` launcher (CmdPlugin) runs on

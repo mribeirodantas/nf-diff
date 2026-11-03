@@ -20,6 +20,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
+import groovy.transform.CompileDynamic
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.cli.CliOptions
@@ -85,20 +86,55 @@ class ConfigLoader {
         final builder = new ConfigBuilder()
                 .setShowClosures(true)
                 .setStripSecrets(true)
-                .setOptions(cliOpts)
-                .setCmdRun(run)
-                .setBaseDir(projectDir)
-                .setCurrentDir(dir)
+        final cmdConfig = cliConfigTarget(builder)
+        configureCli(cmdConfig, cliOpts, run, projectDir, dir, userConfigs)
+        // After configureCli: on 26.10+ the adapter's setCmdRun copies the
+        // (unset) CmdRun profile onto the builder.
         if( profile )
             builder.setProfile(profile)
-        if( userConfigs )
-            builder.setUserConfigFiles(userConfigs)
         applyCliParams(builder, paramsTree(params))
 
-        final resolved = builder.buildConfigObject()
+        final resolved = buildConfigObject(cmdConfig)
         final out = new TreeMap<String,String>()
         flatten('', resolved, out)
         return out
+    }
+
+    /** Introduced in Nextflow 26.10, which moved the CLI-facing ConfigBuilder API onto it. */
+    private static final String CONFIG_CMD_ADAPTER = 'nextflow.config.ConfigCmdAdapter'
+
+    /**
+     * The object that owns the CLI-facing config API ({@code setOptions},
+     * {@code setCmdRun}, {@code setBaseDir}, {@code setCurrentDir},
+     * {@code setUserConfigFiles}, {@code buildConfigObject}). Up to 26.04 that
+     * is {@link ConfigBuilder} itself; from 26.10 those methods were removed
+     * from ConfigBuilder and live on {@code ConfigCmdAdapter}, which wraps the
+     * builder. The plugin is compiled against the 25.04 floor, so the adapter
+     * is located reflectively and the calls are dispatched dynamically.
+     */
+    private static Object cliConfigTarget(ConfigBuilder builder) {
+        try {
+            final clazz = Class.forName(CONFIG_CMD_ADAPTER, true, ConfigBuilder.classLoader)
+            return clazz.getConstructor(ConfigBuilder).newInstance(builder)
+        }
+        catch( ClassNotFoundException ignored ) {
+            return builder
+        }
+    }
+
+    @CompileDynamic
+    private static void configureCli(Object target, CliOptions cliOpts, CmdRun run, Path projectDir, Path currentDir, List<Path> userConfigs) {
+        target.setOptions(cliOpts)
+        target.setCmdRun(run)
+        target.setBaseDir(projectDir)
+        target.setCurrentDir(currentDir)
+        if( userConfigs )
+            target.setUserConfigFiles(userConfigs)
+    }
+
+    @CompileDynamic
+    private static Object buildConfigObject(Object target) {
+        return target.buildConfigObject()
     }
 
     /** Nextflow 26.x reads params only via setCliParams (absent in 25.04, which reads CmdRun.params). */
