@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.6] - 2026-11-03
+
+### Fixed
+
+- **`nextflow plugin nf-diff:diff` works again on Nextflow 26.10.** Nextflow
+  26.10 changed the plugin-command entry point from
+  `exec(Launcher, String, String, List)` to `exec(String, String, List[, Map])`,
+  so 0.9.5 failed immediately with *"Receiver class
+  io.seqera.nf.diff.DiffPlugin does not define or inherit an implementation of
+  the resolved method 'int exec(java.lang.String, java.lang.String,
+  java.util.List, java.util.Map)'"*. `DiffPlugin` now implements
+  `PluginExecAware` directly, declaring every signature instead of relying on
+  the `PluginAbstractExec` trait (whose methods are fixed at compile time), so
+  one build runs on 25.04 through 26.10.
+- **The configuration layer resolves on Nextflow 26.10.** 26.10 moved
+  `setOptions`/`setCmdRun`/`setUserConfigFiles`/`buildConfigObject` from
+  `ConfigBuilder` to the new `ConfigCmdAdapter`. Without this fix, `diff` failed
+  with *"ConfigBuilder.setOptions(nextflow.cli.CliOptions)"*. The adapter is
+  now used when present, with a fallback to `ConfigBuilder` on older lines.
+
 ## [0.9.5] - 2026-10-11
 
 ### Fixed
