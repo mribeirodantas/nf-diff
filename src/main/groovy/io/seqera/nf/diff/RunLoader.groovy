@@ -128,6 +128,10 @@ class RunLoader {
 
         snapshot.tasks = loadTasks(record.sessionId, record.runName)
         populateEnvironment(snapshot)
+        // No lineage record: recover the Nextflow version from the rotated
+        // .nextflow.log* files, which only cover the ten most recent runs.
+        if( !snapshot.nextflowVersion )
+            populateVersionFromLogs(snapshot)
         // Fall back to the recorded command's positional project argument when
         // the lineage store did not supply a pipeline name (no .lineage/ store).
         if( !snapshot.pipeline )
@@ -177,6 +181,19 @@ class RunLoader {
         snapshot.containerEngine = env.containerEngine
         snapshot.waveEnabled     = env.waveEnabled
         snapshot.fusionEnabled   = env.fusionEnabled
+    }
+
+    /**
+     * Fill {@code nextflowVersion}/{@code nextflowBuild} from the launch
+     * directory's {@code .nextflow.log*} files. Best-effort: leaves the fields
+     * null when no log matches the run's session id and run name.
+     */
+    private void populateVersionFromLogs(RunSnapshot snapshot) {
+        final info = new NextflowLogReader(nextflowDir.getParent()).versionFor(snapshot.sessionId, snapshot.runName)
+        if( info == null )
+            return
+        snapshot.nextflowVersion = info.version
+        snapshot.nextflowBuild   = info.build
     }
 
     /**

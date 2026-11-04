@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Nextflow version is compared even without a lineage store.** When a run
+  has no `.lineage/` record, the Nextflow version and build are now recovered
+  from the launch directory's rotated `.nextflow.log*` files, matched on both
+  session id and run name so `-resume` runs stay distinct. Nextflow keeps only
+  the ten most recent logs, so older runs still show no version row.
+
 ## [0.9.6] - 2026-11-03
 
 ### Fixed

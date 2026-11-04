@@ -116,8 +116,8 @@ class HtmlReportRenderer {
     private String runChip(RunSnapshot run, String side) {
         final status = (run.status ?: 'UNKNOWN').toUpperCase()
         final statusClass = isSucceeded(status) ? 'ok' : (isFailed(status) ? 'err' : 'unknown')
-        // Nextflow version is only known when the run has a .lineage/ store;
-        // omit the row rather than show a placeholder when it wasn't recorded.
+        // Nextflow version comes from the .lineage/ store or the .nextflow.log*
+        // fallback; omit the row rather than show a placeholder when unknown.
         final details = new StringBuilder()
         if( run.pipeline ) {
             // Name on the first line; when the lineage store recorded the main
@@ -385,7 +385,7 @@ ${recNote}  </div>
             sb << fieldRow(fd, diff.showObvious)
         }
         sb << '  </tbody>\n  </table>\n'
-        sb << '  <p class="mode-note">The <em>Nextflow version</em>, <em>build</em> and runtime environment (<em>container engine</em>, <em>Wave</em>, <em>Fusion</em>) rows are read from each run\'s data-lineage store (<code>lineage.enabled=true</code>, Nextflow 25.04+) and appear only when a run recorded one. Per-run <em>plugin</em> versions are not shown: Nextflow does not persist them in the lineage store, the history file, or the task cache, so they cannot be compared.</p>\n'
+        sb << '  <p class="mode-note">The <em>Nextflow version</em>, <em>build</em> and runtime environment (<em>container engine</em>, <em>Wave</em>, <em>Fusion</em>) rows are read from each run\'s data-lineage store (<code>lineage.enabled=true</code>, Nextflow 25.04+) and appear only when a run recorded one. Without a lineage store, the Nextflow version and build are recovered from the launch directory\'s <code>.nextflow.log*</code> files, which Nextflow keeps for the ten most recent runs only. Per-run <em>plugin</em> versions are not shown: Nextflow does not persist them in the lineage store, the history file, or the task cache, so they cannot be compared.</p>\n'
         sb << '</section>\n'
     }
 
