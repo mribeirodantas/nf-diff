@@ -176,7 +176,7 @@ Enable it in the pipeline's `nextflow.config`. Archiving runs during a normal `n
 
 ```groovy
 plugins {
-    id 'nf-diff@0.9.6'   // required so the end-of-run archive observer is loaded
+    id 'nf-diff@0.9.7'   // required so the end-of-run archive observer is loaded
 }
 
 diff {
