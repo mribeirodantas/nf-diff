@@ -61,6 +61,23 @@ class TaskInfo {
         return tag ? "${process} (${tag})".toString() : (process ?: hash)
     }
 
+    /**
+     * A copy of this task under process name {@code newProcess}. A task name
+     * that starts with the old process name gets that prefix replaced; the
+     * display and raw maps are shared, not copied.
+     */
+    TaskInfo renamedTo(String newProcess) {
+        final newName = (name && process && name.startsWith(process))
+                ? newProcess + name.substring(process.length())
+                : name
+        return new TaskInfo(
+                hash: hash, process: newProcess, name: newName, tag: tag,
+                status: status, exit: exit, container: container, script: script,
+                workdir: workdir, cached: cached,
+                durationMillis: durationMillis, realtimeMillis: realtimeMillis,
+                display: display, raw: raw )
+    }
+
     /** Coerce a raw numeric field to Long, or null when absent/non-numeric. */
     Long numeric(String field) {
         final v = raw?.get(field)

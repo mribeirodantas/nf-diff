@@ -66,11 +66,20 @@ class DiffResult {
         String process
         int countA
         int countB
+        /**
+         * Run A's name for this process when it was detected as renamed
+         * ({@link ProcessRenameDetector}); {@code process} is run B's name.
+         */
+        String renamedFrom
+        /** Why the rename was inferred, strongest reason first. */
+        List<String> renameEvidence = []
 
         boolean isAdded()    { countA == 0 && countB > 0 }
         boolean isRemoved()  { countA > 0 && countB == 0 }
+        boolean isRenamed()  { renamedFrom != null }
         boolean isChanged()  { countA != countB && countA > 0 && countB > 0 }
-        boolean isUnchanged(){ countA == countB }
+        /** A rename is a pipeline change, so a renamed process is never unchanged. */
+        boolean isUnchanged(){ countA == countB && !isRenamed() }
     }
 
     /**
@@ -689,6 +698,9 @@ class DiffResult {
     ConfigProvenance configProvenance
     List<ProcessDiff> processes = []
     List<TaskDiff> tasks = []
+
+    /** Number of processes detected as renamed between the runs. */
+    int processesRenamed() { processes.count { ProcessDiff p -> p.isRenamed() } as int }
 
     /**
      * Per-process software environment (container image + conda spec) diff.

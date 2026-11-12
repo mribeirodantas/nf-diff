@@ -9,11 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Renamed processes are matched instead of shown as removed + added.** When
+  a process exists only in run A and another only in run B (e.g. `EXAMPLEFOO`
+  → `EXAMPLE_FOO`), nf-diff now compares what they ran — task scripts, tags,
+  task count, container/Conda environment and name similarity — and reports
+  a match as one *renamed* process, with the evidence. Its tasks are then
+  compared field by field across the rename in every layer.
+
 - **Nextflow version is compared even without a lineage store.** When a run
   has no `.lineage/` record, the Nextflow version and build are now recovered
   from the launch directory's rotated `.nextflow.log*` files, matched on both
   session id and run name so `-resume` runs stay distinct. Nextflow keeps only
   the ten most recent logs, so older runs still show no version row.
+
+### Fixed
+
+- **Sub-second tasks no longer show as `+∞%` runtime regressions.** Nextflow
+  times tasks with the container's `date`; in BusyBox-based images (many
+  biocontainers) that has whole-second resolution, so a sub-second task records
+  a `realtime` of `0` and any later non-zero reading looked like an infinite
+  slowdown. A `realtime` change must now also be at least 1 s to be flagged.
 
 ## [0.9.6] - 2026-11-03
 

@@ -56,8 +56,13 @@ jobs:
           # `nf-diff` id from this repo instead of the public registry.
           echo "NXF_PLUGINS_TEST_REPOSITORY=file://${GITHUB_WORKSPACE}/build/plugin-repo/plugins.json" >> "$GITHUB_ENV"
           # Nextflow reuses an already-extracted plugin of the same version, so
-          # drop any copy (e.g. from a cached home) to force the local build.
-          rm -rf "${NXF_HOME:-$HOME/.nextflow}/plugins/nf-diff-"*
+          # replace any copy (e.g. from a cached home) with this build, extracted
+          # in place. The test repository alone is not enough: when this version
+          # is also published, Nextflow can install the registry copy instead.
+          plugins_dir="${NXF_HOME:-$HOME/.nextflow}/plugins"
+          rm -rf "${plugins_dir}/nf-diff-"*
+          mkdir -p "${plugins_dir}/nf-diff-${version}"
+          unzip -q "build/distributions/nf-diff-${version}.zip" -d "${plugins_dir}/nf-diff-${version}"
           echo "Built nf-diff ${version} from $(git rev-parse --short HEAD)"
 
       - name: Produce two demo runs

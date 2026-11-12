@@ -71,6 +71,7 @@ class JsonReportRenderer {
                         resolvedFailures: diff.resolvedFailureCount(),
                         dagEdgesAdded   : diff.dagEdgesAdded(),
                         dagEdgesRemoved : diff.dagEdgesRemoved(),
+                processesRenamed: diff.processesRenamed(),
                 ],
                 metadata   : diff.metadata.collect { fieldModel(it, diff.showObvious) },
                 params     : diff.params.collect { fieldModel(it, diff.showObvious) },
@@ -261,6 +262,8 @@ class JsonReportRenderer {
                 countA : pd.countA,
                 countB : pd.countB,
                 status : processStatus(pd),
+                renamedFrom   : pd.renamedFrom,
+                renameEvidence: pd.renameEvidence,
         ] as Map<String,Object>
     }
 
@@ -332,6 +335,7 @@ class JsonReportRenderer {
     private static String processStatus(ProcessDiff pd) {
         if( pd.added )   return 'added'
         if( pd.removed ) return 'removed'
+        if( pd.renamed ) return 'renamed'
         if( pd.changed ) return 'changed'
         return 'unchanged'
     }
