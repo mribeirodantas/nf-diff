@@ -19,6 +19,7 @@ package io.seqera.nf.diff
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
+import java.util.zip.GZIPInputStream
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
@@ -45,6 +46,15 @@ import io.seqera.nf.diff.DiffResult.OutputFileDiff
  * (<em>which</em> files count as comparable) stays with each caller, because a
  * work directory (skip control files and staged input symlinks) and a published
  * tree (follow symlinks, keep everything) enumerate differently.
+ *
+ * <p>Gzip files (detected by their magic bytes, so {@code .gz}, {@code .bgz}
+ * and BGZF files such as {@code .vcf.gz} all qualify) are compared by their
+ * <em>decompressed</em> content when their compressed bytes differ. Plain
+ * {@code gzip} writes a timestamp and file name into its header, so two runs
+ * that produced identical data would otherwise show as changed. A changed
+ * gzip file whose content is text is line-diffed on its decompressed text.
+ * When {@code maxBytes} is set, a gzip file larger than it keeps the raw-byte
+ * comparison, so the cap also bounds decompression work.
  *
  * <p>Everything is read-only local I/O — no task is ever re-executed.
  */
@@ -104,6 +114,12 @@ class FileContentComparator {
             fd.kind = Kind.REMOVED
             return fd
         }
+        if( isGzipPair(fileA, sizeA, fileB, sizeB) ) {
+            final gz = compareGzip(fd, fileA, sizeA, fileB, sizeB)
+            if( gz != null )
+                return gz
+            // Decompression failed (corrupt or truncated): fall back to raw bytes.
+        }
         if( sizeA != sizeB ) {
             // Different sizes are conclusively different; no need to hash.
             fd.kind = Kind.CHANGED
@@ -139,14 +155,111 @@ class FileContentComparator {
     }
 
     /**
+     * True when both files are gzip streams worth decompressing: both start
+     * with the gzip magic bytes and neither exceeds {@link #maxBytes} (when set).
+     */
+    private boolean isGzipPair(Path fileA, Long sizeA, Path fileB, Long sizeB) {
+        if( maxBytes > 0 && (sizeA > maxBytes || sizeB > maxBytes) )
+            return false
+        return isGzip(fileA) && isGzip(fileB)
+    }
+
+    /** Whether {@code file} starts with the gzip magic bytes {@code 1f 8b}. */
+    static boolean isGzip(Path file) {
+        try {
+            file.newInputStream().withCloseable { InputStream is ->
+                return is.read() == 0x1f && is.read() == 0x8b
+            }
+        }
+        catch( Exception ignored ) {
+            return false
+        }
+    }
+
+    /**
+     * Classify a gzip pair by decompressed content. Byte-identical files short
+     * circuit on their raw hash. Returns null when either side cannot be
+     * decompressed, so the caller falls back to the raw-byte comparison.
+     */
+    private OutputFileDiff compareGzip(OutputFileDiff fd, Path fileA, Long sizeA, Path fileB, Long sizeB) {
+        if( sizeA == sizeB ) {
+            final fullA = sha256(fileA)
+            final fullB = sha256(fileB)
+            if( fullA != null && fullA == fullB ) {
+                fd.hashA = shortHash(fullA)
+                fd.hashB = shortHash(fullB)
+                fd.kind = Kind.UNCHANGED
+                return fd
+            }
+        }
+        final same = sameDecompressed(fileA, fileB)
+        if( same == null )
+            return null
+        fd.decompressed = true
+        if( same ) {
+            fd.kind = Kind.UNCHANGED
+            fd.note = 'gzip: compressed bytes differ, decompressed content is identical'
+            return fd
+        }
+        fd.kind = Kind.CHANGED
+        fd.note = 'gzip: decompressed content differs'
+        attachLineDiff(fd, fileA, fileB, true)
+        return fd
+    }
+
+    /**
+     * Stream both files' decompressed content side by side, stopping at the
+     * first difference. Returns null when either cannot be decompressed.
+     */
+    private static Boolean sameDecompressed(Path fileA, Path fileB) {
+        try {
+            return gunzip(fileA).withCloseable { InputStream a ->
+                gunzip(fileB).withCloseable { InputStream b ->
+                    final bufA = new byte[64 * 1024]
+                    final bufB = new byte[64 * 1024]
+                    while( true ) {
+                        final n = readFully(a, bufA)
+                        final m = readFully(b, bufB)
+                        if( n != m )
+                            return false
+                        if( n == 0 )
+                            return true
+                        if( !Arrays.equals(bufA, 0, n, bufB, 0, m) )
+                            return false
+                    }
+                }
+            } as Boolean
+        }
+        catch( Exception e ) {
+            log.debug "nf-diff: could not decompress '${fileA}' / '${fileB}': ${e.message}"
+            return null
+        }
+    }
+
+    /** Decompressing stream over a gzip file; handles multi-member (BGZF) files. */
+    private static InputStream gunzip(Path file) {
+        return new GZIPInputStream(new BufferedInputStream(file.newInputStream(), 64 * 1024), 64 * 1024)
+    }
+
+    /** Fill {@code buf} as far as the stream allows; returns the bytes read (0 at EOF). */
+    private static int readFully(InputStream is, byte[] buf) {
+        int off = 0
+        int n
+        while( off < buf.length && (n = is.read(buf, off, buf.length - off)) != -1 )
+            off += n
+        return off
+    }
+
+    /**
      * For a changed file that is text on both sides, compute a bounded
      * line-level diff and attach it to {@code fd}. Binary files (a NUL byte in
      * the head) and unreadable files are left with no ops, so the file is still
-     * reported as changed but without a line-by-line view.
+     * reported as changed but without a line-by-line view. With {@code gzip},
+     * the decompressed content is read.
      */
-    private void attachLineDiff(OutputFileDiff fd, Path fileA, Path fileB) {
-        final ta = readText(fileA)
-        final tb = readText(fileB)
+    private void attachLineDiff(OutputFileDiff fd, Path fileA, Path fileB, boolean gzip = false) {
+        final ta = readText(fileA, gzip)
+        final tb = readText(fileB, gzip)
         if( ta == null || tb == null || ta.binary || tb.binary )
             return
         fd.truncatedA = ta.truncated
@@ -174,23 +287,23 @@ class FileContentComparator {
      * {@code truncated} is set when either cap dropped content. Returns null
      * only when the file cannot be read at all.
      */
-    private TextRead readText(Path file) {
+    private TextRead readText(Path file, boolean gzip = false) {
         try {
-            final size = Files.size(file)
             boolean bytesDropped = false
             byte[] bytes
-            if( size <= MAX_READ_BYTES ) {
+            if( !gzip && Files.size(file) <= MAX_READ_BYTES ) {
                 bytes = Files.readAllBytes(file)
             }
             else {
-                bytesDropped = true
-                bytes = new byte[(int) MAX_READ_BYTES]
-                file.newInputStream().withCloseable { InputStream is ->
-                    int off = 0
-                    int n
-                    while( off < bytes.length && (n = is.read(bytes, off, bytes.length - off)) != -1 )
-                        off += n
+                // Read at most MAX_READ_BYTES (decompressed, for gzip); one more
+                // byte tells whether anything was left behind.
+                final buf = new byte[(int) MAX_READ_BYTES]
+                int len = 0
+                (gzip ? gunzip(file) : file.newInputStream()).withCloseable { InputStream is ->
+                    len = readFully(is, buf)
+                    bytesDropped = len == buf.length && is.read() != -1
                 }
+                bytes = len == buf.length ? buf : Arrays.copyOf(buf, len)
             }
 
             // Binary sniff: a NUL byte in the head window means don't line-diff.

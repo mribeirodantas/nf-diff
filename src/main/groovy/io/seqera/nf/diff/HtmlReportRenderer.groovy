@@ -753,7 +753,7 @@ ${recNote}  </div>
             sb << '      <table class="kv diff-table"><thead><tr><th>File</th><th>Run A</th><th>Run B</th></tr></thead><tbody>\n'
             od.files.findAll { it.kind != Kind.UNCHANGED }.each { DiffResult.OutputFileDiff f ->
                 final label = f.kind.name().toLowerCase()
-                sb << "        <tr class=\"row-changed\"><th class=\"mono\">${esc(f.path)} <span class=\"pill ${label}\">${label}</span></th>"
+                sb << "        <tr class=\"row-changed\"><th class=\"mono\">${esc(f.path)} <span class=\"pill ${label}\">${label}</span>${f.decompressed ? ' <span class=\"tag-auto\" title=\"Both files are gzip; compared by decompressed content\">gunzipped</span>' : ''}</th>"
                 sb << "<td>${esc(sizeCell(f.sizeA, f.hashA))}</td>"
                 sb << "<td>${esc(sizeCell(f.sizeB, f.hashB))}</td></tr>\n"
             }
@@ -800,7 +800,7 @@ ${recNote}  </div>
         sb << '      <table class="kv diff-table"><thead><tr><th>File</th><th>Run A</th><th>Run B</th></tr></thead><tbody>\n'
         changed.each { DiffResult.OutputFileDiff f ->
             final label = f.kind.name().toLowerCase()
-            sb << "        <tr class=\"row-changed\"><th class=\"mono\">${esc(f.path)} <span class=\"pill ${label}\">${label}</span></th>"
+            sb << "        <tr class=\"row-changed\"><th class=\"mono\">${esc(f.path)} <span class=\"pill ${label}\">${label}</span>${f.decompressed ? ' <span class=\"tag-auto\" title=\"Both files are gzip; compared by decompressed content\">gunzipped</span>' : ''}</th>"
             sb << "<td>${esc(sizeCell(f.sizeA, f.hashA))}</td>"
             sb << "<td>${esc(sizeCell(f.sizeB, f.hashB))}</td></tr>\n"
         }

@@ -286,7 +286,7 @@ class MarkdownReportRenderer {
             sb << '| File | Run A | Run B | Status |\n'
             sb << '|---|---|---|---|\n'
             od.files.findAll { it.kind != DiffResult.Kind.UNCHANGED }.each { DiffResult.OutputFileDiff f ->
-                sb << "| ${cell(f.path)} | ${cell(sizeCell(f.sizeA))} | ${cell(sizeCell(f.sizeB))} | ${f.kind.name().toLowerCase()} |\n"
+                sb << "| ${cell(f.path)} | ${cell(sizeCell(f.sizeA))} | ${cell(sizeCell(f.sizeB))} | ${f.kind.name().toLowerCase()}${f.decompressed ? ' (gunzipped)' : ''} |\n"
             }
             sb << '\n'
             // Line-level diff of each changed text file, below the size summary.
@@ -326,7 +326,7 @@ class MarkdownReportRenderer {
         sb << '| File | Run A | Run B | Status |\n'
         sb << '|---|---|---|---|\n'
         changed.each { DiffResult.OutputFileDiff f ->
-            sb << "| ${cell(f.path)} | ${cell(sizeCell(f.sizeA))} | ${cell(sizeCell(f.sizeB))} | ${f.kind.name().toLowerCase()} |\n"
+            sb << "| ${cell(f.path)} | ${cell(sizeCell(f.sizeA))} | ${cell(sizeCell(f.sizeB))} | ${f.kind.name().toLowerCase()}${f.decompressed ? ' (gunzipped)' : ''} |\n"
         }
         sb << '\n'
         // Line-level diff of each changed text file, below the size summary.
