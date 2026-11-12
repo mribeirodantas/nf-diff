@@ -64,8 +64,8 @@ class InputComparator {
 
     private final FileContentComparator engine
 
-    InputComparator(long maxBytes = 0L, int maxLines = FileContentComparator.DEFAULT_MAX_LINES) {
-        this.engine = new FileContentComparator(maxBytes, maxLines)
+    InputComparator(long maxBytes = 0L, int maxLines = FileContentComparator.DEFAULT_MAX_LINES, double numericTolerance = 0.0d) {
+        this.engine = new FileContentComparator(maxBytes, maxLines, numericTolerance)
     }
 
     /** One staged input resolved to its real file. */

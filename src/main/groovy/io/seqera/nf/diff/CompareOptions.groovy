@@ -74,6 +74,13 @@ class CompareOptions {
      */
     List<String> outputsIgnore = []
 
+    /**
+     * Numeric tolerance for text files in the outputs, published and inputs
+     * layers ({@code --numeric-tolerance}); {@code 0} compares exactly. See
+     * {@link NumericTolerance}.
+     */
+    double numericTolerance = 0.0d
+
     /** When true, compare the standard log files each matched task wrote. */
     boolean diffLogs = false
 

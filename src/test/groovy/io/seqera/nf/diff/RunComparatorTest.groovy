@@ -1278,4 +1278,27 @@ class RunComparatorTest extends Specification {
         ignoring.outputs[0].ignoredFiles == ['report.html']
         ignoring.outputsNote.contains('1 file(s) matching --outputs-ignore (`*.html`) were skipped')
     }
+
+    def '--numeric-tolerance lets floating-point noise in outputs through and says so'() {
+        given:
+        def mk = { String run, String value ->
+            def dir = java.nio.file.Files.createDirectories(projectDir.resolve("tol-${run}".toString()))
+            java.nio.file.Files.write(dir.resolve('stats.tsv'), "mean\t${value}\n".toString().bytes)
+            def t = task(process: 'STATS', name: 'STATS (1)', hash: 'h', display: [status: 'COMPLETED'])
+            t.workdir = dir.toString()
+            snap(run, [t])
+        }
+        def a = mk('A', '0.30000000000000004')
+        def b = mk('B', '0.3')
+
+        when:
+        def exact = new RunComparator(new CompareOptions(diffOutputs: true)).compare(a, b)
+        def tolerant = new RunComparator(new CompareOptions(diffOutputs: true, numericTolerance: 1e-9d)).compare(a, b)
+
+        then:
+        !exact.identical
+        tolerant.identical
+        tolerant.outputs[0].files[0].withinTolerance
+        tolerant.outputsNote.contains('compared with --numeric-tolerance=1.0E-9; 1 file(s) differed only within it')
+    }
 }

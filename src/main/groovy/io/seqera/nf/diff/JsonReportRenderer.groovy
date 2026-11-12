@@ -197,6 +197,7 @@ class JsonReportRenderer {
         if( f.hashB != null ) model.hashB = f.hashB
         if( f.note != null )  model.note = f.note
         if( f.decompressed )  model.decompressed = true
+        if( f.withinTolerance ) model.withinTolerance = true
         if( f.hasLineDiff() ) {
             model.linesAdded   = f.linesAdded()
             model.linesRemoved = f.linesRemoved()

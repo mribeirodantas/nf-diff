@@ -189,6 +189,9 @@ class RunComparator {
     /** Output/published paths left out of the comparison ({@code --outputs-ignore}). */
     private final OutputIgnore outputsIgnore
 
+    /** Tolerance for numbers in text files ({@code --numeric-tolerance}); 0 = exact. */
+    private final double numericTolerance
+
     /** When true, compare the standard log files each matched task wrote. */
     private final boolean diffLogs
 
@@ -226,6 +229,7 @@ class RunComparator {
         this.logsMaxLines = opts.logsMaxLines
         this.outputsMaxLines = opts.outputsMaxLines
         this.outputsIgnore = OutputIgnore.of(opts.outputsIgnore)
+        this.numericTolerance = opts.numericTolerance
         this.diffDag = opts.diffDag
         this.detectRenames = opts.detectRenames
         this.diffPublished = opts.diffPublished
@@ -385,7 +389,7 @@ class RunComparator {
             return
         result.diffPublished = true
 
-        final comparator = new PublishedComparator(outputsMaxBytes, outputsMaxLines, outputsIgnore)
+        final comparator = new PublishedComparator(outputsMaxBytes, outputsMaxLines, outputsIgnore, numericTolerance)
         final pd = comparator.compare(publishedDirA, publishedDirB)
         result.published = pd
 
@@ -401,7 +405,7 @@ class RunComparator {
                     "from ${publishedDirA} (run A) and ${publishedDirB} (run B). Changed text files are additionally " +
                     "diffed line by line (first ${outputsMaxLines} lines per file; binary files show a size/hash " +
                     "change only). Symlinks are followed, so this works whether publishDir used copy or symlink " +
-                    "mode.${capped}${ignoredNote(pd.ignoredFiles.size())}").toString()
+                    "mode.${capped}${ignoredNote(pd.ignoredFiles.size())}${toleranceNote(pd.files)}").toString()
         }
     }
 
@@ -515,7 +519,7 @@ class RunComparator {
         if( !diffInputs )
             return
         result.diffInputs = true
-        final comparator = new InputComparator(outputsMaxBytes, outputsMaxLines)
+        final comparator = new InputComparator(outputsMaxBytes, outputsMaxLines, numericTolerance)
         final matched = result.tasks.findAll { TaskDiff td -> td.a != null && td.b != null }
         result.inputs = mapMatchedInParallel(pool, matched,
                 { TaskDiff td -> comparator.compare(td.a, td.b) } as Function<TaskDiff, DiffResult.OutputDiff>)
@@ -531,7 +535,8 @@ class RunComparator {
                     "followed to the files they point at as those exist now. Inputs that resolve to the same file in " +
                     "both runs are unchanged without being read; others are compared by size, then SHA-256, and " +
                     "changed text files are diffed line by line. Inputs staged by copy are not covered." +
-                    (unavailable > 0 ? " ${unavailable} task(s) had a missing work directory and were skipped." : '')).toString()
+                    (unavailable > 0 ? " ${unavailable} task(s) had a missing work directory and were skipped." : '') +
+                    toleranceNote(result.inputs.collectMany { DiffResult.OutputDiff od -> od.files })).toString()
     }
 
     /**
@@ -549,7 +554,7 @@ class RunComparator {
         // reads final config and creates fresh locals per call, so it is safe
         // to run matched task pairs concurrently (each pair streams SHA-256 over
         // independent work dirs). Ordering follows result.tasks regardless.
-        final comparator = new OutputComparator(outputsMaxBytes, outputsMaxLines, outputsIgnore)
+        final comparator = new OutputComparator(outputsMaxBytes, outputsMaxLines, outputsIgnore, numericTolerance)
         result.outputs = mapMatchedInParallel(pool, result.tasks,
                 { TaskDiff td -> comparator.compare(td.a, td.b) } as Function<TaskDiff, DiffResult.OutputDiff>)
 
@@ -565,7 +570,17 @@ class RunComparator {
                     "work directory as it exists now. Changed text files are additionally diffed line by line " +
                     "(first ${outputsMaxLines} lines per file; binary files show a size/hash change only).${capped}" +
                     (unavailable > 0 ? " ${unavailable} task(s) had a missing work directory and were skipped." : '') +
-                    ignoredNote((int) result.outputs.sum(0) { DiffResult.OutputDiff od -> od.ignoredFiles.size() })).toString()
+                    ignoredNote((int) result.outputs.sum(0) { DiffResult.OutputDiff od -> od.ignoredFiles.size() }) +
+                    toleranceNote(result.outputs.collectMany { DiffResult.OutputDiff od -> od.files })).toString()
+    }
+
+    /** Note fragment saying a numeric tolerance is in use and how many files it let through, or empty. */
+    private String toleranceNote(List<DiffResult.OutputFileDiff> files) {
+        if( numericTolerance <= 0 )
+            return ''
+        final count = files.count { DiffResult.OutputFileDiff f -> f.withinTolerance } as int
+        return (" Numbers in text files were compared with --numeric-tolerance=${numericTolerance}; " +
+                "${count} file(s) differed only within it and count as unchanged.").toString()
     }
 
     /** Note fragment saying how many files --outputs-ignore skipped, or empty. */

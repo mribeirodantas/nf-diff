@@ -90,9 +90,17 @@ class FileContentComparator {
      */
     private final int maxLines
 
-    FileContentComparator(long maxBytes = 0L, int maxLines = DEFAULT_MAX_LINES) {
+    /**
+     * When set ({@code --numeric-tolerance}), a text file whose lines differ
+     * only in numbers within this tolerance is unchanged, and line diffs ignore
+     * such differences. Null means exact comparison.
+     */
+    private final NumericTolerance tolerance
+
+    FileContentComparator(long maxBytes = 0L, int maxLines = DEFAULT_MAX_LINES, double numericTolerance = 0.0d) {
         this.maxBytes = maxBytes
         this.maxLines = maxLines > 0 ? maxLines : DEFAULT_MAX_LINES
+        this.tolerance = NumericTolerance.of(numericTolerance)
     }
 
     /**
@@ -122,9 +130,7 @@ class FileContentComparator {
         }
         if( sizeA != sizeB ) {
             // Different sizes are conclusively different; no need to hash.
-            fd.kind = Kind.CHANGED
-            attachLineDiff(fd, fileA, fileB)
-            return fd
+            return changed(fd, fileA, fileB, false)
         }
 
         // Same size: only content hashing can tell them apart.
@@ -148,10 +154,63 @@ class FileContentComparator {
         }
         fd.hashA = shortHash(fullA)
         fd.hashB = shortHash(fullB)
-        fd.kind = (fullA == fullB) ? Kind.UNCHANGED : Kind.CHANGED
-        if( fd.kind == Kind.CHANGED )
-            attachLineDiff(fd, fileA, fileB)
+        if( fullA != fullB )
+            return changed(fd, fileA, fileB, false)
+        fd.kind = Kind.UNCHANGED
         return fd
+    }
+
+    /**
+     * Finish a file whose bytes (or decompressed bytes) differ: unchanged when
+     * a numeric tolerance is set and every line matches within it, otherwise
+     * changed with a line diff (which ignores within-tolerance differences).
+     */
+    private OutputFileDiff changed(OutputFileDiff fd, Path fileA, Path fileB, boolean gzip) {
+        if( tolerance != null && withinTolerance(fileA, fileB, gzip) ) {
+            fd.kind = Kind.UNCHANGED
+            fd.withinTolerance = true
+            fd.note = "${gzip ? 'gzip: ' : ''}differs only in numbers within tolerance ${tolerance}".toString()
+            return fd
+        }
+        fd.kind = Kind.CHANGED
+        attachLineDiff(fd, fileA, fileB, gzip)
+        return fd
+    }
+
+    /**
+     * Whether two text files have the same number of lines and every line
+     * pair matches within {@link #tolerance}. Streams both files in full
+     * (decompressed for gzip); binary content, unreadable files and files over
+     * {@link #maxBytes} (when set) never qualify.
+     */
+    private boolean withinTolerance(Path fileA, Path fileB, boolean gzip) {
+        try {
+            if( maxBytes > 0 && (Files.size(fileA) > maxBytes || Files.size(fileB) > maxBytes) )
+                return false
+            return lineReader(fileA, gzip).withCloseable { BufferedReader ra ->
+                lineReader(fileB, gzip).withCloseable { BufferedReader rb ->
+                    while( true ) {
+                        final la = ra.readLine()
+                        final lb = rb.readLine()
+                        if( la == null || lb == null )
+                            return la == null && lb == null
+                        if( la.indexOf((int) 0) >= 0 || lb.indexOf((int) 0) >= 0 )
+                            return false
+                        if( !tolerance.test(la, lb) )
+                            return false
+                    }
+                }
+            } as boolean
+        }
+        catch( Exception e ) {
+            log.debug "nf-diff: could not compare '${fileA}' / '${fileB}' with numeric tolerance: ${e.message}"
+            return false
+        }
+    }
+
+    private static BufferedReader lineReader(Path file, boolean gzip) {
+        final InputStream is = gzip ? gunzip(file) : file.newInputStream()
+        return new BufferedReader(new InputStreamReader(is, java.nio.charset.StandardCharsets.UTF_8), 64 * 1024)
     }
 
     /**
@@ -201,10 +260,8 @@ class FileContentComparator {
             fd.note = 'gzip: compressed bytes differ, decompressed content is identical'
             return fd
         }
-        fd.kind = Kind.CHANGED
         fd.note = 'gzip: decompressed content differs'
-        attachLineDiff(fd, fileA, fileB, true)
-        return fd
+        return changed(fd, fileA, fileB, true)
     }
 
     /**
@@ -264,7 +321,7 @@ class FileContentComparator {
             return
         fd.truncatedA = ta.truncated
         fd.truncatedB = tb.truncated
-        fd.ops = LineDiff.diff(ta.lines, tb.lines)
+        fd.ops = LineDiff.diff(ta.lines, tb.lines, tolerance)
     }
 
     /** Head content of a text file, or null when unreadable. */

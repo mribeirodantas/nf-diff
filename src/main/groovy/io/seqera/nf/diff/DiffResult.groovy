@@ -483,6 +483,8 @@ class DiffResult {
         String note
         /** True when both sides were gzip and were compared by decompressed content. */
         boolean decompressed
+        /** True when the file differs only in numbers within {@code --numeric-tolerance}. */
+        boolean withinTolerance
         /**
          * Line-level diff ops for a {@link Kind#CHANGED} file that was
          * recognised as text on both sides. Empty for binary files, for

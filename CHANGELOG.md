@@ -43,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--published-a`/`-b`, so they no longer fail `--fail-on-change`. Patterns
   follow `.gitignore`-style rules; the report says how many files were skipped.
 
+- **Numeric tolerance for text outputs.** `--numeric-tolerance=<x>` treats
+  numbers in changed text files as equal when `|a − b| ≤ x × max(1, |a|, |b|)`,
+  so floating-point noise (`0.30000000000000004` vs `0.3`) no longer counts as
+  a change in outputs, published results or inputs, and line diffs show only
+  real changes. Numbers inside identifiers (`chr1`) must still match exactly.
+
 ### Fixed
 
 - **The HTML report now fits phone screens.** Below 820 px wide, the content

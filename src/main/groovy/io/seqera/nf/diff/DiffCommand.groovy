@@ -118,6 +118,9 @@ class DiffCommand {
     /** File patterns left out of the outputs and published comparisons ({@code --outputs-ignore}). */
     List<String> outputsIgnore = []
 
+    /** Tolerance for numbers in text files ({@code --numeric-tolerance}); 0 compares exactly. */
+    double numericTolerance = 0.0d
+
     /** When true, compare the standard log files each matched task wrote. */
     boolean diffLogs = false
 
@@ -222,6 +225,7 @@ class DiffCommand {
         opts.outputsMaxBytes = outputsMaxBytes
         opts.outputsMaxLines = outputsMaxLines
         opts.outputsIgnore = outputsIgnore
+        opts.numericTolerance = numericTolerance
         opts.diffLogs = diffLogs
         opts.logsMaxLines = logsMaxLines
         opts.diffDag = diffDag
@@ -382,6 +386,9 @@ ${reportLine}"""
                     break
                 case '--outputs-ignore':
                     outputsIgnore.addAll(splitGlobs(cur.requireValue()))
+                    break
+                case '--numeric-tolerance':
+                    numericTolerance = cur.doubleValue(0.0d, 'a number (e.g. 1e-6)')
                     break
                 case '--diff-logs':
                     diffLogs = cur.boolValue()
@@ -726,6 +733,13 @@ Options:
                        '**' spans folders. Skipped files never count toward
                        --fail-on-change; the report says how many were skipped.
                        Repeatable.
+  --numeric-tolerance=<x>
+                       Treat numbers in changed text files (outputs, published
+                       results, inputs) as equal when |a-b| <= x*max(1,|a|,|b|),
+                       e.g. 1e-6 for floating-point noise. A file whose lines
+                       differ only that way counts as unchanged, and line diffs
+                       skip such lines. Numbers inside identifiers (chr1,
+                       sample_01) must still match exactly. Default 0 (exact).
   --published-a=<dir>  Compare the two runs' published output directories
   --published-b=<dir>  (their outdir / publishDir trees) instead of — or in
                        addition to — the per-task work-dir outputs. Give both:
