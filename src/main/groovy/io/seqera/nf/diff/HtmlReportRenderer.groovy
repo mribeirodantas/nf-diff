@@ -71,6 +71,7 @@ class HtmlReportRenderer {
         renderEfficiency(sb, diff)
         renderTasks(sb, diff)
         renderOutputs(sb, diff)
+        renderInputs(sb, diff)
         renderPublished(sb, diff)
         renderLogs(sb, diff)
         renderDag(sb, diff)
@@ -169,6 +170,8 @@ ${details}        </dl>
         navLink(sb, '#tasks', 'Tasks', (diff.tasksChanged + diff.tasksAdded + diff.tasksRemoved) > 0, false)
         if( diff.diffOutputs )
             navLink(sb, '#outputs', 'Outputs', diff.hasOutputChanges(), false)
+        if( diff.diffInputs )
+            navLink(sb, '#inputs', 'Inputs', diff.hasInputChanges(), false)
         if( diff.diffPublished )
             navLink(sb, '#published', 'Published', diff.hasPublishedChanges(), false)
         if( diff.diffLogs )
@@ -246,6 +249,8 @@ ${details}        </dl>
             cb << statCard('Over-provisioned (B)', diff.overProvisionedB(), 'removed')
         if( diff.diffOutputs )
             cb << statCard('Outputs changed', diff.outputsChangedCount(), 'changed')
+        if( diff.diffInputs )
+            cb << statCard('Inputs changed', diff.inputsChangedCount(), 'changed')
         if( diff.diffPublished )
             cb << statCard('Published changed', diff.publishedChangedCount(), 'changed')
         if( diff.diffLogs )
@@ -728,23 +733,32 @@ ${recNote}  </div>
     // ------------------------------------------------------------- outputs
 
     private void renderOutputs(StringBuilder sb, DiffResult diff) {
-        if( !diff.diffOutputs )
-            return
-        sb << '<section id="outputs" class="section">\n'
-        sb << '  <h2>Output files</h2>\n'
-        if( diff.outputsNote )
-            sb << "  <p class=\"mode-note\">${esc(diff.outputsNote)}</p>\n"
+        if( diff.diffOutputs )
+            renderTaskFiles(sb, 'outputs', 'Output files', 'output', diff.outputsNote, diff.outputs)
+    }
 
-        final changed = diff.outputs.findAll { DiffResult.OutputDiff od -> od.hasChanges() }
+    private void renderInputs(StringBuilder sb, DiffResult diff) {
+        if( diff.diffInputs )
+            renderTaskFiles(sb, 'inputs', 'Input files', 'input', diff.inputsNote, diff.inputs)
+    }
+
+    /** One section of per-task file comparisons (outputs or staged inputs). */
+    private void renderTaskFiles(StringBuilder sb, String id, String title, String noun, String note, List<DiffResult.OutputDiff> diffs) {
+        sb << "<section id=\"${id}\" class=\"section\">\n"
+        sb << "  <h2>${title}</h2>\n"
+        if( note )
+            sb << "  <p class=\"mode-note\">${esc(note)}</p>\n"
+
+        final changed = diffs.findAll { DiffResult.OutputDiff od -> od.hasChanges() }
         if( changed.isEmpty() ) {
-            sb << '  <p class="mode-note">No output-file differences were detected across the compared tasks.</p>\n'
+            sb << "  <p class=\"mode-note\">No ${noun}-file differences were detected across the compared tasks.</p>\n"
             sb << '</section>\n'
             return
         }
         changed.each { DiffResult.OutputDiff od ->
             sb << '  <div class="task changed">\n'
             sb << '    <div class="task-hdr" onclick="toggleTask(this)">\n'
-            sb << '      <span class="pill changed">outputs</span>\n'
+            sb << "      <span class=\"pill changed\">${id}</span>\n"
             sb << "      <span class=\"task-key mono\">${esc(od.taskKey)}</span>\n"
             sb << "      <span class=\"task-proc\">${esc(od.process ?: '')}</span>\n"
             sb << '      <span class="chev">▸</span>\n'

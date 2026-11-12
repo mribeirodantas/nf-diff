@@ -171,6 +171,9 @@ class RunComparator {
     /** When true, compare the output files each matched task wrote to its work dir. */
     private final boolean diffOutputs
 
+    /** When true, compare the input files staged into each matched task's work dir. */
+    private final boolean diffInputs
+
     /**
      * Maximum file size (bytes) to hash when comparing same-size outputs; 0
      * means no limit. Only meaningful when {@link #diffOutputs} is set.
@@ -217,6 +220,7 @@ class RunComparator {
         this.crossProject = norm(this.baseDirA) != norm(this.baseDirB)
         this.perfThreshold = opts.perfThreshold
         this.diffOutputs = opts.diffOutputs
+        this.diffInputs = opts.diffInputs
         this.outputsMaxBytes = opts.outputsMaxBytes
         this.diffLogs = opts.diffLogs
         this.logsMaxLines = opts.logsMaxLines
@@ -345,17 +349,18 @@ class RunComparator {
         result.regressions = computeRegressions(result.tasks)
         computeFailures(result, viewA, b)
 
-        // The three opt-in work-dir layers each fan independent, read-only I/O
+        // The opt-in work-dir layers each fan independent, read-only I/O
         // out across threads. Share a single bounded pool for the whole
         // comparison rather than creating (and tearing down) one per layer, so
         // --diff-all no longer pays for three create/shutdown cycles. The pool
         // is only built when at least one of those layers is enabled.
-        final pool = (diffOutputs || diffLogs || diffDag)
+        final pool = (diffOutputs || diffInputs || diffLogs || diffDag)
                 ? Executors.newFixedThreadPool(
                     Math.max(1, Runtime.runtime.availableProcessors()), IO_THREAD_FACTORY)
                 : null
         try {
             computeOutputs(result, pool)
+            computeInputs(result, pool)
             computeLogs(result, pool)
             computeDag(result, a, b, pool, renameMap)
         }
@@ -498,6 +503,35 @@ class RunComparator {
         if( missing > 0 )
             return (base + " ${missing} task(s) had a missing work directory; recovered wiring may be incomplete.").toString()
         return base
+    }
+
+    /**
+     * Populate the staged-inputs layer ({@code --diff-inputs}): for each task
+     * matched in both runs, compare the input files Nextflow staged into its
+     * work directory (see {@link InputComparator}). Like the outputs layer it
+     * needs the work directories, and a changed input counts as a difference.
+     */
+    private void computeInputs(DiffResult result, ExecutorService pool) {
+        if( !diffInputs )
+            return
+        result.diffInputs = true
+        final comparator = new InputComparator(outputsMaxBytes, outputsMaxLines)
+        final matched = result.tasks.findAll { TaskDiff td -> td.a != null && td.b != null }
+        result.inputs = mapMatchedInParallel(pool, matched,
+                { TaskDiff td -> comparator.compare(td.a, td.b) } as Function<TaskDiff, DiffResult.OutputDiff>)
+
+        final unavailable = result.inputs.count { DiffResult.OutputDiff od -> !od.availableA || !od.availableB }
+        if( result.inputs.isEmpty() )
+            result.inputsNote = 'No tasks were matched in both runs, so there were no inputs to compare.'
+        else if( unavailable == result.inputs.size() )
+            result.inputsNote = ('No work directories were available locally, so inputs could not be compared. ' +
+                    'Input diffing needs the tasks\' work directories to still exist on this machine.').toString()
+        else
+            result.inputsNote = ("Input files staged into each task's work directory (Nextflow's input symlinks), " +
+                    "followed to the files they point at as those exist now. Inputs that resolve to the same file in " +
+                    "both runs are unchanged without being read; others are compared by size, then SHA-256, and " +
+                    "changed text files are diffed line by line. Inputs staged by copy are not covered." +
+                    (unavailable > 0 ? " ${unavailable} task(s) had a missing work directory and were skipped." : '')).toString()
     }
 
     /**

@@ -83,6 +83,9 @@ class CompareOptions {
     /** When true, reconstruct and diff each run's process&#8594;process wiring. */
     boolean diffDag = false
 
+    /** When true, compare the input files staged into each matched task's work dir. */
+    boolean diffInputs = false
+
     /**
      * When true (the default), a process found only in run A and one found
      * only in run B are paired as a rename when they did the same work (see

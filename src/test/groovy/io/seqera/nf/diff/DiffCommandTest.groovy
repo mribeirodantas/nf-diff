@@ -175,7 +175,7 @@ class DiffCommandTest extends Specification {
         cmd.runB == null
     }
 
-    def '--diff-all enables all three work-dir layers'() {
+    def '--diff-all enables all four work-dir layers'() {
         when:
         def cmd = parse(['runA', 'runB', '--diff-all'])
 
@@ -183,6 +183,7 @@ class DiffCommandTest extends Specification {
         cmd.diffOutputs
         cmd.diffLogs
         cmd.diffDag
+        cmd.diffInputs
     }
 
     def '--diff-all=false is a no-op, leaving the layers off'() {
@@ -203,6 +204,14 @@ class DiffCommandTest extends Specification {
         cmd.diffOutputs
         cmd.diffLogs
         !cmd.diffDag
+    }
+
+    def '--diff-inputs is off by default, settable, and part of --diff-all'() {
+        expect:
+        !parse(['runA', 'runB']).diffInputs
+        parse(['runA', 'runB', '--diff-inputs']).diffInputs
+        parse(['runA', 'runB', '--diff-all']).diffInputs
+        !parse(['runA', 'runB', '--diff-all', '--diff-inputs=false']).diffInputs
     }
 
     def '--last cannot be combined with explicit run identifiers'() {

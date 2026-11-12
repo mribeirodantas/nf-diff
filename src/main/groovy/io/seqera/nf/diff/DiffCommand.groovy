@@ -130,6 +130,12 @@ class DiffCommand {
     boolean diffDag = false
 
     /**
+     * When true, compare the input files staged into each matched task's work
+     * directory. Like {@link #diffOutputs}, needs the work directories locally.
+     */
+    boolean diffInputs = false
+
+    /**
      * When true (the default), pair a process found only in run A with one found
      * only in run B as a rename when they did the same work. {@code
      * --detect-renames=false} reports them as removed and added instead.
@@ -219,6 +225,7 @@ class DiffCommand {
         opts.diffLogs = diffLogs
         opts.logsMaxLines = logsMaxLines
         opts.diffDag = diffDag
+        opts.diffInputs = diffInputs
         opts.detectRenames = detectRenames
         opts.diffPublished = diffPublished()
         opts.publishedDirA = publishedDirA
@@ -382,11 +389,14 @@ ${reportLine}"""
                 case '--diff-dag':
                     diffDag = cur.boolValue()
                     break
+                case '--diff-inputs':
+                    diffInputs = cur.boolValue()
+                    break
                 case '--detect-renames':
                     detectRenames = cur.boolValue()
                     break
                 case '--diff-all':
-                    // Convenience: the three opt-in work-dir layers share the
+                    // Convenience: the opt-in work-dir layers share the
                     // same precondition (work dirs must still exist) and are
                     // commonly wanted together. Only enables — never force
                     // false — so a later explicit --diff-<layer>=false can still
@@ -395,6 +405,7 @@ ${reportLine}"""
                         diffOutputs = true
                         diffLogs = true
                         diffDag = true
+                        diffInputs = true
                     }
                     break
                 case '--logs-max-lines':
@@ -743,8 +754,15 @@ Options:
                        tasks' work directories to still exist locally. Best
                        effort and informational only: incomplete when work dirs
                        were cleaned up, so it never affects --fail-on-change.
-  --diff-all           Enable all three work-dir layers at once
-                       (--diff-outputs, --diff-logs, --diff-dag); they share the
+  --diff-inputs        Compare the input files staged into each matched task's
+                       work directory (Nextflow's input symlinks, followed to
+                       the files they point at): unchanged when both runs used
+                       the same file, otherwise by size, SHA-256 and a line
+                       diff. Shows whether a changed result came from changed
+                       inputs. Needs the work directories locally; a changed
+                       input counts as a difference for --fail-on-change.
+  --diff-all           Enable all four work-dir layers at once (--diff-outputs,
+                       --diff-inputs, --diff-logs, --diff-dag); they share the
                        same precondition (work dirs must still exist). Enables
                        only, so a later --diff-<layer>=false still opts one out.
   --detect-renames=<bool>
