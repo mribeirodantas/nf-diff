@@ -1177,4 +1177,49 @@ class RunComparatorTest extends Specification {
         expect:
         new RunComparator(new CompareOptions(filter: ProcessFilter.of(['EXAMPLE_*'], []))).compare(a, b).processes*.renamedFrom == ['EXAMPLEFOO']
     }
+
+    def 'with --detect-renames=false a renamed process stays removed and added'() {
+        given:
+        def a = snap('runA', [task(process: 'EXAMPLEFOO', name: 'EXAMPLEFOO (s1)', tag: 's1', script: 'foo s1')])
+        def b = snap('runB', [task(process: 'EXAMPLE_FOO', name: 'EXAMPLE_FOO (s1)', tag: 's1', script: 'foo s1')])
+
+        when:
+        def diff = new RunComparator(new CompareOptions(detectRenames: false)).compare(a, b)
+
+        then:
+        diff.processesRenamed() == 0
+        diff.processes.find { it.process == 'EXAMPLEFOO' }.removed
+        diff.processes.find { it.process == 'EXAMPLE_FOO' }.added
+        diff.tasksAdded == 1
+        diff.tasksRemoved == 1
+    }
+
+    def 'DAG edges of a renamed process are compared under its run B name'() {
+        given: 'run A wires EXAMPLEFOO -> CONSUME, run B the same work as EXAMPLE_FOO -> CONSUME'
+        def wd = { String run, String proc ->
+            java.nio.file.Files.createDirectories(projectDir.resolve(run).resolve(proc))
+        }
+        def stage = { Path consumer, Path producer ->
+            def out = java.nio.file.Files.write(producer.resolve('out.txt'), 'data'.bytes)
+            java.nio.file.Files.createSymbolicLink(consumer.resolve('out.txt'), out)
+        }
+        def aFoo = wd('A', 'foo'), aUse = wd('A', 'use')
+        def bFoo = wd('B', 'foo'), bUse = wd('B', 'use')
+        stage(aUse, aFoo)
+        stage(bUse, bFoo)
+        def mk = { String proc, Path dir, String script ->
+            def t = task(process: proc, name: "${proc} (s1)".toString(), tag: 's1', script: script)
+            t.workdir = dir.toString()
+            t
+        }
+        def a = snap('runA', [mk('EXAMPLEFOO', aFoo, 'foo s1'), mk('CONSUME', aUse, 'use out.txt')])
+        def b = snap('runB', [mk('EXAMPLE_FOO', bFoo, 'foo s1'), mk('CONSUME', bUse, 'use out.txt')])
+
+        when:
+        def diff = new RunComparator(new CompareOptions(diffDag: true, baseDir: projectDir)).compare(a, b)
+
+        then: 'one unchanged edge, not a removed EXAMPLEFOO edge plus an added EXAMPLE_FOO edge'
+        diff.processesRenamed() == 1
+        diff.dag.collect { "${it.from()}->${it.to()}:${it.kind}".toString() } == ['EXAMPLE_FOO->CONSUME:UNCHANGED']
+    }
 }

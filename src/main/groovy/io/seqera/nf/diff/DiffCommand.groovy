@@ -127,6 +127,13 @@ class DiffCommand {
     boolean diffDag = false
 
     /**
+     * When true (the default), pair a process found only in run A with one found
+     * only in run B as a rename when they did the same work. {@code
+     * --detect-renames=false} reports them as removed and added instead.
+     */
+    boolean detectRenames = true
+
+    /**
      * Maximum tail lines kept per log file when {@link #diffLogs} is set.
      * Defaults to {@link LogComparator#DEFAULT_MAX_LINES}.
      */
@@ -208,6 +215,7 @@ class DiffCommand {
         opts.diffLogs = diffLogs
         opts.logsMaxLines = logsMaxLines
         opts.diffDag = diffDag
+        opts.detectRenames = detectRenames
         opts.diffPublished = diffPublished()
         opts.publishedDirA = publishedDirA
         opts.publishedDirB = publishedDirB
@@ -366,6 +374,9 @@ ${reportLine}"""
                     break
                 case '--diff-dag':
                     diffDag = cur.boolValue()
+                    break
+                case '--detect-renames':
+                    detectRenames = cur.boolValue()
                     break
                 case '--diff-all':
                     // Convenience: the three opt-in work-dir layers share the
@@ -720,6 +731,12 @@ Options:
                        (--diff-outputs, --diff-logs, --diff-dag); they share the
                        same precondition (work dirs must still exist). Enables
                        only, so a later --diff-<layer>=false still opts one out.
+  --detect-renames=<bool>
+                       Pair a process found only in run A with one found only
+                       in run B as a rename (e.g. EXAMPLEFOO -> EXAMPLE_FOO)
+                       when they did the same work: matching task scripts plus
+                       tags, task count, software or a similar name. On by
+                       default; set false to report them as removed and added.
   --dir=<dir>          Project directory containing .nextflow/ (default: .).
                        Used for both runs unless overridden per-run below.
   --dir-a=<dir>        Project directory for run A only (its .nextflow/ history,
