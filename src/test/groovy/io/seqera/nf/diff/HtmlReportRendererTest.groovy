@@ -89,9 +89,9 @@ class HtmlReportRendererTest extends Specification {
         given: 'FOO peak RSS grows from 0 (+Infinity) and BAR runs 4x slower (+300%)'
         def html = render(
                 [task(process: 'FOO', name: 'FOO (1)', hash: 'h1', raw: [peak_rss: 0L]),
-                 task(process: 'BAR', name: 'BAR (1)', hash: 'h2', raw: [realtime: 100L])],
+                 task(process: 'BAR', name: 'BAR (1)', hash: 'h2', raw: [realtime: 1_000L])],
                 [task(process: 'FOO', name: 'FOO (1)', hash: 'h1', raw: [peak_rss: 1024L]),
-                 task(process: 'BAR', name: 'BAR (1)', hash: 'h2', raw: [realtime: 400L])] )
+                 task(process: 'BAR', name: 'BAR (1)', hash: 'h2', raw: [realtime: 4_000L])] )
         def widths = (html =~ /class="rp-bar[^"]*" x="[^"]*" y="[^"]*" width="(\d+)"/).collect { it[1] as int }
 
         expect: 'both bars are drawn at full length rather than collapsing to 1px'
@@ -106,11 +106,11 @@ class HtmlReportRendererTest extends Specification {
         given: '+Infinity, +300% and +100% deltas'
         def html = render(
                 [task(process: 'FOO', name: 'FOO (1)', hash: 'h1', raw: [peak_rss: 0L]),
-                 task(process: 'BAR', name: 'BAR (1)', hash: 'h2', raw: [realtime: 100L]),
-                 task(process: 'BAZ', name: 'BAZ (1)', hash: 'h3', raw: [realtime: 100L])],
+                 task(process: 'BAR', name: 'BAR (1)', hash: 'h2', raw: [realtime: 1_000L]),
+                 task(process: 'BAZ', name: 'BAZ (1)', hash: 'h3', raw: [realtime: 1_000L])],
                 [task(process: 'FOO', name: 'FOO (1)', hash: 'h1', raw: [peak_rss: 1024L]),
-                 task(process: 'BAR', name: 'BAR (1)', hash: 'h2', raw: [realtime: 400L]),
-                 task(process: 'BAZ', name: 'BAZ (1)', hash: 'h3', raw: [realtime: 200L])] )
+                 task(process: 'BAR', name: 'BAR (1)', hash: 'h2', raw: [realtime: 4_000L]),
+                 task(process: 'BAZ', name: 'BAZ (1)', hash: 'h3', raw: [realtime: 2_000L])] )
         def widths = (html =~ /class="rp-bar[^"]*" x="[^"]*" y="[^"]*" width="(\d+)"/).collect { it[1] as int }
 
         expect: 'rows are worst-first: infinite (full), +300% (full finite scale), +100% (a third)'

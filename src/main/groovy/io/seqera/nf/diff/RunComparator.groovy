@@ -74,6 +74,17 @@ class RunComparator {
     static final double DEFAULT_PERF_THRESHOLD = 25.0d
 
     /**
+     * Smallest absolute {@code realtime} change, in milliseconds, that can be
+     * flagged as a regression. Nextflow times tasks with {@code date} inside the
+     * task container; when that {@code date} cannot print sub-second digits
+     * (e.g. BusyBox in many biocontainers) it falls back to whole seconds, so a
+     * sub-second task records {@code 0} or {@code 1000}. A smaller delta is
+     * below the timing resolution and would otherwise show up as a huge
+     * (or {@code +∞%}) change against a {@code 0 ms} baseline.
+     */
+    static final long MIN_REALTIME_DELTA_MILLIS = 1_000L
+
+    /**
      * Task fields that vary between essentially any two runs even when the work
      * is identical: the unique work dir, timing, measured resource usage, the
      * measured I/O counters, and the execution environment (which host/CPU a
@@ -560,6 +571,10 @@ class RunComparator {
                 // An unchanged metric (0.0%) is never a regression, even with
                 // --perf-threshold=0, which means "flag any measurable change" (#19).
                 if( pct == null || pct == 0.0d || Math.abs(pct) < perfThreshold )
+                    return
+                // Sub-second realtime changes are below Nextflow's worst-case
+                // timing resolution (whole seconds in BusyBox-based containers).
+                if( field == 'realtime' && Math.abs(vb - va) < MIN_REALTIME_DELTA_MILLIS )
                     return
                 out << new DiffResult.RegressionDiff(
                         taskKey  : td.key,

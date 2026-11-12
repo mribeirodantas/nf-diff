@@ -474,6 +474,29 @@ class RunComparatorTest extends Specification {
         diff.regressions.every { it.pctDelta != 0.0d }
     }
 
+    def 'sub-second realtime changes are below timing resolution and never flagged'() {
+        given: 'run A timed at whole-second resolution (0 ms), run B at ms resolution'
+        def a = snap('runA', [
+                task(process: 'SHORT', name: 'SHORT (1)', hash: 'h1',
+                        display: [status: 'COMPLETED', realtime: '0ms'], raw: [realtime: 0L]),
+                task(process: 'LONGER', name: 'LONGER (1)', hash: 'h2',
+                        display: [status: 'COMPLETED', realtime: '0ms'], raw: [realtime: 0L]),
+        ])
+        def b = snap('runB', [
+                task(process: 'SHORT', name: 'SHORT (1)', hash: 'h1',
+                        display: [status: 'COMPLETED', realtime: '626ms'], raw: [realtime: 626L]),
+                task(process: 'LONGER', name: 'LONGER (1)', hash: 'h2',
+                        display: [status: 'COMPLETED', realtime: '1.5s'], raw: [realtime: 1_500L]),
+        ])
+
+        expect: 'a 0 -> 626 ms move is dropped, even with a zero percentage threshold'
+        def diff = new RunComparator(new CompareOptions(perfThreshold: 0.0d)).compare(a, b)
+        diff.regressions*.taskKey == ['LONGER (1)']
+
+        and: 'a change of at least one second is still flagged'
+        diff.regressions[0].pctDelta == Double.POSITIVE_INFINITY
+    }
+
     def 'improvements are captured but not counted as regressions'() {
         given: 'run B is twice as fast'
         def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)', hash: 'h',

@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   session id and run name so `-resume` runs stay distinct. Nextflow keeps only
   the ten most recent logs, so older runs still show no version row.
 
+### Fixed
+
+- **Sub-second tasks no longer show as `+∞%` runtime regressions.** Nextflow
+  times tasks with the container's `date`; in BusyBox-based images (many
+  biocontainers) that has whole-second resolution, so a sub-second task records
+  a `realtime` of `0` and any later non-zero reading looked like an infinite
+  slowdown. A `realtime` change must now also be at least 1 s to be flagged.
+
 ## [0.9.6] - 2026-11-03
 
 ### Fixed
