@@ -481,6 +481,8 @@ class DiffResult {
         boolean verified = true
         /** Optional human note (e.g. why a file was left unverified). */
         String note
+        /** True when both sides were gzip and were compared by decompressed content. */
+        boolean decompressed
         /**
          * Line-level diff ops for a {@link Kind#CHANGED} file that was
          * recognised as text on both sides. Empty for binary files, for

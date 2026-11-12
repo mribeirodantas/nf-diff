@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Gzipped outputs are compared by content.** `--diff-outputs` and
+  `--published-a`/`-b` used to compare `.gz` files byte for byte, but `gzip`
+  writes a timestamp and file name into its header, so identical results
+  showed as changed (and failed `--fail-on-change`). Gzip and BGZF files
+  (`.vcf.gz`, `.fastq.gz`, …) are now compared by decompressed content, and a
+  changed gzipped text file gets a line diff of its decompressed text.
+
 - **Renamed processes are matched instead of shown as removed + added.** When
   a process exists only in run A and another only in run B (e.g. `EXAMPLEFOO`
   → `EXAMPLE_FOO`), nf-diff now compares what they ran — task scripts, tags,

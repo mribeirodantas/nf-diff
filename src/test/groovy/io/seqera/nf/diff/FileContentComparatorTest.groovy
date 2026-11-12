@@ -18,6 +18,7 @@ package io.seqera.nf.diff
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.zip.GZIPOutputStream
 
 import io.seqera.nf.diff.DiffResult.Kind
 import spock.lang.Specification
@@ -193,5 +194,133 @@ class FileContentComparatorTest extends Specification {
         fd.hasLineDiff()
         fd.truncated
         fd.ops.every { it.text ==~ /[ab]-line-[12]/ }
+    }
+
+    // ------------------------------------------------------------------ gzip
+
+    /** gzip {@code content}; {@code mtime} is written into the header like `gzip` does. */
+    private static byte[] gz(String content, int mtime = 0) {
+        def bos = new ByteArrayOutputStream()
+        new GZIPOutputStream(bos).withCloseable { it.write(content.getBytes('UTF-8')) }
+        byte[] out = bos.toByteArray()
+        // Header bytes 4..7 are MTIME (little endian); not covered by any CRC.
+        (0..3).each { int i -> out[4 + i] = (byte) ((mtime >>> (8 * i)) & 0xff) }
+        return out
+    }
+
+    private static byte[] concat(byte[]... parts) {
+        def bos = new ByteArrayOutputStream()
+        parts.each { bos.write(it) }
+        return bos.toByteArray()
+    }
+
+    def 'gzip files with identical content but different headers are unchanged'() {
+        given: 'same data, compressed at different times'
+        def a = file('a.txt.gz', gz('chr1\t100\nchr2\t200\n', 1_700_000_000))
+        def b = file('b.txt.gz', gz('chr1\t100\nchr2\t200\n', 1_800_000_000))
+        assert Files.readAllBytes(a) != Files.readAllBytes(b)
+
+        when:
+        def fd = compare(new FileContentComparator(), 'out.txt.gz', a, b)
+
+        then:
+        fd.kind == Kind.UNCHANGED
+        fd.verified
+        fd.decompressed
+        fd.note == 'gzip: compressed bytes differ, decompressed content is identical'
+    }
+
+    def 'gzip files with different content are changed and line-diffed on their text'() {
+        given:
+        def a = file('a.gz', gz('keep\nold line\nkeep too\n'))
+        def b = file('b.gz', gz('keep\nnew line\nkeep too\n'))
+
+        when:
+        def fd = compare(new FileContentComparator(), 'out.gz', a, b)
+
+        then:
+        fd.kind == Kind.CHANGED
+        fd.decompressed
+        fd.linesRemoved() == 1
+        fd.linesAdded() == 1
+        fd.ops.find { it.type == LineDiff.Type.DELETE }.text == 'old line'
+        fd.ops.find { it.type == LineDiff.Type.INSERT }.text == 'new line'
+    }
+
+    def 'byte-identical gzip files short-circuit on the raw hash'() {
+        given:
+        def a = file('a.gz', gz('same\n'))
+        def b = file('b.gz', gz('same\n'))
+
+        when:
+        def fd = compare(new FileContentComparator(), 'x.gz', a, b)
+
+        then:
+        fd.kind == Kind.UNCHANGED
+        !fd.decompressed
+        fd.hashA == fd.hashB
+    }
+
+    def 'a multi-member (BGZF-style) file matches a single-member file with the same content'() {
+        given:
+        def a = file('a.gz', concat(gz('first half\n'), gz('second half\n')))
+        def b = file('b.gz', gz('first half\nsecond half\n'))
+
+        expect:
+        compare(new FileContentComparator(), 'x.vcf.gz', a, b).kind == Kind.UNCHANGED
+    }
+
+    def 'a changed gzip of binary data is reported without a line diff'() {
+        given:
+        def a = file('a.gz', gz('BAM\u0001\u0000\u0000data-a'))
+        def b = file('b.gz', gz('BAM\u0001\u0000\u0000data-b'))
+
+        when:
+        def fd = compare(new FileContentComparator(), 'x.bam', a, b)
+
+        then:
+        fd.kind == Kind.CHANGED
+        fd.decompressed
+        fd.ops.isEmpty()
+    }
+
+    def 'gzip files above the byte cap keep the raw-byte comparison'() {
+        given: 'same content, different headers, but larger than the cap'
+        def a = file('a.gz', gz('x' * 200, 1))
+        def b = file('b.gz', gz('x' * 200, 2))
+
+        when:
+        def fd = compare(new FileContentComparator(5L), 'x.gz', a, b)
+
+        then: 'same size above the cap: content not verified, and nothing decompressed'
+        fd.kind == Kind.UNCHANGED
+        !fd.verified
+        !fd.decompressed
+    }
+
+    def 'a corrupt gzip falls back to the raw-byte comparison'() {
+        given: 'gzip magic bytes followed by garbage'
+        def a = file('a.gz', [0x1f, 0x8b, 1, 2, 3, 4] as byte[])
+        def b = file('b.gz', gz('real\n'))
+
+        when:
+        def fd = compare(new FileContentComparator(), 'x.gz', a, b)
+
+        then:
+        fd.kind == Kind.CHANGED
+        !fd.decompressed
+    }
+
+    def 'only one side being gzip compares raw bytes'() {
+        given:
+        def a = file('a', 'plain text\n')
+        def b = file('b', gz('plain text\n'))
+
+        when:
+        def fd = compare(new FileContentComparator(), 'x', a, b)
+
+        then:
+        fd.kind == Kind.CHANGED
+        !fd.decompressed
     }
 }
