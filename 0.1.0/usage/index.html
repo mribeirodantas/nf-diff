@@ -150,6 +150,10 @@
 <td>With <code dir="auto">--diff-outputs</code>, keep only the first <code dir="auto">&lt;n&gt;</code> lines of each changed text file before line-diffing it. Default <code dir="auto">1000</code>.</td>
 </tr>
 <tr>
+<td><code dir="auto">--outputs-ignore=&lt;globs&gt;</code></td>
+<td>Comma-separated file patterns left out of <code dir="auto">--diff-outputs</code> and <code dir="auto">--published-a</code>/<code dir="auto">-b</code>, for files expected to differ between any two runs, e.g. <code dir="auto">'*.html,versions.yml,pipeline_info/'</code>. A pattern without <code dir="auto">/</code> matches a file or folder name anywhere; one with <code dir="auto">/</code> matches the path relative to the work directory or published root, where <code dir="auto">**</code> spans folders and a trailing <code dir="auto">/</code> means everything under that folder. Skipped files are never hashed and never count toward <code dir="auto">--fail-on-change</code>; the report says how many were skipped. Repeatable.</td>
+</tr>
+<tr>
 <td><code dir="auto">--published-a=&lt;dir&gt;</code> / <code dir="auto">--published-b=&lt;dir&gt;</code></td>
 <td>Compare the two runs’ published output directories (their <code dir="auto">outdir</code> / <code dir="auto">publishDir</code> trees) instead of — or in addition to — the per-task work-dir outputs. Give both: <code dir="auto">--published-a</code> is run A’s directory, <code dir="auto">--published-b</code> run B’s. Files are matched by their path relative to each root, then compared by size, then SHA-256, then a line-level diff for changed text files, exactly like <code dir="auto">--diff-outputs</code> (and honouring <code dir="auto">--outputs-max-bytes</code> / <code dir="auto">--outputs-max-lines</code>). Symlinks are followed, so it works whether <code dir="auto">publishDir</code> copied or symlinked. Unlike <code dir="auto">--diff-outputs</code>, this reads the <em>durable</em> published results, so it still works after the work directories are gone. When set, a published-file change counts toward <code dir="auto">--fail-on-change</code>.</td>
 </tr>
