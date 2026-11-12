@@ -189,9 +189,18 @@ class MarkdownReportRenderer {
         sb << '| Process | Run A | Run B | Status |\n'
         sb << '|---|---:|---:|---|\n'
         diff.processes.each { ProcessDiff pd ->
-            sb << "| ${cell(pd.process)} | ${pd.countA} | ${pd.countB} | ${processStatus(pd)} |\n"
+            final name = pd.renamed ? "${pd.process} (was ${pd.renamedFrom})".toString() : pd.process
+            sb << "| ${cell(name)} | ${pd.countA} | ${pd.countB} | ${processStatus(pd)} |\n"
         }
         sb << '\n'
+        final renamed = diff.processes.findAll { ProcessDiff pd -> pd.renamed }
+        if( renamed ) {
+            sb << 'Renamed processes are inferred from what each process ran, not from its name alone:\n\n'
+            renamed.each { ProcessDiff pd ->
+                sb << "- `${pd.renamedFrom}` → `${pd.process}`: ${pd.renameEvidence.join('; ')}\n"
+            }
+            sb << '\n'
+        }
     }
 
     private void renderSoftware(StringBuilder sb, DiffResult diff) {
@@ -437,6 +446,7 @@ class MarkdownReportRenderer {
     private static String processStatus(ProcessDiff pd) {
         if( pd.added )   return 'added'
         if( pd.removed ) return 'removed'
+        if( pd.renamed ) return 'renamed'
         if( pd.changed ) return 'changed'
         return 'unchanged'
     }

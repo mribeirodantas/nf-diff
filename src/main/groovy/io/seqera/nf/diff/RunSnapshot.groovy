@@ -58,6 +58,28 @@ class RunSnapshot {
     // -- tasks (from CacheDB)
     List<TaskInfo> tasks = []
 
+    /**
+     * A copy of this snapshot whose tasks of each process in {@code renames}
+     * (old name &#8594; new name) carry the new process name, with the task
+     * name's process prefix rewritten too (e.g. {@code EXAMPLEFOO (s1)} &#8594;
+     * {@code EXAMPLE_FOO (s1)}) so they match the other run's tasks. Other
+     * tasks are shared, not copied; this snapshot is left untouched.
+     */
+    RunSnapshot withRenamedProcesses(Map<String,String> renames) {
+        final copy = new RunSnapshot(
+                requestedId: requestedId, runName: runName, sessionId: sessionId,
+                status: status, revisionId: revisionId, command: command,
+                timestamp: timestamp, durationMillis: durationMillis,
+                pipeline: pipeline, pipelinePath: pipelinePath,
+                nextflowVersion: nextflowVersion, nextflowBuild: nextflowBuild,
+                containerEngine: containerEngine, waveEnabled: waveEnabled, fusionEnabled: fusionEnabled )
+        copy.tasks = tasks.collect { TaskInfo t ->
+            final to = t.process != null ? renames.get(t.process) : null
+            return to != null ? t.renamedTo(to) : t
+        }
+        return copy
+    }
+
     /** Count of tasks grouped by process name, sorted by process name. */
     Map<String,Integer> taskCountByProcess() {
         final counts = new TreeMap<String,Integer>()

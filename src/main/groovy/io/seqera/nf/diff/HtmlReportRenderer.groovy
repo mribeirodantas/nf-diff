@@ -521,14 +521,25 @@ ${recNote}  </div>
         sb << '  <table class="proc">\n'
         sb << '    <thead><tr><th>Process</th><th>Run A</th><th>Run B</th><th>Δ</th><th></th></tr></thead>\n  <tbody>\n'
         diff.processes.each { ProcessDiff pd ->
-            final kind = pd.added ? 'added' : (pd.removed ? 'removed' : (pd.changed ? 'changed' : 'unchanged'))
+            final kind = pd.added ? 'added' : (pd.removed ? 'removed' : (pd.renamed ? 'renamed' : (pd.changed ? 'changed' : 'unchanged')))
             final delta = pd.countB - pd.countA
             final deltaStr = (delta > 0 ? "+${delta}" : delta.toString()).toString()
-            sb << "    <tr class=\"row-${kind}\"><th class=\"mono\">${esc(pd.process)}</th>"
+            final rowKind = pd.renamed ? 'changed' : kind
+            final was = pd.renamed ? "<span class=\"rename-from\" title=\"${esc(pd.renameEvidence.join('; '))}\">was ${esc(pd.renamedFrom)}</span>" : ''
+            sb << "    <tr class=\"row-${rowKind}\"><th class=\"mono\">${esc(pd.process)}${was}</th>"
             sb << "<td>${pd.countA}</td><td>${pd.countB}</td><td>${esc(deltaStr)}</td>"
             sb << "<td><span class=\"pill ${kind}\">${kind}</span></td></tr>\n"
         }
         sb << '  </tbody>\n  </table>\n'
+        final renamed = diff.processes.findAll { ProcessDiff pd -> pd.renamed }
+        if( renamed ) {
+            sb << '  <p class="mode-note">Renamed processes are inferred from what each process ran, not from its name alone; their tasks are matched across the rename in every other section.</p>\n'
+            sb << '  <ul class="mode-note">\n'
+            renamed.each { ProcessDiff pd ->
+                sb << "    <li><code>${esc(pd.renamedFrom)}</code> &rarr; <code>${esc(pd.process)}</code>: ${esc(pd.renameEvidence.join('; '))}</li>\n"
+            }
+            sb << '  </ul>\n'
+        }
         sb << '</section>\n'
     }
 
@@ -1518,7 +1529,8 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
 .pill.added{background:color-mix(in srgb,var(--added) 15%,transparent);color:var(--added)}
 .pill.removed{background:color-mix(in srgb,var(--removed) 15%,transparent);color:var(--removed)}
-.pill.changed{background:color-mix(in srgb,var(--changed) 18%,transparent);color:var(--changed)}
+.pill.changed,.pill.renamed{background:color-mix(in srgb,var(--changed) 18%,transparent);color:var(--changed)}
+.rename-from{display:block;color:var(--muted);font-size:12px;font-weight:400}
 .pill.unchanged{background:rgba(100,116,139,.2);color:var(--muted)}
 .pill.status-ok{background:color-mix(in srgb,var(--added) 15%,transparent);color:var(--added)}
 .pill.status-err{background:color-mix(in srgb,var(--removed) 15%,transparent);color:var(--removed)}
