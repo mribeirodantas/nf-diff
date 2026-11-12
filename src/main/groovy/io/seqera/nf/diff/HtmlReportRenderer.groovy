@@ -1507,7 +1507,7 @@ html[data-cvd="on"] .cvd-toggle{background:var(--brand);color:var(--chip-ink);bo
 .dag-legend .ln.add{border-color:#22c55e}
 .dag-legend .ln.rem{border-top-style:dashed;border-color:#ef4444}
 table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--hair);border-radius:var(--radius);overflow:hidden;box-shadow:var(--elev)}
-th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px;overflow-wrap:anywhere}
 thead th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px;background:var(--panel2)}
 tbody tr:hover{background:var(--panel2)}
 tbody tr:last-child th,tbody tr:last-child td{border-bottom:none}
@@ -1526,7 +1526,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 .warn-note{color:var(--changed);font-size:13px;margin:0 0 14px;line-height:1.6;background:color-mix(in srgb,var(--changed) 10%,transparent);border:1px solid var(--hair);border-radius:var(--radius);padding:10px 14px}
 .warn-note strong{color:var(--changed)}
 .row-added{background:color-mix(in srgb,var(--added) 8%,transparent)} .row-removed{background:color-mix(in srgb,var(--removed) 8%,transparent)}
-.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.pill{display:inline-block;white-space:nowrap;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
 .pill.added{background:color-mix(in srgb,var(--added) 15%,transparent);color:var(--added)}
 .pill.removed{background:color-mix(in srgb,var(--removed) 15%,transparent);color:var(--removed)}
 .pill.changed,.pill.renamed{background:color-mix(in srgb,var(--changed) 18%,transparent);color:var(--changed)}
@@ -1558,7 +1558,7 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 .bar-fill.a{background:var(--a)}
 .bar-fill.b{background:var(--b)}
 .bar-val{min-width:80px;text-align:right;font-size:12px;color:var(--muted);font-family:ui-monospace,monospace}
-.code-diff{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.code-diff{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:8px}
 .code-col{background:var(--bg2);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .code-col-hdr{padding:6px 12px;font-size:12px;color:var(--muted);background:var(--panel2);border-bottom:1px solid var(--line)}
 .code-col pre{margin:0;padding:0;overflow:auto;font-family:ui-monospace,monospace;font-size:12.5px}
@@ -1578,6 +1578,26 @@ table.kv th{width:180px;color:var(--muted);font-weight:600}
 .foot-sub strong{color:var(--brand)}
 .foot-sub a{color:var(--brand);text-decoration:none}
 .foot-sub a:hover{text-decoration:underline}
+/* Long unbroken values (paths, commands, hashes) wrap instead of widening the layout. */
+.task-key,.task-proc,.mode-note code,.run-facts>*{overflow-wrap:anywhere;min-width:0}
+/* Phones and narrow windows. Kept last so it overrides the base rules above. */
+@media (max-width:820px){
+  /* Auto side margins would disable stretching and size .wrap to its content. */
+  .layout{align-items:stretch}
+  .wrap{margin:0;padding:16px}
+  .hero{padding:24px 16px 20px}
+  .hero h1{font-size:24px}
+  .runs{flex-direction:column;align-items:stretch;gap:10px}
+  .run-chip{min-width:0}
+  .vs{text-align:center}
+  th,td{padding:8px 10px;font-size:13px}
+  table.kv th{width:34%}
+  .code-diff{grid-template-columns:minmax(0,1fr)}
+  .tasks-head{flex-wrap:wrap}
+  .task-hdr{flex-wrap:wrap;gap:6px 10px;padding:10px 12px}
+  .task-proc{margin-left:0;flex-basis:100%}
+  .task-body{padding:8px 10px 14px}
+}
 '''
 
     private static final String JS = '''

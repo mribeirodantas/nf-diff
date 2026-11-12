@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The HTML report now fits phone screens.** Below 820 px wide, the content
+  area could grow as wide as its longest unbreakable value (a path, command
+  or hash) and the overflow was clipped out of reach. It now always matches
+  the screen width. Long values in tables and task headers wrap at every
+  width. On narrow screens the run cards stack, tables use less padding, and
+  side-by-side script/log diffs stack vertically.
+
 - **Sub-second tasks no longer show as `+∞%` runtime regressions.** Nextflow
   times tasks with the container's `date`; in BusyBox-based images (many
   biocontainers) that has whole-second resolution, so a sub-second task records
