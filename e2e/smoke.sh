@@ -17,6 +17,16 @@
 #   * a `nextflow` binary on PATH
 #   * NXF_PLUGINS_TEST_REPOSITORY pointing at a local dev repo that advertises
 #     nf-diff (produced by `make dev-repo`)
+#   * NXF_HOME pointing at a fresh, disposable Nextflow home
+#   * NF_DIFF_ZIP / NF_DIFF_VERSION naming the plugin zip just built from this
+#     checkout and its version
+#
+# The plugin under test must be the local build, never the same version
+# published on the official registry. A dev repo alone does not guarantee that:
+# when the version matches a release, Nextflow installs the published copy.
+# So the zip is unpacked into $NXF_HOME/plugins/nf-diff-<version>/ up front
+# (Nextflow then uses it as already installed), and at the end the installed
+# folder is compared file by file with the zip.
 #
 set -euo pipefail
 
@@ -30,8 +40,37 @@ if [[ -z "${NXF_PLUGINS_TEST_REPOSITORY:-}" ]]; then
     exit 2
 fi
 
+for var in NXF_HOME NF_DIFF_ZIP NF_DIFF_VERSION; do
+    if [[ -z "${!var:-}" ]]; then
+        echo "smoke: $var is not set — run via 'make smoke'" >&2
+        exit 2
+    fi
+done
+[[ -s "$NF_DIFF_ZIP" ]] || { echo "smoke: plugin zip not found: $NF_DIFF_ZIP" >&2; exit 2; }
+
+# Unpack a zip with whatever the host has (`unzip` is missing from some JDK
+# images; `jar` ships with the JDK the build needs anyway).
+unpack() { # <zip> <dest>
+    local zip dest
+    zip="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+    dest="$2"
+    mkdir -p "$dest"
+    if command -v unzip >/dev/null 2>&1; then
+        unzip -q -o "$zip" -d "$dest"
+    elif command -v jar >/dev/null 2>&1; then
+        (cd "$dest" && jar xf "$zip")
+    else
+        python3 -c 'import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])' "$zip" "$dest"
+    fi
+}
+
+PLUGIN_DIR="$NXF_HOME/plugins/nf-diff-$NF_DIFF_VERSION"
+rm -rf "$PLUGIN_DIR"
+unpack "$NF_DIFF_ZIP" "$PLUGIN_DIR"
+
 echo "smoke: nextflow $(nextflow -v 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9][0-9.]*' | head -1)"
 echo "smoke: plugin repo ${NXF_PLUGINS_TEST_REPOSITORY}"
+echo "smoke: plugin nf-diff@${NF_DIFF_VERSION} pre-installed from ${NF_DIFF_ZIP}"
 
 WORKDIR="$(mktemp -d)"
 cleanup() { rm -rf "$WORKDIR"; }
@@ -103,4 +142,18 @@ set -e
 echo "smoke: --fail-on-change exit code OK (3)"
 
 popd >/dev/null
+
+# 5) Provenance: everything above must have run the plugin built from this
+#    checkout. The installed folder has to match the local zip exactly; a
+#    published release of the same version (or any re-download) would differ.
+mkdir -p "$WORKDIR/expected"
+unpack "$NF_DIFF_ZIP" "$WORKDIR/expected"
+diff -r "$WORKDIR/expected" "$PLUGIN_DIR" >"$WORKDIR/provenance.diff" 2>&1 || {
+    head -20 "$WORKDIR/provenance.diff" >&2
+    fail "installed plugin in $PLUGIN_DIR does not match the local build $NF_DIFF_ZIP"
+}
+others="$(find "$NXF_HOME/plugins" -maxdepth 1 -name 'nf-diff-*' ! -path "$PLUGIN_DIR" -print)"
+[[ -z "$others" ]] || fail "unexpected nf-diff installs next to the local build: $others"
+echo "smoke: plugin provenance OK (installed files match $(basename "$NF_DIFF_ZIP"))"
+
 echo "smoke: PASS"
