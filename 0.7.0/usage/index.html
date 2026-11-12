@@ -135,7 +135,7 @@
 </tr>
 <tr>
 <td><code dir="auto">--perf-threshold=&lt;pct&gt;</code></td>
-<td>Percentage change beyond which a task metric (runtime, peak memory) is flagged in the performance-regressions layer (default: <code dir="auto">25</code>). Must be <code dir="auto">&gt;= 0</code>; <code dir="auto">0</code> flags any measurable change.</td>
+<td>Percentage change beyond which a task metric (runtime, peak memory) is flagged in the performance-regressions layer (default: <code dir="auto">25</code>). Must be <code dir="auto">&gt;= 0</code>; <code dir="auto">0</code> flags any measurable change. Runtime changes under 1 s are never flagged (below Nextflow’s timing resolution in BusyBox-based containers).</td>
 </tr>
 <tr>
 <td><code dir="auto">--diff-outputs</code></td>
