@@ -170,6 +170,10 @@
 <td>Enable all three work-dir layers at once (<code dir="auto">--diff-outputs</code>, <code dir="auto">--diff-logs</code>, <code dir="auto">--diff-dag</code>); they share the same precondition (the tasks’ work directories must still exist locally). Enables only — a later explicit <code dir="auto">--diff-&lt;layer&gt;=false</code> can still switch an individual layer back off.</td>
 </tr>
 <tr>
+<td><code dir="auto">--detect-renames=&lt;bool&gt;</code></td>
+<td>Pair a process found only in run A with one found only in run B as one <strong>renamed</strong> process (e.g. <code dir="auto">EXAMPLEFOO</code> → <code dir="auto">EXAMPLE_FOO</code>) when they did the same work, and compare their tasks across the rename. On by default; <code dir="auto">--detect-renames=false</code> reports them as removed and added instead.</td>
+</tr>
+<tr>
 <td><code dir="auto">--fail-on-change</code></td>
 <td>Exit with code <code dir="auto">3</code> if the runs are not identical (useful in CI)</td>
 </tr>
