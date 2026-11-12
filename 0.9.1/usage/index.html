@@ -139,7 +139,7 @@
 </tr>
 <tr>
 <td><code dir="auto">--diff-outputs</code></td>
-<td>Compare the output files each matched task wrote to its work directory (by size, then SHA-256 for same-size files). Changed text files are additionally diffed line by line; binary files show a size/hash change only. Requires the tasks’ work directories to still exist locally. When enabled, an output-file change counts toward <code dir="auto">--fail-on-change</code>.</td>
+<td>Compare the output files each matched task wrote to its work directory (by size, then SHA-256 for same-size files). Changed text files are additionally diffed line by line; binary files show a size/hash change only. Gzip files are compared by their decompressed content, so a different <code dir="auto">gzip</code> timestamp alone is not a change. Requires the tasks’ work directories to still exist locally. When enabled, an output-file change counts toward <code dir="auto">--fail-on-change</code>.</td>
 </tr>
 <tr>
 <td><code dir="auto">--outputs-max-bytes=&lt;n&gt;</code></td>
