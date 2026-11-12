@@ -58,15 +58,23 @@ red build is debuggable without re-running locally.
 Releases are published to the [Nextflow plugin registry](https://registry.nextflow.io/)
 by pushing a version tag — `.github/workflows/release.yml` does the rest:
 
+Between releases, `build.gradle` carries the *next* version with a `-dev`
+suffix (e.g. `0.9.7-dev`). A local build then never shares a version number
+with a published release, so Nextflow can't swap in the registry copy when
+`make smoke` or the dogfood CI job resolves the plugin by its bare id.
+
 ```bash
-# 1. Bump `version` in build.gradle and update the CHANGELOG, then commit.
+# 1. Drop the -dev suffix from `version` in build.gradle (0.9.7-dev -> 0.9.7),
+#    move the CHANGELOG's Unreleased entries under the new version, then commit.
 # 2. Tag the release (the tag must match build.gradle's version, prefixed 'v').
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.9.7
+git push origin v0.9.7
+# 3. Bump build.gradle to the next development version (e.g. 0.9.8-dev) and commit.
 ```
 
 On a `v*` tag the release workflow verifies the tag matches `build.gradle`'s
-`version` (so a tag can never publish a mismatched artifact), runs `make check`,
+`version` (so a tag can never publish a mismatched artifact) and that it isn't a
+`-dev` version, runs `make check`,
 then `make release`. Publishing authenticates against the registry with an API
 token read from the `NPR_API_KEY` environment variable — provided in CI by a
 repository secret of the same name.
