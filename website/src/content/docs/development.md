@@ -3,7 +3,7 @@ title: Development
 description: Building, project layout, CI, and releasing nf-diff.
 ---
 
-The project builds with Gradle via the `io.nextflow.nextflow-plugin` build plugin. Common tasks are wrapped in the `Makefile`:
+The project builds with Gradle via the `io.nextflow.nextflow-plugin` build plugin, which compiles with a Java 21 toolchain. Gradle itself runs on Java 17 or later; if no Java 21 is installed, the build downloads one into `~/.gradle/jdks` on first use. Common tasks are wrapped in the `Makefile`:
 
 ```bash
 make compile    # compile Groovy sources

@@ -1,1 +1,8 @@
+plugins {
+    // Lets Gradle download the Java 21 toolchain the build needs when no
+    // matching JDK is installed, so `./gradlew test` works on a machine
+    // that only has an older Java to run Gradle itself.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.10.0'
+}
+
 rootProject.name = 'nf-diff'
