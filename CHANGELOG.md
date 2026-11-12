@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Compare each task's input files.** `--diff-inputs` (also part of
+  `--diff-all`) follows the input links Nextflow staged into each matched
+  task's work directory and compares the files they point at, so when a
+  result changed you can see whether its inputs did. Inputs both runs took
+  from the same file are unchanged without being read; the rest are compared
+  like outputs, including line diffs and staged folders.
+
 - **Gzipped outputs are compared by content.** `--diff-outputs` and
   `--published-a`/`-b` used to compare `.gz` files byte for byte, but `gzip`
   writes a timestamp and file name into its header, so identical results

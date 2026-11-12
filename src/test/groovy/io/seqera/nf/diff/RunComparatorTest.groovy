@@ -497,6 +497,36 @@ class RunComparatorTest extends Specification {
         diff.regressions[0].pctDelta == Double.POSITIVE_INFINITY
     }
 
+    def '--diff-inputs reports a changed staged input and counts it as a difference'() {
+        given: 'the same task in both runs, staging different versions of an input'
+        def mk = { String run, String content ->
+            def src = java.nio.file.Files.write(projectDir.resolve("${run}-reads.tsv".toString()), content.bytes)
+            def dir = java.nio.file.Files.createDirectories(projectDir.resolve("work-${run}".toString()))
+            java.nio.file.Files.createSymbolicLink(dir.resolve('reads.tsv'), src)
+            def t = task(process: 'COUNT', name: 'COUNT (1)', hash: 'h', display: [status: 'COMPLETED'])
+            t.workdir = dir.toString()
+            snap(run, [t])
+        }
+        def a = mk('A', 'r1\t10\n')
+        def b = mk('B', 'r1\t11\n')
+
+        when:
+        def off = new RunComparator().compare(a, b)
+        def on = new RunComparator(new CompareOptions(diffInputs: true)).compare(a, b)
+
+        then: 'without the layer nothing differs'
+        off.identical
+        !off.diffInputs
+
+        and: 'with it, the input change is reported in every format and breaks identical'
+        !on.identical
+        on.inputsChangedCount() == 1
+        on.inputs[0].files[0].path == 'reads.tsv'
+        new MarkdownReportRenderer().render(on).contains('## Input files')
+        new HtmlReportRenderer().render(on).contains('<section id="inputs"')
+        (new groovy.json.JsonSlurper().parseText(new JsonReportRenderer().render(on)) as Map).summary.inputsChanged == 1
+    }
+
     def 'improvements are captured but not counted as regressions'() {
         given: 'run B is twice as fast'
         def a = snap('runA', [task(process: 'FOO', name: 'FOO (1)', hash: 'h',

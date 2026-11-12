@@ -51,6 +51,7 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 | `--exclude=<globs>`    | Comma-separated process-name globs to drop from the comparison; applied after `--only`           |
 | `--perf-threshold=<pct>` | Percentage change beyond which a task metric (runtime, peak memory) is flagged in the performance-regressions layer (default: `25`). Must be `>= 0`; `0` flags any measurable change. Runtime changes under 1 s are never flagged (below Nextflow's timing resolution in BusyBox-based containers). |
 | `--diff-outputs`       | Compare the output files each matched task wrote to its work directory (by size, then SHA-256 for same-size files). Changed text files are additionally diffed line by line; binary files show a size/hash change only. Gzip files are compared by their decompressed content, so a different `gzip` timestamp alone is not a change. Requires the tasks' work directories to still exist locally. When enabled, an output-file change counts toward `--fail-on-change`. |
+| `--diff-inputs`        | Compare the input files staged into each matched task's work directory (Nextflow's input symlinks, followed to the files they point at). An input both runs took from the same file is unchanged without being read; others are compared by size, SHA-256 and a line diff for text, and a staged folder has the files inside it compared. Shows whether a changed result came from changed inputs. Needs the work directories locally; inputs staged by copy aren't covered. A changed input counts toward `--fail-on-change`. |
 | `--outputs-max-bytes=<n>` | With `--diff-outputs`, skip hashing same-size files larger than `<n>` bytes (they are reported as content-unverified). Default `0` = no limit. |
 | `--outputs-max-lines=<n>` | With `--diff-outputs`, keep only the first `<n>` lines of each changed text file before line-diffing it. Default `1000`. |
 | `--outputs-ignore=<globs>` | Comma-separated file patterns left out of `--diff-outputs` and `--published-a`/`-b`, for files expected to differ between any two runs, e.g. `'*.html,versions.yml,pipeline_info/'`. A pattern without `/` matches a file or folder name anywhere; one with `/` matches the path relative to the work directory or published root, where `**` spans folders and a trailing `/` means everything under that folder. Skipped files are never hashed and never count toward `--fail-on-change`; the report says how many were skipped. Repeatable. |
@@ -58,7 +59,7 @@ nextflow plugin nf-diff:diff <runA> <runB> [options]
 | `--diff-logs`          | Compare the standard log files (`.command.out`/`.command.err`/`.command.log`) each matched task wrote to its work directory, line by line. Ideal for inspecting why a task's exit code changed. Requires the tasks' work directories to still exist locally. Informational only: never affects `--fail-on-change`. |
 | `--logs-max-lines=<n>` | With `--diff-logs`, keep only the last `<n>` lines of each log file before diffing. Default `200`. |
 | `--diff-dag`           | Reconstruct each run's process→process wiring and diff the two edge sets, surfacing added/removed edges (a rewired pipeline). Reads the authoritative `.lineage/` data-lineage store when present (`lineage.enabled = true`, no work dirs needed); otherwise infers edges from the input symlinks staged into task work directories, which must still exist locally (best-effort when some were cleaned up). Informational only: never affects `--fail-on-change`. |
-| `--diff-all`           | Enable all three work-dir layers at once (`--diff-outputs`, `--diff-logs`, `--diff-dag`); they share the same precondition (the tasks' work directories must still exist locally). Enables only — a later explicit `--diff-<layer>=false` can still switch an individual layer back off. |
+| `--diff-all`           | Enable all four work-dir layers at once (`--diff-outputs`, `--diff-inputs`, `--diff-logs`, `--diff-dag`); they share the same precondition (the tasks' work directories must still exist locally). Enables only — a later explicit `--diff-<layer>=false` can still switch an individual layer back off. |
 | `--detect-renames=<bool>` | Pair a process found only in run A with one found only in run B as one **renamed** process (e.g. `EXAMPLEFOO` → `EXAMPLE_FOO`) when they did the same work, and compare their tasks across the rename. On by default; `--detect-renames=false` reports them as removed and added instead. See [How it works](how-it-works.md) for the matching rules. |
 | `--fail-on-change`     | Exit with code `3` if the runs are not identical (useful in CI)                                  |
 | `-q`, `--quiet`, `--summary-only` | Print only the summary block (the `N changed, …` line); skip rendering and writing the full report. Handy for CI logs where the report body is noise. Exit-code behaviour (including `--fail-on-change`) is unaffected. |
@@ -110,7 +111,7 @@ nextflow plugin nf-diff:diff --last --diff-logs
 # See whether the process wiring changed (edges added/removed between runs)
 nextflow plugin nf-diff:diff --last --diff-dag
 
-# Enable all three work-dir layers at once (outputs + logs + dag)
+# Enable all four work-dir layers at once (outputs + inputs + logs + dag)
 nextflow plugin nf-diff:diff --last --diff-all --output=compare.html
 
 # Inspect a project in another directory, with every field flagged
@@ -500,8 +501,8 @@ subdirectory (e.g. `demo/pipeline-logs`).
 | `fail-on-change` | `false` | Fail the action (exit 3) if the runs are not identical. |
 | `only` / `exclude` | — | Process-name globs to include / drop. |
 | `perf-threshold` | — | Percent change beyond which a task metric is flagged (plugin default: 25). |
-| `diff-outputs` / `diff-logs` / `diff-dag` | `false` | Enable individual work-dir layers (require work dirs to still exist). |
-| `diff-all` | `true` | Enable all three work-dir layers (outputs + logs + DAG; require work dirs to still exist). |
+| `diff-outputs` / `diff-inputs` / `diff-logs` / `diff-dag` | `false` | Enable individual work-dir layers (require work dirs to still exist). |
+| `diff-all` | `true` | Enable all four work-dir layers (outputs + inputs + logs + DAG; require work dirs to still exist). |
 | `verbose` | `false` | Also diff always-changing fields. |
 | `dir` | `.` | Project directory containing `.nextflow/`. |
 | `dir-a` / `dir-b` | — | Per-run project directory for run A / run B (falls back to `dir`). |

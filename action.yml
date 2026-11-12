@@ -57,6 +57,10 @@ inputs:
     description: 'Compare the output files each matched task wrote to its work dir.'
     required: false
     default: 'false'
+  diff-inputs:
+    description: 'Compare the input files staged into each matched task''s work dir.'
+    required: false
+    default: 'false'
   diff-logs:
     description: 'Compare per-task .command.out/.err/.log line by line.'
     required: false
@@ -66,7 +70,7 @@ inputs:
     required: false
     default: 'false'
   diff-all:
-    description: 'Enable all three work-dir layers at once (outputs + logs + dag).'
+    description: 'Enable all four work-dir layers at once (outputs + inputs + logs + dag).'
     required: false
     default: 'true'
   verbose:
@@ -187,6 +191,7 @@ runs:
         INPUT_EXCLUDE: ${{ inputs.exclude }}
         INPUT_PERF_THRESHOLD: ${{ inputs.perf-threshold }}
         INPUT_DIFF_OUTPUTS: ${{ inputs.diff-outputs }}
+        INPUT_DIFF_INPUTS: ${{ inputs.diff-inputs }}
         INPUT_DIFF_LOGS: ${{ inputs.diff-logs }}
         INPUT_DIFF_DAG: ${{ inputs.diff-dag }}
         INPUT_DIFF_ALL: ${{ inputs.diff-all }}
@@ -242,6 +247,7 @@ runs:
         [[ -n "$INPUT_EXCLUDE" ]] && base_args+=("--exclude=$INPUT_EXCLUDE")
         [[ -n "$INPUT_PERF_THRESHOLD" ]] && base_args+=("--perf-threshold=$INPUT_PERF_THRESHOLD")
         [[ "$INPUT_DIFF_OUTPUTS" == 'true' ]] && base_args+=(--diff-outputs)
+        [[ "$INPUT_DIFF_INPUTS" == 'true' ]] && base_args+=(--diff-inputs)
         [[ "$INPUT_DIFF_LOGS" == 'true' ]] && base_args+=(--diff-logs)
         [[ "$INPUT_DIFF_DAG" == 'true' ]] && base_args+=(--diff-dag)
         [[ "$INPUT_DIFF_ALL" == 'true' ]] && base_args+=(--diff-all)

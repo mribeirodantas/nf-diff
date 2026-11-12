@@ -828,6 +828,30 @@ class DiffResult {
      */
     String outputsNote
 
+    /**
+     * Whether the input-diff layer was computed. When false, {@link #inputs}
+     * is empty and input content never affects {@link #isIdentical()}.
+     */
+    boolean diffInputs = false
+
+    /**
+     * Per-task comparison of the input files staged into each matched task's
+     * work directory ({@link InputComparator}). Populated only when
+     * {@link #diffInputs} is set; a changed input then breaks {@link #isIdentical()}.
+     */
+    List<OutputDiff> inputs = []
+
+    /** Human-readable note about the inputs layer, surfaced by renderers. */
+    String inputsNote
+
+    /** True when any compared task had a changed/added/removed staged input. */
+    boolean hasInputChanges() {
+        return diffInputs && inputs.any { it.hasChanges() }
+    }
+
+    /** Number of compared tasks whose staged inputs changed. */
+    int inputsChangedCount() { inputs.count { OutputDiff od -> od.hasChanges() } as int }
+
     /** True when any compared task produced a changed/added/removed output file. */
     boolean hasOutputChanges() {
         return diffOutputs && outputs.any { it.hasChanges() }
@@ -974,6 +998,7 @@ class DiffResult {
                 processes.every { it.unchanged } &&
                 !hasSoftwareChanges() &&
                 !hasOutputChanges() &&
+                !hasInputChanges() &&
                 !hasPublishedChanges() &&
                 (!showObvious || regressionCount() == 0)
     }

@@ -51,6 +51,7 @@ class MarkdownReportRenderer {
         renderEfficiency(sb, diff)
         renderTasks(sb, diff)
         renderOutputs(sb, diff)
+        renderInputs(sb, diff)
         renderPublished(sb, diff)
         renderLogs(sb, diff)
         renderDag(sb, diff)
@@ -270,15 +271,24 @@ class MarkdownReportRenderer {
     }
 
     private void renderOutputs(StringBuilder sb, DiffResult diff) {
-        if( !diff.diffOutputs )
-            return
-        sb << '## Output files\n\n'
-        if( diff.outputsNote )
-            sb << "> ${cell(diff.outputsNote)}\n\n"
+        if( diff.diffOutputs )
+            renderTaskFiles(sb, 'Output files', 'output', diff.outputsNote, diff.outputs)
+    }
 
-        final changed = diff.outputs.findAll { DiffResult.OutputDiff od -> od.hasChanges() }
+    private void renderInputs(StringBuilder sb, DiffResult diff) {
+        if( diff.diffInputs )
+            renderTaskFiles(sb, 'Input files', 'input', diff.inputsNote, diff.inputs)
+    }
+
+    /** One section of per-task file comparisons (outputs or staged inputs). */
+    private void renderTaskFiles(StringBuilder sb, String title, String noun, String note, List<DiffResult.OutputDiff> diffs) {
+        sb << "## ${title}\n\n"
+        if( note )
+            sb << "> ${cell(note)}\n\n"
+
+        final changed = diffs.findAll { DiffResult.OutputDiff od -> od.hasChanges() }
         if( changed.isEmpty() ) {
-            sb << '_No output-file differences detected._\n\n'
+            sb << "_No ${noun}-file differences detected._\n\n"
             return
         }
         changed.each { DiffResult.OutputDiff od ->
