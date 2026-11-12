@@ -525,6 +525,8 @@ class DiffResult {
         /** Human note when outputs could not be compared (missing work dir, etc.). */
         String note
         List<OutputFileDiff> files = []
+        /** Output paths skipped because they match {@code --outputs-ignore}. */
+        List<String> ignoredFiles = []
 
         List<OutputFileDiff> changedFiles() { files.findAll { it.kind == Kind.CHANGED } }
         List<OutputFileDiff> addedFiles()   { files.findAll { it.kind == Kind.ADDED } }
@@ -569,6 +571,8 @@ class DiffResult {
         /** Human note when the trees could not be compared (missing directory, etc.). */
         String note
         List<OutputFileDiff> files = []
+        /** Published paths skipped because they match {@code --outputs-ignore}. */
+        List<String> ignoredFiles = []
 
         List<OutputFileDiff> changedFiles() { files.findAll { it.kind == Kind.CHANGED } }
         List<OutputFileDiff> addedFiles()   { files.findAll { it.kind == Kind.ADDED } }

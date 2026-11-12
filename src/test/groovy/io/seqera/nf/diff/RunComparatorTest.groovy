@@ -1222,4 +1222,30 @@ class RunComparatorTest extends Specification {
         diff.processesRenamed() == 1
         diff.dag.collect { "${it.from()}->${it.to()}:${it.kind}".toString() } == ['EXAMPLE_FOO->CONSUME:UNCHANGED']
     }
+
+    def '--outputs-ignore keeps an always-different file from breaking the identical verdict'() {
+        given: 'one task whose only output difference is a timestamped report'
+        def mk = { String run, String html ->
+            def dir = java.nio.file.Files.createDirectories(projectDir.resolve(run))
+            java.nio.file.Files.write(dir.resolve('result.tsv'), 'same'.bytes)
+            java.nio.file.Files.write(dir.resolve('report.html'), html.bytes)
+            def t = task(process: 'FOO', name: 'FOO (1)', hash: 'h', display: [status: 'COMPLETED'])
+            t.workdir = dir.toString()
+            snap(run, [t])
+        }
+        def a = mk('A', '<p>generated 12:00</p>')
+        def b = mk('B', '<p>generated 13:00</p>')
+
+        when:
+        def plain = new RunComparator(new CompareOptions(diffOutputs: true)).compare(a, b)
+        def ignoring = new RunComparator(new CompareOptions(diffOutputs: true, outputsIgnore: ['*.html'])).compare(a, b)
+
+        then: 'without the pattern the report counts as a change'
+        !plain.identical
+
+        and: 'with it, the runs are identical and the note says what was skipped'
+        ignoring.identical
+        ignoring.outputs[0].ignoredFiles == ['report.html']
+        ignoring.outputsNote.contains('1 file(s) matching --outputs-ignore (`*.html`) were skipped')
+    }
 }

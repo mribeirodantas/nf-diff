@@ -56,8 +56,12 @@ class PublishedComparator {
     /** Shared per-file size/hash/line-diff engine, configured with the caps below. */
     private final FileContentComparator engine
 
-    PublishedComparator(long maxBytes = 0L, int maxLines = FileContentComparator.DEFAULT_MAX_LINES) {
+    /** Paths matching these patterns ({@code --outputs-ignore}) are skipped. */
+    private final OutputIgnore ignore
+
+    PublishedComparator(long maxBytes = 0L, int maxLines = FileContentComparator.DEFAULT_MAX_LINES, OutputIgnore ignore = OutputIgnore.NONE) {
         this.engine = new FileContentComparator(maxBytes, maxLines)
+        this.ignore = ignore ?: OutputIgnore.NONE
     }
 
     /** Compare the two published output directories. */
@@ -90,6 +94,11 @@ class PublishedComparator {
         paths.addAll(filesB.keySet())
 
         paths.each { String rel ->
+            // Expected-to-differ files are recorded, not compared (no hashing either).
+            if( ignore.ignores(rel) ) {
+                pd.ignoredFiles << rel
+                return
+            }
             pd.files << engine.compare(rel, rootA.resolve(rel), filesA.get(rel), rootB.resolve(rel), filesB.get(rel))
         }
         return pd

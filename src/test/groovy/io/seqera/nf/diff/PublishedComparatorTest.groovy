@@ -141,4 +141,18 @@ class PublishedComparatorTest extends Specification {
         pd.files.isEmpty()
         !pd.hasChanges()
     }
+
+    def 'skips published files matching --outputs-ignore, including whole folders'() {
+        given:
+        def a = published('a', ['results/x.tsv': 'same', 'pipeline_info/trace.txt': 't1', 'multiqc/report.html': 'r1'])
+        def b = published('b', ['results/x.tsv': 'same', 'pipeline_info/trace.txt': 't22', 'multiqc/report.html': 'r2', 'pipeline_info/new.txt': 'n'])
+
+        when:
+        def pd = new PublishedComparator(0L, 1000, OutputIgnore.of(['pipeline_info/', 'multiqc/*.html'])).compare(a, b)
+
+        then: 'an ignored file is skipped whether it changed, or exists on one side only'
+        pd.files*.path == ['results/x.tsv']
+        !pd.hasChanges()
+        pd.ignoredFiles == ['multiqc/report.html', 'pipeline_info/new.txt', 'pipeline_info/trace.txt']
+    }
 }

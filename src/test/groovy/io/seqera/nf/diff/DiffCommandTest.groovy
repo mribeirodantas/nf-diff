@@ -372,4 +372,12 @@ class DiffCommandTest extends Specification {
         'false' | false
         'true'  | true
     }
+
+    def '--outputs-ignore takes comma-separated globs and is repeatable'() {
+        when:
+        def cmd = parse(['runA', 'runB', '--outputs-ignore=*.html, versions.yml', '--outputs-ignore', 'pipeline_info/'])
+
+        then:
+        cmd.outputsIgnore == ['*.html', 'versions.yml', 'pipeline_info/']
+    }
 }

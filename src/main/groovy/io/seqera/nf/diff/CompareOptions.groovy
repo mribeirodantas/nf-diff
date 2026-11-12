@@ -68,6 +68,12 @@ class CompareOptions {
     /** Max leading lines kept per side when line-diffing a changed text output file. */
     int outputsMaxLines = OutputComparator.DEFAULT_MAX_LINES
 
+    /**
+     * File patterns ({@code --outputs-ignore}) left out of the work-dir outputs
+     * and published-results comparisons; see {@link OutputIgnore}.
+     */
+    List<String> outputsIgnore = []
+
     /** When true, compare the standard log files each matched task wrote. */
     boolean diffLogs = false
 

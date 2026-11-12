@@ -162,6 +162,7 @@ class JsonReportRenderer {
                 hasChanges : od.hasChanges(),
                 note       : od.note,
                 files      : od.files.collect { outputFileModel(it) },
+                ignoredFiles: od.ignoredFiles,
         ] as Map<String,Object>
     }
 
@@ -176,6 +177,7 @@ class JsonReportRenderer {
                 changedCount: pd.changedCount(),
                 note        : pd.note,
                 files       : pd.files.collect { outputFileModel(it) },
+                ignoredFiles: pd.ignoredFiles,
         ] as Map<String,Object>
     }
 
