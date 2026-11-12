@@ -323,4 +323,63 @@ class FileContentComparatorTest extends Specification {
         fd.kind == Kind.CHANGED
         !fd.decompressed
     }
+
+    // ------------------------------------------------------- numeric tolerance
+
+    def 'a text file that differs only in floating-point noise is unchanged under tolerance'() {
+        given:
+        def a = file('a.tsv', 'gene\tscore\nBRCA1\t0.30000000000000004\nTP53\t1.5e-3\n')
+        def b = file('b.tsv', 'gene\tscore\nBRCA1\t0.3\nTP53\t1.5000001e-3\n')
+
+        when:
+        def exact = compare(new FileContentComparator(), 'x.tsv', a, b)
+        def tolerant = compare(new FileContentComparator(0L, 1000, 1e-6d), 'x.tsv', a, b)
+
+        then:
+        exact.kind == Kind.CHANGED
+        tolerant.kind == Kind.UNCHANGED
+        tolerant.withinTolerance
+        tolerant.note == 'differs only in numbers within tolerance 1.0E-6'
+    }
+
+    def 'a real change is still changed, and the line diff skips within-tolerance lines'() {
+        given:
+        def a = file('a.tsv', 'BRCA1\t0.30000000000000004\nTP53\t10\n')
+        def b = file('b.tsv', 'BRCA1\t0.3\nTP53\t12\n')
+
+        when:
+        def fd = compare(new FileContentComparator(0L, 1000, 1e-6d), 'x.tsv', a, b)
+
+        then: 'only the TP53 line shows as changed'
+        fd.kind == Kind.CHANGED
+        !fd.withinTolerance
+        fd.linesRemoved() == 1
+        fd.linesAdded() == 1
+        fd.ops.find { it.type == LineDiff.Type.DELETE }.text == 'TP53\t10'
+        fd.ops.find { it.type == LineDiff.Type.EQUAL }.text == 'BRCA1\t0.30000000000000004'
+    }
+
+    def 'tolerance applies to gzipped text too'() {
+        given:
+        def a = file('a.tsv.gz', gz('x\t0.1\ny\t2.00000001\n'))
+        def b = file('b.tsv.gz', gz('x\t0.1\ny\t2.00000002\n'))
+
+        when:
+        def fd = compare(new FileContentComparator(0L, 1000, 1e-6d), 'x.tsv.gz', a, b)
+
+        then:
+        fd.kind == Kind.UNCHANGED
+        fd.decompressed
+        fd.withinTolerance
+        fd.note == 'gzip: differs only in numbers within tolerance 1.0E-6'
+    }
+
+    def 'an extra line is a change even when every shared line is within tolerance'() {
+        given:
+        def a = file('a.txt', 'v 1.0\n')
+        def b = file('b.txt', 'v 1.0000000001\nv 2\n')
+
+        expect:
+        compare(new FileContentComparator(0L, 1000, 1e-6d), 'x', a, b).kind == Kind.CHANGED
+    }
 }

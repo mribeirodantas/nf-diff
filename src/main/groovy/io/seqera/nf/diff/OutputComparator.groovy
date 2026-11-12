@@ -65,8 +65,8 @@ class OutputComparator {
     /** Paths matching these patterns ({@code --outputs-ignore}) are skipped. */
     private final OutputIgnore ignore
 
-    OutputComparator(long maxBytes = 0L, int maxLines = DEFAULT_MAX_LINES, OutputIgnore ignore = OutputIgnore.NONE) {
-        this.engine = new FileContentComparator(maxBytes, maxLines)
+    OutputComparator(long maxBytes = 0L, int maxLines = DEFAULT_MAX_LINES, OutputIgnore ignore = OutputIgnore.NONE, double numericTolerance = 0.0d) {
+        this.engine = new FileContentComparator(maxBytes, maxLines, numericTolerance)
         this.ignore = ignore ?: OutputIgnore.NONE
     }
 

@@ -16,6 +16,8 @@
 
 package io.seqera.nf.diff
 
+import java.util.function.BiPredicate
+
 import groovy.transform.CompileStatic
 
 /**
@@ -41,6 +43,16 @@ class LineDiff {
 
     /** Compute the diff turning {@code a} into {@code b}. */
     static List<Op> diff(List<String> a, List<String> b) {
+        return diff(a, b, null)
+    }
+
+    /**
+     * Compute the diff turning {@code a} into {@code b}, treating two lines as
+     * equal when {@code same} says so (exact string equality when null). An
+     * EQUAL op keeps run A's text.
+     */
+    static List<Op> diff(List<String> a, List<String> b, BiPredicate<String,String> same) {
+        final eq = same ?: ({ String x, String y -> x == y } as BiPredicate<String,String>)
         final n = a.size()
         final m = b.size()
 
@@ -48,7 +60,7 @@ class LineDiff {
         final dp = new int[n + 1][m + 1]
         for( int i = n - 1; i >= 0; i-- ) {
             for( int j = m - 1; j >= 0; j-- ) {
-                if( a.get(i) == b.get(j) )
+                if( eq.test(a.get(i), b.get(j)) )
                     dp[i][j] = dp[i + 1][j + 1] + 1
                 else
                     dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1])
@@ -60,7 +72,7 @@ class LineDiff {
         int i = 0
         int j = 0
         while( i < n && j < m ) {
-            if( a.get(i) == b.get(j) ) {
+            if( eq.test(a.get(i), b.get(j)) ) {
                 ops.add(new Op(Type.EQUAL, a.get(i)))
                 i++; j++
             }

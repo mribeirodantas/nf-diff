@@ -389,4 +389,16 @@ class DiffCommandTest extends Specification {
         then:
         cmd.outputsIgnore == ['*.html', 'versions.yml', 'pipeline_info/']
     }
+
+    def '--numeric-tolerance parses a number and rejects negatives'() {
+        expect:
+        parse(['runA', 'runB']).numericTolerance == 0.0d
+        parse(['runA', 'runB', '--numeric-tolerance=1e-6']).numericTolerance == 1e-6d
+
+        when:
+        parse(['runA', 'runB', '--numeric-tolerance=-1'])
+
+        then:
+        thrown(DiffCommand.UsageException)
+    }
 }
