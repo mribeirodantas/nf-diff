@@ -43,13 +43,20 @@ dev-repo: assemble
 # `nextflow` binary on PATH (CI pins its version via NXF_VER).
 #
 # NXF_HOME is pinned to a fresh, build-local directory so the test is hermetic:
-# Nextflow always extracts the just-built plugin from the dev repo (never a
-# stale same-version copy already unpacked under ~/.nextflow/plugins), and a
+# no stale same-version copy already unpacked under ~/.nextflow/plugins, and a
 # developer's personal ~/.nextflow/config (e.g. a `plugins { id 'nf-diff@x' }`
 # pin) can neither influence nor break the run. This also makes local behaviour
 # match CI, where no such home exists.
+#
+# A fresh home alone is not enough: when build.gradle's version matches a
+# published release, Nextflow downloads that release from the official
+# registry instead of the dev repo's zip. smoke.sh therefore pre-installs
+# NF_DIFF_ZIP into $NXF_HOME/plugins/nf-diff-<version>/ and, after the runs,
+# asserts the installed plugin is still byte-identical to that zip.
 smoke: dev-repo
 	@rm -rf "$(CURDIR)/build/nxf-home-smoke"
 	NXF_PLUGINS_TEST_REPOSITORY="file://$(CURDIR)/build/plugin-repo/plugins.json" \
 	NXF_HOME="$(CURDIR)/build/nxf-home-smoke" \
+	NF_DIFF_ZIP="$(CURDIR)/build/distributions/nf-diff-$(VERSION).zip" \
+	NF_DIFF_VERSION="$(VERSION)" \
 	./e2e/smoke.sh
