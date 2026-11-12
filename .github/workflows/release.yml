@@ -38,6 +38,12 @@ jobs:
             echo "::error::Tag v$TAG does not match build.gradle version $GRADLE_VERSION"
             exit 1
           fi
+          # Between releases main carries a '-dev' version so local builds never
+          # share a number with a published release; never publish one.
+          if [[ "$GRADLE_VERSION" == *-dev ]]; then
+            echo "::error::build.gradle version $GRADLE_VERSION is a development version; drop the -dev suffix in the release commit"
+            exit 1
+          fi
 
       # Never publish a red build: run the full check suite first.
       - name: Compile + test + checks
