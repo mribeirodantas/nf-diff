@@ -34,7 +34,11 @@ class OutputComparatorTest extends Specification {
         Files.write(dir.resolve('.command.sh'), 'echo hi'.bytes)
         Files.write(dir.resolve('.command.out'), 'stdout differs across runs'.bytes)
         Files.write(dir.resolve('.exitcode'), '0'.bytes)
-        files.each { fname, content -> Files.write(dir.resolve(fname), content.bytes) }
+        files.each { fname, content ->
+            def f = dir.resolve(fname)
+            Files.createDirectories(f.parent)
+            Files.write(f, content.bytes)
+        }
         return dir
     }
 
@@ -251,5 +255,19 @@ class OutputComparatorTest extends Specification {
         !f.verified
         f.note?.contains('not verified')
         !od.hasChanges()
+    }
+
+    def 'skips files matching --outputs-ignore and records them'() {
+        given: 'a changed result, plus a report and versions file that always differ'
+        def a = workdir('a', ['result.tsv': 'same', 'report.html': '<p>12:00</p>', 'sub/versions.yml': 'v: 1'])
+        def b = workdir('b', ['result.tsv': 'same', 'report.html': '<p>13:00</p>', 'sub/versions.yml': 'v: 2'])
+
+        when:
+        def od = new OutputComparator(0L, 1000, OutputIgnore.of(['*.html', 'versions.yml'])).compare(task(a.toString()), task(b.toString()))
+
+        then: 'only the result is compared, and it is unchanged'
+        od.files*.path == ['result.tsv']
+        !od.hasChanges()
+        od.ignoredFiles == ['report.html', 'sub/versions.yml']
     }
 }

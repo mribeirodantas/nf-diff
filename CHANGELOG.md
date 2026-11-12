@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   session id and run name so `-resume` runs stay distinct. Nextflow keeps only
   the ten most recent logs, so older runs still show no version row.
 
+- **Ignore expected differences in outputs.** `--outputs-ignore=<globs>` leaves
+  files that differ on every run by design (timestamped reports,
+  `versions.yml`, `pipeline_info/`) out of `--diff-outputs` and
+  `--published-a`/`-b`, so they no longer fail `--fail-on-change`. Patterns
+  follow `.gitignore`-style rules; the report says how many files were skipped.
+
 ### Fixed
 
 - **The HTML report now fits phone screens.** Below 820 px wide, the content

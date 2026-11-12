@@ -115,6 +115,9 @@ class DiffCommand {
      */
     int outputsMaxLines = OutputComparator.DEFAULT_MAX_LINES
 
+    /** File patterns left out of the outputs and published comparisons ({@code --outputs-ignore}). */
+    List<String> outputsIgnore = []
+
     /** When true, compare the standard log files each matched task wrote. */
     boolean diffLogs = false
 
@@ -212,6 +215,7 @@ class DiffCommand {
         opts.diffOutputs = diffOutputs
         opts.outputsMaxBytes = outputsMaxBytes
         opts.outputsMaxLines = outputsMaxLines
+        opts.outputsIgnore = outputsIgnore
         opts.diffLogs = diffLogs
         opts.logsMaxLines = logsMaxLines
         opts.diffDag = diffDag
@@ -368,6 +372,9 @@ ${reportLine}"""
                     break
                 case '--outputs-max-lines':
                     outputsMaxLines = cur.intValue(1, 'an integer')
+                    break
+                case '--outputs-ignore':
+                    outputsIgnore.addAll(splitGlobs(cur.requireValue()))
                     break
                 case '--diff-logs':
                     diffLogs = cur.boolValue()
@@ -699,6 +706,15 @@ Options:
                        When --diff-outputs is set, keep only the first <n> lines
                        of each changed text file before line-diffing it
                        (default: 1000).
+  --outputs-ignore=<globs>
+                       Comma-separated file patterns left out of --diff-outputs
+                       and --published-a/-b, for files expected to differ
+                       between runs (e.g. '*.html,versions.yml,pipeline_info/').
+                       A pattern without '/' matches a file or folder name
+                       anywhere; one with '/' matches the relative path, where
+                       '**' spans folders. Skipped files never count toward
+                       --fail-on-change; the report says how many were skipped.
+                       Repeatable.
   --published-a=<dir>  Compare the two runs' published output directories
   --published-b=<dir>  (their outdir / publishDir trees) instead of — or in
                        addition to — the per-task work-dir outputs. Give both:
