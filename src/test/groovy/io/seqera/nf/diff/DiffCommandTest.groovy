@@ -361,4 +361,15 @@ class DiffCommandTest extends Specification {
         cmd.onlyGlobs == ['ALIGN:*']
         cmd.excludeGlobs == ['*:INDEX']
     }
+
+    def 'rename detection is on by default and --detect-renames=#value sets it'() {
+        expect:
+        parse(['runA', 'runB']).detectRenames
+        parse(['runA', 'runB', "--detect-renames=${value}".toString()]).detectRenames == expected
+
+        where:
+        value   | expected
+        'false' | false
+        'true'  | true
+    }
 }

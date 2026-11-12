@@ -78,6 +78,14 @@ class CompareOptions {
     boolean diffDag = false
 
     /**
+     * When true (the default), a process found only in run A and one found
+     * only in run B are paired as a rename when they did the same work (see
+     * {@link ProcessRenameDetector}). Set false to report them as removed and
+     * added instead.
+     */
+    boolean detectRenames = true
+
+    /**
      * When true, compare the two runs' published output directories
      * ({@link #publishedDirA} / {@link #publishedDirB}). Set implicitly by
      * {@link DiffCommand} when both directories are supplied.

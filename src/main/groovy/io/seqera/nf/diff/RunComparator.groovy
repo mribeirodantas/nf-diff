@@ -195,6 +195,9 @@ class RunComparator {
     /** When true, reconstruct and diff each run's process&#8594;process wiring. */
     private final boolean diffDag
 
+    /** When true, pair processes renamed between the runs (see {@link ProcessRenameDetector}). */
+    private final boolean detectRenames
+
     /** When true, compare the two runs' published output directories. */
     private final boolean diffPublished
 
@@ -216,6 +219,7 @@ class RunComparator {
         this.logsMaxLines = opts.logsMaxLines
         this.outputsMaxLines = opts.outputsMaxLines
         this.diffDag = opts.diffDag
+        this.detectRenames = opts.detectRenames
         this.diffPublished = opts.diffPublished
         this.publishedDirA = opts.publishedDirA
         this.publishedDirB = opts.publishedDirB
@@ -310,7 +314,7 @@ class RunComparator {
         // otherwise show as one removed and one added process, with all its
         // tasks unmatched. Compare the task-level layers against a view of run
         // A that uses run B's names for those processes.
-        final renames = new ProcessRenameDetector().detect(a, b)
+        final renames = detectRenames ? new ProcessRenameDetector().detect(a, b) : new ArrayList<ProcessRenameDetector.Rename>()
         final renameMap = new LinkedHashMap<String,String>()
         renames.each { ProcessRenameDetector.Rename r ->
             renameMap.put(r.from, r.to)

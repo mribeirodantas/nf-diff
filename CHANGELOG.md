@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   → `EXAMPLE_FOO`), nf-diff now compares what they ran — task scripts, tags,
   task count, container/Conda environment and name similarity — and reports
   a match as one *renamed* process, with the evidence. Its tasks are then
-  compared field by field across the rename in every layer.
+  compared field by field across the rename in every layer. Turn it off
+  with `--detect-renames=false`.
 
 - **Nextflow version is compared even without a lineage store.** When a run
   has no `.lineage/` record, the Nextflow version and build are now recovered
