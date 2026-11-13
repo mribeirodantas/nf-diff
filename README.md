@@ -46,7 +46,11 @@ A single, standalone HTML document — inline CSS/JS/SVG, no network access, lig
 Use the published plugin directly with Nextflow, or configure the local repository described below when testing an unpublished build.
 
 - **Nextflow** `>= 25.04.0`, **Java** 17+
-- Two runs present in the local `.nextflow/history` of the project you're inspecting
+- Two runs present in the local `.nextflow/history` of the project you're inspecting, or saved in the [central run archive](docs/usage.md#central-run-archive)
+
+### Comparing after you delete `work/`
+
+To compare a run after its work directory or project is deleted, have `nf-diff` save each run when it finishes. Load the plugin in the pipeline and set `diff.archive.enabled = true` (with `mode = 'complete'` to keep task outputs and logs). This doesn't need Nextflow's data lineage. See [Central run archive](docs/usage.md#central-run-archive).
 
 ## Examples
 
@@ -92,7 +96,7 @@ See **[docs/usage.md (GitHub Action)](docs/usage.md#github-action)** for complet
 
 The full reference is published at **[mribeirodantas.github.io/nf-diff](https://mribeirodantas.github.io/nf-diff/)**, built from the Markdown in **[`docs/`](docs/README.md)**:
 
-- **[Usage](docs/usage.md)** — installation, every option, examples, sample output, exit codes.
+- **[Usage](docs/usage.md)** — installation, every option, examples, sample output, exit codes, the central run archive.
 - **[Comparison layers](docs/layers.md)** — what each layer detects and the meaningful-vs-everything verdict.
 - **[How it works](docs/how-it-works.md)** — how a run is reconstructed and compared internally.
 - **[Development](docs/development.md)** — building, layout, CI, and releasing.
