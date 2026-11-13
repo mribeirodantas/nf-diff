@@ -172,6 +172,17 @@ By default `nf-diff` is entirely passive: it does nothing at the end of a pipeli
 
 The central run archive lifts that limitation. When a pipeline **opts in** via config, `nf-diff` registers an end-of-run trace observer that snapshots each finished run into a shared archive directory. Later, `diff` transparently falls back to that archive whenever a requested run is no longer in the local history — so you can still compare runs long after their working directories are gone.
 
+Typical uses:
+
+- You clean up `work/` (or the whole project directory) after each run to save space, but want to compare a future run against it.
+- A CI runner's workspace is thrown away after every job, but you want to compare against an earlier job's run.
+- You don't use Nextflow's data lineage (`lineage.enabled`). The archive doesn't need it: it is written by `nf-diff` itself from the run's trace records.
+
+Two things to know up front:
+
+- **Archiving must be enabled before the run.** The snapshot is taken while the run finishes; there is no command to archive a run after the fact, so a run whose work directory is already gone can't be added later.
+- **One run can be archived and the other live.** Each run is looked up on its own (local history first, then the archive), so you can compare an archived run with a run that is still on disk.
+
 Enable it in the pipeline's `nextflow.config`. Archiving runs during a normal `nextflow run`, so the pipeline must **load the plugin** — the `diff.archive.*` settings alone do nothing unless `nf-diff` is an active plugin for that run. Declare it in the `plugins` block (or pass `-plugins nf-diff@<version>` on the command line):
 
 ```groovy
@@ -192,7 +203,7 @@ diff {
 > The bare-id caveat for the `nextflow plugin nf-diff:diff` CLI verb does **not** apply here: in a `plugins` block you pin an explicit version (`nf-diff@<version>`), exactly like any other Nextflow plugin.
 
 - **`enabled`** — When `false` (the default) the observer is never registered and nothing happens at the end of a run. Existing users see no behaviour change.
-- **`mode`** — `'lightweight'` stores only run-level metadata and per-task trace fields (enough for the summary, performance, and resource layers). `'complete'` additionally copies each task's output files and `.command.out`/`.command.err`/`.command.log` into the archive, so the output- and log-diff layers keep working after the work directories are deleted. Staged **input** symlinks are intentionally *not* copied, to avoid dragging large upstream inputs into the archive.
+- **`mode`** — `'lightweight'` stores only run-level metadata and per-task trace fields (enough for the summary, performance, and resource layers). `'complete'` additionally copies each task's output files and `.command.out`/`.command.err`/`.command.log` into the archive, so the output- and log-diff layers keep working after the work directories are deleted. Staged **input** symlinks are intentionally *not* copied, to avoid dragging large upstream inputs into the archive. See [Choosing a mode](#choosing-a-mode).
 - **`dir`** — Where snapshots are written. Resolution order (shared by the writer and the `diff` reader, so a custom location stays consistent): the explicit config value / `--archive-dir`, then the `NXF_DIFF_ARCHIVE_DIR` environment variable, then the default `$NXF_HOME/nf-diff/archive` (falling back to `~/.nextflow/nf-diff/archive` when `NXF_HOME` is unset).
 
 Each run is stored as `<sessionId>_<runName>.json` (`-resume` runs share a session id, so the run name keeps them apart; legacy `<sessionId>.json` entries are still read); in `complete` mode its task files live alongside under `<sessionId>_<runName>/tasks/`. Reading is automatic — `diff` checks the local history first and only consults the archive as a fallback — but you can point at a non-default location explicitly with `--archive-dir=<dir>`:
@@ -201,7 +212,30 @@ Each run is stored as `<sessionId>_<runName>.json` (`-resume` runs share a sessi
 # On the machine that ran the pipeline (with diff.archive.enabled = true), the run
 # is written to the archive automatically. Later, even after the project is deleted:
 nextflow plugin nf-diff:diff run_one run_two --archive-dir=/shared/nf-diff-archive
+
+# Compare an archived run whose work/ was deleted with a new run that is still on
+# disk. Run this from the new run's project directory; the old run is found in the
+# archive, the new one in the local history.
+nextflow plugin nf-diff:diff old_run new_run --diff-outputs --archive-dir=/shared/nf-diff-archive
 ```
+
+The archive is a plain directory of JSON files (plus copied task files in `complete` mode), so you can move or copy it, for example to shared storage, and read it from anywhere with `--archive-dir`.
+
+### Choosing a mode
+
+| Layer | `lightweight` | `complete` |
+|-------|:-------------:|:----------:|
+| Metadata, processes, tasks, software, failures, performance, efficiency | ✓ | ✓ |
+| Outputs (`--diff-outputs`) | — | ✓ |
+| Logs (`--diff-logs`) | — | ✓ |
+| Inputs (`--diff-inputs`) | — | — |
+| DAG / wiring (`--diff-dag`), work-dir fallback | — | — |
+
+- **`lightweight`** is small (one JSON file per run) and is enough to see *whether* and *where* two runs differ.
+- **`complete`** is what you need to see *what* changed in task outputs and logs after `work/` is gone. It copies every task's output files, so the archive grows roughly with the size of your pipeline's intermediate and final outputs. It is still smaller than a full `work/` directory, because staged inputs are not copied.
+- **Inputs and DAG** need the staged input symlinks, which are never archived. (The DAG layer can still use a `.lineage/` store if there's one in the directory you run `diff` from.)
+- **Remote work directories** (for example on S3) are not copied; only work directories readable as local paths are. Tasks whose work directory isn't available locally fall back to lightweight.
+- **Parameters and configuration** are not stored in the archive. When you run `diff`, they are rebuilt from each run's saved launch command and the files in the directory you run it from. If a `-params-file` or `-c` config has since been deleted or edited, the archived run's configuration will be incomplete or show the current files.
 
 The observer is best-effort and never fails the pipeline: if archiving hits an error it is logged to `.nextflow.log` (grep for `nf-diff`) rather than aborting the run.
 
